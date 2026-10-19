@@ -20,3 +20,6 @@
 - Career health: frontline injuries shorten lifespan / slow healing / can kill.
 - Timed Anki mode (start button; 10/20/50-card sprints).
 - Intelligence agency: small corps of agents (smaller than police/military), surveillance, plot detection, counter-coup, can be abused by leaders.
+
+# Temporary
+- OB/GYN Oral Boards study mode (v7.5) lives between `/* ===== OB/GYN ORAL BOARDS` and `END OB/GYN ORAL BOARDS ===== */` in src/index.html, plus hooks tagged `ob` (session button, obBox in study tab, `m.t==='ob'` modal, obClick case, `G.ob.buff` in birthRisk). Remove after the user's exam when asked.
