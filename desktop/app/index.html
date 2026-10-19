@@ -320,11 +320,12 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.1</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.2</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
     <button class="btn pri lg" data-a="tab" data-v="study">Log study</button>
+    <span id="deskBtns" hidden><button class="btn lg" data-a="saveNow" title="Save now">💾 Save</button><button class="btn lg" data-a="saveQuit" title="Save and close the app">Save &amp; Quit</button></span>
   </header>
   <div id="session"></div>
   <div id="gate"></div>
@@ -2517,6 +2518,7 @@ let CHEER=0;
 // settler sprites: each settler is drawn into its own small canvas ~10 times a second and copied every frame
 const SPR=new Map(), SPR_FPS=window.desktop?15:10, SPR_MX=54, SPR_MY=128, SPR_H=146;
 function drawPersonCached(c,a,s,t,opt){
+  if(fullRate()){ drawPerson(c,a,s,t,opt); return; }
   const pose=opt.pose||a.pose; if(pose==='down'||pose==='bed'||pose==='stretcher'||pose==='ride'){ drawPerson(c,a,s,t,opt); return; }
   const S=DPR*SC; let E=SPR.get(s.id);
   if(!E){ const cv2=document.createElement('canvas'); E={cv:cv2,cx:cv2.getContext('2d'),t:-9,key:'',ph:(s.id%7)/70}; SPR.set(s.id,E); }
@@ -5062,7 +5064,10 @@ function citModal(){ const P=citPolicy(), A=G.settlers.filter(isAdult), C=A.filt
 
 // room art is cached and redrawn about 10 times a second; settlers are still drawn every frame
 const ROOM_CACHE=new Map(); let ROOM_FPS=window.desktop?15:10;
+// desktop app: full-rate drawing until the vault gets big
+const fullRate=()=>DESKTOP&&G.settlers.length<180;
 function drawRoomCached(c,r,t,lit){
+  if(fullRate()){ drawRoom(c,r,t,lit); return; }
   const S=DPR*SC, m=6, x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), hgt=WD.floorH;
   const key=[r.type,r.w||1,r.level,r.floor,r.col,lit?1:0,G.flags.power?1:0,HOVER&&HOVER.room===r.id?1:0,S.toFixed(3),r.workers.length,G.officeTheme||''].join('|');
   let E=ROOM_CACHE.get(r.id);
@@ -5284,7 +5289,7 @@ const FR={ema:16,last:0};
 function frame(now){
   requestAnimationFrame(frame);
   if(!ctxOK||!G||document.hidden) return;
-  const gap=clamp(FR.ema*2,16,140); if(now-FR.last<gap-3) return; FR.last=now;
+  const gap=FR.ema>14?clamp(FR.ema*1.7,16,140):0; if(gap&&now-FR.last<gap-3) return; FR.last=now;
   const t0=performance.now();
   try{ drawScene(now); followCam(); drawMinis(now/1000); }catch(e){ if(!frame.err){ frame.err=1; console.error(e); } }
   FR.ema=FR.ema*.85+(performance.now()-t0)*.15;
@@ -5869,6 +5874,8 @@ document.addEventListener('click',e=>{
     case 'citGrant': { const s=byId(id); if(s) grantCit(s,'granted by the Overseer'); save(); break; }
     case 'citDeny': { const s=byId(id); if(s) denyCit(s); save(); break; }
     case 'citArrest': { const s=byId(id); if(s) arrestNC(s,true); save(); break; }
+    case 'saveNow': { save(); toast(DESKTOP?'Game saved to your Mac.':'Game saved.'); break; }
+    case 'saveQuit': { save(); toast('Saved. Closing…'); setTimeout(()=>window.close(),350); break; }
     case 'pardon': { const q=(G.captives||[]).find(x=>x.id===id); if(q&&!q.war) pardonCaptive(q); save(); break; }
     case 'pardonS': { const s=byId(id); if(s&&s.detained) pardonSettler(s); save(); break; }
     case 'release': { const q=(G.captives||[]).find(x=>x.id===id); if(q){ prisonEnd(q,'Released'); G.captives=G.captives.filter(x=>x!==q); log(`${q.s.first} ${q.s.last} was released and walked off into the wasteland.`); } break; }
@@ -5993,6 +6000,7 @@ function start(data){
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
   window.__colony={get G(){return G;},renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   syncAgents(true);
   renderUI();
   requestAnimationFrame(frame);
