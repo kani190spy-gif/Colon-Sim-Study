@@ -11,3 +11,11 @@
 - Saves: `saves/current.json` (+ `saves/backups/`, one every 15 min, 40 kept). The game uses `window.desktop.load/save` when present.
 - Build: `python3 tools/build_desktop.py` wraps `src/index.html` with a document shell and the boot screen into `desktop/app/index.html`; copy it to the Mac's `app/index.html` to update.
 - The artifact build (src/index.html) is still published to the artifact link and keeps working on its own.
+
+# Idea board (not built yet)
+- Political parties (Communist / Capitalist / Nationalist / Civic) layered over factions; faith designation (M/C/O/X) feeds mild voting tendencies.
+- Plagues/pandemics (1–7 deaths by severity and preparedness).
+- Rarer Legendary/Mythic MVP spawns.
+- Occasional boss raids that badly damage defense.
+- Career health: frontline injuries shorten lifespan / slow healing / can kill.
+- Timed Anki mode (start button; 10/20/50-card sprints).
