@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v6.9</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.0</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -878,7 +878,8 @@ function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return 
 function armoryDef(r){ return workers(r).reduce((a,s)=>{const w=gearOf(s,'w');return a+(effStat(s,'S')+effStat(s,'E'))/2+(w?w.dmg*.6:0);},0)*lvlMult[r.level]*mergeBonus(r); }
 function defense(){ let d=5; for(const r of G.rooms) if(r.type==='armory'||r.type==='entrance') d+=armoryDef(r); d+=milDef(); for(const s of G.settlers) if(s.mil&&!s.exp) d+=rankOf(s)*.6; d*=1+cmdBonus(); d*=1+[0,.2,.45,.8,1.1][G.inst.def]; if(pol('curfew')) d*=1.25; if(pol('opengate')) d*=.9; return d; }
 const popUsed=()=>G.settlers.length+G.settlers.filter(x=>x.preg).length;
-function housing(){ return 4+G.rooms.filter(r=>r.type==='quarters').reduce((a,r)=>a+HOUSE[r.level]*(r.w||1),0); }
+const POP_CAP=450;
+function housing(){ return Math.min(POP_CAP,4+G.rooms.filter(r=>r.type==='quarters').reduce((a,r)=>a+HOUSE[r.level]*(r.w||1),0)); }
 function officeBonus(){ let b=0; for(const r of G.rooms) if(r.type==='office') for(const s of workers(r)) b+=effStat(s,'C')*.45*lvlMult[r.level]+(s.id===G.leader?3:0); return b; }
 function retired(s){ return G.inst.social>=3&&age(s)>=65; }
 function canWork(s){ return s&&!s.died&&isAdult(s)&&!s.exp; }
@@ -1520,7 +1521,7 @@ function drawPrisoners(c,t){
   if(!G.captives||!G.captives.length) return;
   for(const r of G.rooms) if(r.type==='jail'){ const qs=G.captives.filter(q=>q.room===r.id); const fl=lvlY(r.floor);
     qs.forEach((q,i)=>{ const sg=Math.floor(i/2), lx=roomX(r.col)+sg*WD.roomW+(i%2?100:52)+Math.sin(t*.3+q.id)*(i%2?5:0); const sit=i%2===0;
-      q.s.happy=12; drawPerson(c,{x:lx,y:fl,dir:i%2?-1:1,ph:0,pose:sit?'sit':'stand',off:q.id%7},q.s,t,{noBadge:true,L:LOOKS.prisoner,W:null}); }); }
+      q.s.happy=12; if(q.s.id==null) q.s.id=q.id; drawPersonCached(c,{x:lx,y:fl,dir:i%2?-1:1,ph:0,pose:sit?'sit':'stand',off:q.id%7},q.s,t,{noBadge:true,L:LOOKS.prisoner,W:null}); }); }
 }
 function drawFoes(c,t){
   if(!FIGHT) return;
@@ -2471,6 +2472,24 @@ function ertDrill(){ const pool=G.settlers.filter(s=>isAdult(s)&&!s.exp&&!ertOn(
 function settleEmergencies(){ for(const e of [...(G.emerg||[])]) resolveEm(e,false); }
 
 let CHEER=0;
+// settler sprites: each settler is drawn into its own small canvas ~10 times a second and copied every frame
+const SPR=new Map(), SPR_FPS=10, SPR_MX=54, SPR_MY=128, SPR_H=146;
+function drawPersonCached(c,a,s,t,opt){
+  const pose=opt.pose||a.pose; if(pose==='down'||pose==='bed'||pose==='stretcher'||pose==='ride'){ drawPerson(c,a,s,t,opt); return; }
+  const S=DPR*SC; let E=SPR.get(s.id);
+  if(!E){ const cv2=document.createElement('canvas'); E={cv:cv2,cx:cv2.getContext('2d'),t:-9,key:'',ph:(s.id%7)/70}; SPR.set(s.id,E); }
+  if(!E.cx){ drawPerson(c,a,s,t,opt); return; }
+  E.seen=t;
+  const key=[pose,a.dir||1,opt.hold?1:0,opt.ring?1:0,opt.angry?1:0,opt.mourn?1:0,opt.cradle?1:0,opt.ert?1:0,opt.focus?1:0,s.gear&&s.gear.o,s.gear&&s.gear.w,S.toFixed(3),Math.floor(age(s)),s.preg?1:0,s.health<40?1:0,a.lifting?1:0,a.recoil>0?1:0,UI.modal&&UI.modal.t==='settler'&&UI.modal.id===s.id?1:0].join('|');
+  const fps=SPR.size>220?6:SPR.size>120?8:SPR_FPS;
+  if(E.key!==key||t-E.t>=1/fps||t<E.t){
+    const W=Math.ceil(2*SPR_MX*S), H=Math.ceil(SPR_H*S);
+    if(E.cv.width!==W||E.cv.height!==H){ E.cv.width=W; E.cv.height=H; }
+    const o=E.cx; o.setTransform(1,0,0,1,0,0); o.clearRect(0,0,W,H); o.setTransform(S,0,0,S,SPR_MX*S,SPR_MY*S);
+    try{ drawPerson(o,Object.assign({},a,{x:0,y:0}),s,t,opt); }catch(e){}
+    E.t=t+(E.key===key?0:-E.ph); E.key=key; }
+  c.drawImage(E.cv,a.x-SPR_MX,a.y-SPR_MY,E.cv.width/S,E.cv.height/S); }
+function sprGC(t){ for(const [id,E] of SPR) if(t-(E.seen||0)>8){ E.cv.width=E.cv.height=0; SPR.delete(id); } }
 function drawPerson(c,a,s,t,opt){
   opt=opt||{};
   const k=sizeK(s), child=k<1, dir=a.dir||1, o=a.off||0, ageN=age(s), old=ageN>=58&&!child, elder=ageN>=70&&!child, cane=ageN>=80&&!child, gray=child?0:clamp((ageN-45)/28,0,1), fem=s.sex==='F';
@@ -2746,7 +2765,8 @@ function drawBundle(c,x,y,b,dir){ c.save(); c.translate(x,y); c.scale(dir,1);
   c.strokeStyle='rgba(255,255,255,.55)'; c.lineWidth=.7; c.beginPath(); c.moveTo(-4,-1.6); c.quadraticCurveTo(0,-.2,3,-2.6); c.stroke();
   c.beginPath(); c.arc(5.2,-1.6,3.1,0,TAU); c.fillStyle=b.look.skin; c.fill(); c.strokeStyle='#2a1a12'; c.lineWidth=.7; c.stroke();
   c.strokeStyle='#2a1a12'; c.lineWidth=.6; c.beginPath(); c.moveTo(5.6,-2.2); c.lineTo(6.6,-2.2); c.stroke(); c.restore(); }
-const babyOf=m=>G.settlers.find(k=>k.bd!=null&&age(k)<1.5&&k.parents[0]===m.id&&!k.exp);
+let BABY={t:-1,m:new Map()};
+const babyOf=m=>{ const now=performance.now(); if(now-BABY.t>500){ BABY.t=now; BABY.m=new Map(); for(const k of G.settlers) if(k.bd!=null&&!k.exp&&age(k)<1.5&&k.parents[0]!=null&&!BABY.m.has(k.parents[0])) BABY.m.set(k.parents[0],k); } return BABY.m.get(m.id)||null; };
 function star(c,x,y,R,r){ c.beginPath(); for(let i=0;i<10;i++){ const ang=-Math.PI/2+i*Math.PI/5, rad=i%2?r:R; c.lineTo(x+Math.cos(ang)*rad,y+Math.sin(ang)*rad); } c.closePath(); c.fill(); }
 function heartPath(c,x,y,s){ c.beginPath(); c.moveTo(x,y+s*.35); c.bezierCurveTo(x,y,x-s*.5,y-s*.1,x-s*.5,y+s*.25); c.bezierCurveTo(x-s*.5,y+s*.6,x,y+s*.8,x,y+s); c.bezierCurveTo(x,y+s*.8,x+s*.5,y+s*.6,x+s*.5,y+s*.25); c.bezierCurveTo(x+s*.5,y-s*.1,x,y,x,y+s*.35); c.fill(); }
 
@@ -5135,8 +5155,9 @@ function drawScene(now){
     if(s.bd!=null&&age(s)<1.5){ const ma=AG.get(s.parents[0]), mum=byId(s.parents[0]); if(ma&&!ma.hidden&&mum&&!mum.exp&&!emOf(mum.id)) continue; fillRR(c,a.x-10,a.y-12,20,10,2,'#8a5a32'); c.fillStyle='#5a3a22'; for(let i=0;i<5;i++) c.fillRect(a.x-9+i*4.4,a.y-18,1.2,8); c.fillRect(a.x-10,a.y-19,20,1.6); drawBundle(c,a.x,a.y-13,s,1); continue; }
     if(a.pose==='ride'||(a.lifting&&a.pose==='haulB'&&!(emOf(s.id)&&emOf(s.id).team[1]===s.id))){ fillRR(c,a.x-18,a.y,36,5,2,'#6b625a'); c.strokeStyle='rgba(180,170,150,.5)'; c.lineWidth=1; c.beginPath(); c.moveTo(a.x-16,a.y); c.lineTo(a.x-16,a.y-76); c.lineTo(a.x+16,a.y-76); c.lineTo(a.x+16,a.y); c.stroke(); }
     const rm=s.room&&roomById(s.room);
-    drawPerson(c,a,s,t,{mourn:isMourner(s.id)&&a.l===-1,ring:s.id===sel||(HOVER&&HOVER.agent===s.id),hold:!!s.exp||(rm&&(rm.type==='armory'||rm.type==='range')&&!a.path?.length)||(isSoldier(s)&&!s.milLeave&&(!a.path?.length||(rm&&(rm.type==='jail'||rm.type==='office'))))||(isOfficer(s)&&(!rm&&s.id!==G.leader||rm&&(rm.type==='jail'||rm.type==='entrance'||(rm.type==='office'&&s.id!==G.leader)))&&!!gearOf(s,'w'))||(FIGHT&&FIGHT.def.includes(s.id)),angry:!!(FIGHT&&FIGHT.def.includes(s.id)),cradle:s.sex==='F'?babyOf(s):null,ert:ertOn(s),focus:!!emResponder(s.id)});
+    drawPersonCached(c,a,s,t,{mourn:isMourner(s.id)&&a.l===-1,ring:s.id===sel||(HOVER&&HOVER.agent===s.id),hold:!!s.exp||(rm&&(rm.type==='armory'||rm.type==='range')&&!a.path?.length)||(isSoldier(s)&&!s.milLeave&&(!a.path?.length||(rm&&(rm.type==='jail'||rm.type==='office'))))||(isOfficer(s)&&(!rm&&s.id!==G.leader||rm&&(rm.type==='jail'||rm.type==='entrance'||(rm.type==='office'&&s.id!==G.leader)))&&!!gearOf(s,'w'))||(FIGHT&&FIGHT.def.includes(s.id)),angry:!!(FIGHT&&FIGHT.def.includes(s.id)),cradle:s.sex==='F'?babyOf(s):null,ert:ertOn(s),focus:!!emResponder(s.id)});
   }
+  if(Math.floor(t)%5===0) sprGC(t);
   drawEmMarkers(c,t);
   drawMourners(c,t);
   drawTrader(c,t);
