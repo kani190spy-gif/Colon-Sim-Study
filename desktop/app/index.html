@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.3</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.4</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -5683,7 +5683,7 @@ function settlerModal(id){
   if(G.leader===s.id) tags.push('<span class="tag a">Leader</span>');
   if(alive&&G.inst.gov>=1&&s.loy!=null&&age(s)>=18){ const pf=pfacOf(s); tags.push(`<span class="tag" style="border-color:${BLOCS[s.lean||'loyal'].c};color:${BLOCS[s.lean||'loyal'].c}">${BLOCS[s.lean||'loyal'].a}${pf?` · ${esc(pf.name)}`:''} · loyalty ${Math.round(s.loy)}</span>`); }
   if(s.rank) tags.push(`<span class="tag ${s.rank===3?'g':'b'}">${['','Medic','Resident','Attending physician'][s.rank]}</span>`);
-  tags.push(relTag(s));
+  tags.push(relTag(s)); if(isAdult(s)||s.cit) tags.push(isCitizen(s)?'<span class="tag g">Citizen</span>':`<span class="tag r">${citLabel[s.cit]||'Non-citizen'} · non-citizen</span>`);
   if(s.blind) tags.push(`<span class="tag b">Blind since birth</span>`);
   if(s.preg) tags.push(`<span class="tag a">Expecting · due in ${hm(Math.max(1,Math.round(s.preg.left!=null?s.preg.left:(s.preg.due-nowD())*60)))}</span>`);
   if(alive&&!isAdult(s)) tags.push(`<span class="tag">Child · grows up in ${s.kidMin!=null?hm(Math.max(1,Math.round(KID_MIN-s.kidMin))):'a while'}</span>`);

@@ -19,3 +19,4 @@
 - Occasional boss raids that badly damage defense.
 - Career health: frontline injuries shorten lifespan / slow healing / can kill.
 - Timed Anki mode (start button; 10/20/50-card sprints).
+- Intelligence agency: small corps of agents (smaller than police/military), surveillance, plot detection, counter-coup, can be abused by leaders.
