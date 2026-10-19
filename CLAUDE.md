@@ -6,7 +6,7 @@
 - Publish target: https://claude.ai/artifact/Mqf667qLwLYRzLjXYzjqp2 (same URL keeps cloud saves).
 
 # Desktop app (primary platform)
-- Lives on the player's Mac at ~/Documents/ColonySim: `Colony Sim.app` (launcher script) → `Electron.app` runtime (extracted by the player from `Install Runtime.zip`) → `app/` (main.js, preload.js, index.html, icon.png).
+- Lives on the player's Mac at ~/Desktop/ColonySim: `Colony Sim.app` (launcher script) → `Electron.app` runtime (player unzipped `Install Runtime.zip`, so it sits in `Install Runtime/Electron.app`; the launcher also checks `./Electron.app`) → `app/` (main.js, preload.js, index.html, icon.png).
 - Saves: `saves/current.json` (+ `saves/backups/`, one every 15 min, 40 kept). The game uses `window.desktop.load/save` when present.
 - Build: `python3 tools/build_desktop.py` wraps `src/index.html` with a document shell and the boot screen into `desktop/app/index.html`; copy it to the Mac's `app/index.html` to update.
 - The artifact build (src/index.html) is still published to the artifact link and keeps working on its own.

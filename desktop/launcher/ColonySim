@@ -1,0 +1,11 @@
+#!/bin/bash
+D="$(cd "$(dirname "$0")/../../.." && pwd)"
+E=""
+for p in "$D/Electron.app" "$D/Install Runtime/Electron.app" "$D/.runtime/Electron.app"; do
+  if [ -x "$p/Contents/MacOS/Electron" ]; then E="$p/Contents/MacOS/Electron"; break; fi
+done
+if [ -z "$E" ]; then
+  /usr/bin/osascript -e 'display dialog "One-time setup: double-click \"Install Runtime.zip\" in the ColonySim folder, then open Colony Sim again." buttons {"OK"} default button "OK" with title "Colony Sim"'
+  exit 1
+fi
+exec "$E" "$D/app"
