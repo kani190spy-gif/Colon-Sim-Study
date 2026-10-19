@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.6</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.7</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -5562,51 +5562,238 @@ const OBM_DRAW={
    gPoly(c,[[0,-2.4],[4,-1.8],[3.6,-.6]],'#0d0d10',.3); gPoly(c,[[6.2,-2],[10.2,-2.6],[9.8,-1]],'#0d0d10',.3); gEl(c,16.6,4,1.3,1,'#2a2a2e',0,.3); gLine(c,[[10,7.6],[14.6,6.6]],'#5a6068',.5); },
  moon(c,M){ gEl(c,5,1,8.8,10.8,M.c,0,.7); c.save(); c.globalAlpha=.3; gEl(c,8.4,1,6.6,9.6,'#b8c8e2',0,.01); c.restore(); gLine(c,[[0,-1],[3.4,-1.6]],'#1a1d2a',1); gLine(c,[[6.4,-1.6],[9.8,-1]],'#1a1d2a',1); gLine(c,[[3.6,6.6],[7.4,6.6]],'#9aa8c0',.6); c.fillStyle='#fff6c0'; for(const [x,y] of [[-1,-6],[11,-6],[12,5]]){ c.beginPath(); c.arc(x,y,.7,0,TAU); c.fill(); } }
 };
+/* ---- Oral-exam layer: what the examiner says when you ask, risk factors, counseling ---- */
+OB_CASES.push({id:'heg',sec:'OB',topic:'Prenatal Evaluation and Care',title:'Vomiting in early pregnancy',
+ stem:'You are working in the emergency department. A 24-year-old G1P0 presents with persistent nausea and vomiting for the past three weeks. Over the last five days she has not been able to keep most food or fluids down.',
+ st:[
+ {k:'hx',q:'What additional history would you like to obtain?',pts:['!LMP / gestational age, prenatal care, prior ultrasound','!Frequency of vomiting, ability to keep fluids down, weight loss','Character of emesis (bilious, bloody), abdominal pain, diarrhea, fever','!Vaginal bleeding or cramping','Sick contacts, food exposures','Treatments tried (meds, herbal), cannabis use','Thyroid disease, GI history, prior episodes in pregnancy','Medications, prenatal vitamins, allergies']},
+ {k:'pe',q:'What focused physical exam would you perform?',pts:['!Vital signs; orthostatics','Weight/BMI','!Signs of dehydration: mucous membranes, skin turgor, capillary refill','Abdominal exam: tenderness, rebound, guarding, masses','Thyroid exam','Pelvic exam: bleeding, cervix closed, uterine size vs dates']},
+ {k:'ddx',q:'What is your differential diagnosis?',pts:['Nausea and vomiting of pregnancy','!Hyperemesis gravidarum','Molar pregnancy','Multiple gestation','Ectopic pregnancy (not yet excluded)','Cannabinoid hyperemesis','Gastroenteritis / food poisoning','Hyperthyroidism','Appendicitis, pancreatitis, hepatitis, cholecystitis','UTI / pyelonephritis']},
+ {k:'wu',q:'How would you confirm viability, and what labs would you order and why?',pts:['!Transvaginal ultrasound: intrauterine, number of fetuses, cardiac activity, rule out molar/ectopic','!Electrolytes (BMP): Na, K, Cl, HCO₃, creatinine','!Urinalysis: ketones, specific gravity (dehydration), infection','Quantitative β-hCG','TSH ± free T4','Liver enzymes, lipase','CBC'],res:'TVUS: single intrauterine pregnancy measuring 9 weeks with cardiac activity. Na 130, K 3.0, Cl low, HCO₃ high, urine ketones positive, LFTs normal. TSH pending.'},
+ {k:'plan',q:'How would you manage this patient?',pts:['!Admit: unable to keep fluids down, electrolyte abnormalities, weight loss','!IV fluids (crystalloid) with potassium repletion; add dextrose','!Thiamine before dextrose (prevent Wernicke encephalopathy)','First-line: pyridoxine (B6) ± doxylamine','Second-line: promethazine, metoclopramide, prochlorperazine','Ondansetron (weigh risks; QT prolongation)','Refractory: methylprednisolone (avoid <10 wk); enteral/parenteral nutrition','Stop cannabis; small frequent bland meals once tolerating','VTE prophylaxis if prolonged admission']},
+ {k:'cb',q:'Which medications should not be combined, and why?',pts:['Two QT-prolonging drugs together (e.g., ondansetron + promethazine/haloperidol): torsades risk','Two dopamine antagonists (metoclopramide + prochlorperazine/promethazine): extrapyramidal symptoms','Doxylamine + another sedating antihistamine (diphenhydramine): additive sedation/anticholinergic']}],
+ pearl:'Hyperemesis: persistent vomiting + weight loss (>5%) + ketonuria/electrolyte disturbance. Vomiting → hypokalemic hypochloremic metabolic alkalosis. Thiamine before dextrose. B6 ± doxylamine first-line.'});
+OB_X.heg={tr:{plan:[['Discharge home with oral ondansetron','She cannot keep fluids down and has K 3.0 — admit'],['Give dextrose-containing fluids before thiamine','Can precipitate Wernicke encephalopathy'],['Methylprednisolone as first-line at 9 weeks','Refractory cases only; avoid before 10 weeks (cleft risk)']],wu:[['CT abdomen/pelvis with contrast','Not indicated; use ultrasound']]},
+ sb:{after:'wu',q:'Na 130, K 3.0, low Cl, high HCO₃, ketones +. What does this pattern show?',o:[['Hypokalemic hypochloremic metabolic alkalosis from vomiting','b'],['Anion-gap metabolic acidosis from DKA','w'],['Hyperthyroidism','w'],['SIADH','w']],why:'Loss of gastric HCl → alkalosis; volume depletion → renal K loss.'},
+ pb:{after:'wu',stand:true,q:'Are you sure it’s not just normal nausea and vomiting of pregnancy?',why:'Weight loss, ketonuria and electrolyte derangement define hyperemesis.'}};
+const OB_EX={
+heg:{hx:['LMP about 9 weeks ago. No prenatal care, no ultrasound yet.','Vomiting 6–8 times a day; can’t keep most fluids down; lost about 10 lb.','Non-bloody, non-bilious. No abdominal pain, diarrhea or fever.','No bleeding or cramping.','No sick contacts or unusual foods.','Nothing tried except daily cannabis for the nausea.','No thyroid or GI history. First pregnancy.','No medications, not taking prenatal vitamins. No allergies.'],
+ pe:['HR 112, BP 98/62 sitting. You need standing values for orthostatics.','Down about 10 lb from her usual weight.','Dry mucous membranes; skin tenting.','Soft, non-tender, non-distended; no masses.','Thyroid normal size, no nodules.','No bleeding or discharge; cervix closed; small mobile uterus.'],
+ rf:['Prior hyperemesis / NVP in an earlier pregnancy','Multiple gestation','Molar pregnancy','Family history of hyperemesis','History of motion sickness or migraine','Female fetus','First pregnancy / young age'],
+ co:['Usually improves after the first trimester (by 16–20 weeks)','Small frequent bland meals; avoid triggers; separate solids and liquids','Stay hydrated with water or electrolyte drinks','Stop cannabis (it can cause or worsen vomiting)','Return if unable to keep fluids down, lightheaded, or losing weight','Start prenatal vitamins once tolerated (switching to folate-only if iron worsens nausea)','Schedule prenatal care']},
+pph:{hx:['Yes, delivered spontaneously and appeared intact.','22-hour oxytocin induction, 3-hour second stage. No fever in labor.','No prior PPH. No bleeding disorder. No anticoagulants.','G4P4; baby weighed 4.3 kg.','No asthma. No hypertension this pregnancy.','O positive; consents to blood.'],
+ pe:['BP 92/54, HR 124, cool clammy skin. The team is on the way.','Fundus is boggy, soft and above the umbilicus.','No lacerations or hematoma.','Placenta looks intact; sweep finds no tissue.','Fundus is palpable; no mass at the introitus.','No oozing from IV sites.'],
+ rf:['Prolonged or induced/augmented labor','Overdistended uterus: macrosomia, twins, polyhydramnios','Grand multiparity','Chorioamnionitis','Prior PPH','Placenta previa / accreta','Magnesium or tocolytic use','Operative delivery'],
+ co:['Explain what happened and what was done','Iron replacement; signs of anemia','Risk of recurrence in future pregnancies (deliver where blood is available)','Return for heavy bleeding, fever, dizziness','Debrief and emotional support'],
+ ans:{0:{hx:{4:'Yes — she has moderate persistent asthma.'}},1:{hx:{4:'She had preeclampsia this pregnancy; BP now 158/102.'}}}},
+pec:{hx:['Severe frontal headache since this morning and seeing spots. Some epigastric pain.','No shortness of breath.','No seizures.','First pregnancy. No prior hypertension or kidney disease.','Good fetal movement. No contractions or bleeding.','Dated by a 9-week ultrasound.'],
+ pe:['Repeat BP 166/110.','3+ reflexes with 2 beats of clonus.','Lungs clear. Mild RUQ tenderness.','Alert; no papilledema.','FHR 140s, moderate variability; fundal height 34 cm.','Uterus soft and non-tender.'],
+ rf:['Prior preeclampsia','Chronic hypertension','Pregestational diabetes','Chronic kidney disease','Autoimmune disease (lupus, antiphospholipid syndrome)','Multiple gestation','Nulliparity','Obesity','Age ≥35','IVF pregnancy'],
+ co:['Signs to report: headache, vision changes, RUQ pain, shortness of breath','Low-dose aspirin from 12 weeks in future pregnancies','Higher lifelong cardiovascular risk: annual BP and risk-factor checks','BP checks within 72 hours and 7–10 days after delivery','Preeclampsia can appear or worsen after delivery']},
+eclamp:{hx:['Airway maintained, on her left side, oxygen on.','Anesthesia, OB and neonatology are coming.','Fetal monitoring continues; no crash cesarean while seizing.','Seizure lasted 70 seconds. No history of epilepsy.'],
+ pe:['BP 172/108, SpO₂ 95% on oxygen.','Postictal and drowsy; no focal deficits.','3+ reflexes.','FHR recovered to 140s after 6 minutes.','Uterus soft, no bleeding.'],
+ rf:['Preeclampsia (especially severe features)','Nulliparity','Young age','Multiple gestation','Chronic hypertension','Limited prenatal care'],
+ co:['Explain eclampsia and the need for delivery','Magnesium continues 24 hours after delivery','Seizure precautions; report headache/vision changes postpartum','Aspirin in future pregnancies; recurrence risk','Long-term cardiovascular follow-up']},
+ectopic:{hx:['LMP 7 weeks ago. No prior ultrasound.','Light spotting; no tissue passed.','Crampy left lower quadrant pain; no shoulder pain or fainting.','Treated for chlamydia 2 years ago. No prior ectopic or tubal surgery.','Rh negative.'],
+ pe:['BP 104/66, HR 96. Stable.','Mild LLQ tenderness, no rebound or guarding.','Small amount of blood; os closed.','Tender left adnexa, no CMT, uterus normal size.'],
+ rf:['Prior ectopic pregnancy','Prior PID / chlamydia','Tubal surgery or sterilization','Pregnancy with an IUD in place','IVF / assisted reproduction','Smoking','Age >35'],
+ co:['Methotrexate side effects; avoid folate, NSAIDs, alcohol, sun','Return for worsening pain, dizziness or heavy bleeding (rupture)','hCG on days 4 and 7, then weekly to zero','Wait at least 3 months before trying to conceive after MTX','Early ultrasound in future pregnancies (recurrence risk)']},
+miscarriage:{hx:['Soaking a pad an hour for 2 hours, with clots and tissue.','Ultrasound at 7 weeks showed an intrauterine pregnancy.','No fever or foul discharge.','Rh positive.'],
+ pe:['BP 118/72, HR 88. Afebrile.','Os open with tissue at the os (removed).','Uterus 8-week size, non-tender.','No adnexal masses.'],
+ rf:['Advanced maternal age','Prior miscarriage','Smoking, alcohol, cocaine','Uncontrolled diabetes / thyroid disease','Uterine anomalies','Antiphospholipid syndrome'],
+ co:['Most first-trimester losses are chromosomal, not caused by her actions','Bleeding and cramping to expect; when to return (heavy bleeding, fever)','Grief support','Can try again after the next normal period','Evaluation after recurrent (≥2–3) losses']},
+molar:{hx:['Severe vomiting for weeks; palpitations and tremor.','Passed some grape-like tissue yesterday.','No prior molar pregnancy.','Mild headache.'],
+ pe:['Uterus 16-week size at 11 weeks.','BP 152/96, HR 110.','Bilateral cystic adnexal masses.','Fine tremor, warm moist skin.'],
+ rf:['Extremes of age (<15, >35)','Prior molar pregnancy','Asian ethnicity','Low dietary carotene/folate'],
+ co:['Weekly hCG until undetectable ×3, then monthly','Reliable contraception during follow-up','Risk of gestational trophoblastic neoplasia; chemo is highly curative','Early ultrasound in future pregnancies']},
+previa:{hx:['Painless; no cramping.','No trauma, cocaine, or hypertension.','Her 20-week ultrasound mentioned a low-lying placenta.','Two prior cesareans.','No contractions or leakage; good fetal movement.'],
+ pe:['Correct — no digital exam.','BP 118/70, HR 98; about 200 mL on pads.','Uterus soft and non-tender.','Category I tracing.','Bright red blood from the os; no lesions.'],
+ rf:['Prior cesarean / uterine surgery','Multiparity','Advanced maternal age','Smoking','Multiple gestation','Prior previa','IVF'],
+ co:['Pelvic rest; nothing in the vagina','Return immediately for any bleeding or contractions','Plan for cesarean delivery at 36–37 weeks','Accreta risk and possible hysterectomy','Stay near the hospital']},
+abruption:{hx:['Restrained driver, airbag deployed, 40 mph.','No hypertension; she smokes half a pack a day.','Painful contractions every 2 minutes; less fetal movement.','No prior abruption.'],
+ pe:['Airway intact, BP 100/62, HR 118.','Rigid, tender uterus; fundal height increasing.','Late decelerations.','No digital exam until previa excluded.'],
+ rf:['Hypertension / preeclampsia','Prior abruption','Trauma','Cocaine, smoking','PPROM, chorioamnionitis','Rapid decompression (polyhydramnios, twins)','Advanced maternal age'],
+ co:['Explain need for delivery and blood products','Stop smoking/cocaine','Recurrence risk in future pregnancies','Seatbelt below the abdomen']},
+ptl:{hx:['Prior preterm birth at 33 weeks.','No leakage of fluid or bleeding.','Mild dysuria.','No trauma or drug use.','Dated by first-trimester ultrasound.'],
+ pe:['No pooling; nitrazine and fern negative.','3 cm, 80% effaced; cervical length 15 mm.','Contractions every 4 minutes; FHR 150s, reactive.','Afebrile; uterus non-tender.'],
+ rf:['Prior preterm birth','Short cervix','Multiple gestation','Infection (UTI, BV, chorio)','Smoking, substance use','Short interpregnancy interval','Low BMI','Uterine/cervical anomaly'],
+ co:['Steroids and magnesium benefits for the baby','NICU consultation','Signs of labor and ROM','Vaginal progesterone ± cerclage in future pregnancies (prior preterm birth)']},
+pprom:{hx:['Gush 6 hours ago; clear, no odor.','No fever or abdominal pain.','No contractions or bleeding.','GBS status unknown.'],
+ pe:['Pooling, nitrazine positive, ferning present.','Temp 37.0 °C, maternal HR 84, FHR 145.','Uterus non-tender.','AFI 5, cephalic.'],
+ rf:['Prior PPROM / preterm birth','Genital tract infection','Smoking','Short cervix, cervical surgery','Polyhydramnios / multiple gestation','Bleeding in pregnancy'],
+ co:['Report fever, foul discharge, abdominal pain, less fetal movement','Plan to deliver at 34 weeks','Risks: infection, abruption, cord prolapse','NICU consultation']},
+gdm:{hx:['Prior baby 4.2 kg; mother has type 2 diabetes.','No polyuria or polydipsia.','No PCOS or hypertension.','No early screening done.'],
+ pe:['BMI 33; normal weight gain.','Fundal height 28 cm.','BP 118/74.'],
+ rf:['Obesity','Prior GDM','Prior macrosomic infant','First-degree relative with diabetes','PCOS','High-risk ethnicity','Age ≥35','Hypertension'],
+ co:['Diet, exercise and glucose monitoring','Risks: macrosomia, shoulder dystocia, preeclampsia, neonatal hypoglycemia','75 g OGTT 4–12 weeks postpartum','50%+ lifetime risk of type 2 diabetes — screen every 1–3 years','Breastfeeding lowers risk']},
+fgr:{hx:['Dated by 8-week ultrasound.','Smokes a pack a day.','Chronic hypertension on labetalol.','No prior FGR or infections.'],
+ pe:['Fundal height 27 cm at 32 weeks.','BP 142/88.','No headache, proteinuria pending.'],
+ rf:['Hypertension / preeclampsia','Smoking, substance use','Pregestational diabetes with vasculopathy','Renal or autoimmune disease','Multiple gestation','Congenital infection (CMV)','Aneuploidy','Prior FGR'],
+ co:['Stop smoking','Twice-weekly testing; kick counts','Timing of delivery depends on Doppler','NICU consultation if preterm','Aspirin in future pregnancies']},
+twins:{hx:['IVF with two embryos transferred.','Moderate nausea.','No prior pregnancies.'],
+ pe:['Fundal height large for dates.','Two fetal heart tones.'],
+ rf:['IVF / ovulation induction','Advanced maternal age','Family history of dizygotic twins','Higher parity'],
+ co:['Higher risk: preterm birth, preeclampsia, GDM, anemia, PPH','Ultrasound every 2 weeks from 16 weeks (monochorionic)','Signs of preterm labor','Planned delivery timing by chorionicity']},
+pyelo:{hx:['Dysuria and frequency for 3 days.','No urine culture at her first visit.','Mild cramping, no leakage.','No shortness of breath. No drug allergies.'],
+ pe:['Right CVA tenderness.','T 39.1 °C, HR 112, BP 108/64.','Irregular mild contractions.','Lungs clear.'],
+ rf:['Untreated asymptomatic bacteriuria','Prior UTIs','Diabetes','Urinary tract anomalies / stones','Sickle cell trait','Low socioeconomic status'],
+ co:['Finish the full 14-day course','Suppressive antibiotics for the rest of pregnancy','Return for fever, flank pain, contractions, shortness of breath','Urine culture each trimester']},
+aub:{hx:['Heavy bleeding 2 weeks, soaking a pad an hour; cycles irregular for a year.','Not sexually active recently; no contraception.','No easy bruising; periods normal as a teen.','No anticoagulants or hormones.','No weight change; mild acne.'],
+ pe:['BP 96/60, HR 112, pale.','Blood from the os; no lesions.','Uterus 10-week size, irregular.','No thyroid enlargement or hirsutism.'],
+ rf:['Obesity (anovulation, hyperplasia)','PCOS','Perimenopause','Anticoagulants','Fibroids','Thyroid disease','Bleeding disorders'],
+ co:['Iron supplementation','Options for long-term control (LNG-IUD, OCPs, TXA)','Need for endometrial biopsy at her age','Return for heavy bleeding or dizziness','Weight loss lowers hyperplasia risk']},
+pid:{hx:['LMP 2 weeks ago; uses condoms sometimes.','New partner 1 month ago; chlamydia 2 years ago.','Purulent discharge, dyspareunia, mild dysuria.','No nausea, vomiting or diarrhea.','No IUD.'],
+ pe:['Cervical motion and bilateral adnexal tenderness.','Mucopurulent discharge from the os.','No adnexal mass.','No peritoneal signs; no RUQ tenderness.'],
+ rf:['Age <25','Multiple partners / new partner','Prior STI or PID','Inconsistent condom use','Recent IUD insertion (first 3 weeks)'],
+ co:['Abstain until she and partners finish treatment','Expedited partner therapy','Condoms; retest in 3 months','Long-term risks: infertility, ectopic, chronic pelvic pain','Return if not better in 72 hours']},
+torsion:{hx:['Sudden onset 3 hours ago during exercise; comes in waves.','LMP 2 weeks ago; uses condoms.','Known 6 cm right cyst. No fertility treatment.','Nausea and vomiting; no fever or diarrhea.'],
+ pe:['BP 128/80, HR 104, afebrile.','Tender right adnexal mass.','Mild rebound in the RLQ.'],
+ rf:['Ovarian mass 5 cm or larger (especially benign cyst/dermoid)','Ovarian hyperstimulation / fertility treatment','Pregnancy','Prior torsion'],
+ co:['Detorsion preserves the ovary even if it looks dark','Recurrence risk','Return for sudden severe pain']},
+mass:{hx:['Bloating, early satiety, 8 lb weight loss; urinary frequency.','Sister had breast cancer at 44; aunt had ovarian cancer.','Menopause at 51; no bleeding.','No prior imaging.'],
+ pe:['Distended abdomen with shifting dullness.','Fixed irregular mass with cul-de-sac nodularity.','No lymphadenopathy; breast exam normal.'],
+ rf:['BRCA1/2, Lynch syndrome','Family history of ovarian/breast cancer','Older age','Nulliparity, infertility','Endometriosis','Early menarche / late menopause'],
+ co:['Referral to gynecologic oncology','Genetic counseling/testing for her and relatives','Protective factors: OCPs, pregnancy, breastfeeding, salpingectomy','Prognosis depends on stage']},
+pmb:{hx:['Spotting for 2 weeks; menopause at 51.','On tamoxifen for 3 years; no HRT.','BMI 38, type 2 diabetes, never pregnant.','No family history of colon or uterine cancer.'],
+ pe:['Atrophic vagina; blood from the os; no lesions.','Normal-size uterus; no masses.'],
+ rf:['Obesity','Unopposed estrogen','Tamoxifen','Nulliparity','Late menopause','Diabetes, hypertension','PCOS','Lynch syndrome'],
+ co:['Any postmenopausal bleeding needs evaluation','Weight loss and diabetes control','Treatment options and prognosis depend on biopsy','Report new bleeding promptly']},
+amen:{hx:['Negative home test; not sexually active.','Runs 50 miles a week; lost 15 lb; restricts eating.','No galactorrhea, headaches or vision change.','No hot flashes, acne or hirsutism.','No procedures or postpartum hemorrhage.','No medications.'],
+ pe:['BMI 17, HR 48.','No hirsutism or acne.','No galactorrhea; fields intact.','Normal secondary sex characteristics.','Normal pelvic anatomy.'],
+ rf:['Low energy availability (athletes, dancers)','Eating disorders','Stress','Rapid weight loss'],
+ co:['Female athlete triad: energy deficit, amenorrhea, low bone density','Increase calories; reduce training','Bone health: calcium, vitamin D, weight-bearing','Mental health / nutrition referral','Can still ovulate unpredictably — contraception if needed']},
+pcos:{hx:['4–5 periods a year since menarche.','Gradual over years; no voice change.','Weight gain; father with diabetes.','Not trying to conceive now.','No steroids.'],
+ pe:['BMI 34, BP 132/84.','Ferriman-Gallwey 12.','Acanthosis on the neck.','No clitoromegaly or deep voice.','No striae or moon facies.'],
+ rf:['Family history of PCOS or diabetes','Obesity','Insulin resistance'],
+ co:['Weight loss of 5–10% restores ovulation in many','Long-term risks: diabetes, endometrial cancer, sleep apnea, depression','Withdrawal bleed at least every 3 months','Contraception needed with spironolactone','Fertility options (letrozole) when ready']},
+endo:{hx:['Cyclic pain worsening over 5 years; dyspareunia and painful bowel movements with periods.','Trying for 12 months.','NSAIDs help a little; stopped OCPs to conceive.','Mother had endometriosis.'],
+ pe:['Tender nodularity of the uterosacral ligaments.','Fixed retroverted uterus.','4 cm left adnexal cyst.','—'],
+ rf:['Early menarche, short cycles','Nulliparity','Family history','Müllerian anomalies / outflow obstruction'],
+ co:['Chronic condition; symptoms often return','Medical options vs surgery','Fertility options (surgery, IVF)','Symptoms often improve with pregnancy/menopause']},
+pap:{hx:['Last Pap 5 years ago, normal.','Never vaccinated.','Smokes; HIV negative.','Wants children in a few years.'],
+ pe:['No visible lesion.','Normal bimanual exam.'],
+ rf:['Persistent high-risk HPV (16/18)','Smoking','Immunosuppression (HIV, transplant)','Multiple partners, early first intercourse','No HPV vaccination','Long-term OCP use'],
+ co:['HPV is common and usually cleared','LEEP risks: bleeding, cervical stenosis, preterm birth','Follow-up HPV testing is essential','HPV vaccination; stop smoking','Condoms reduce transmission']},
+vv:{hx:['Thin gray discharge with fishy odor, worse after sex.','One partner; inconsistent condoms.','No recent antibiotics or diabetes.','Not pregnant.'],
+ pe:['No excoriation.','Thin gray discharge coating the walls; normal cervix.','pH 5.2.','Clue cells; positive whiff.'],
+ rf:['New or multiple partners','Douching','Antibiotics / diabetes / pregnancy (candida)','Unprotected sex (trich)'],
+ co:['Avoid alcohol with metronidazole (disulfiram reaction)','Avoid douching','Partner treatment needed for trich, not BV','Return if symptoms recur']},
+contra:{hx:['No pregnancy plans for at least 3 years.','Migraine with aura; smokes 10 cigarettes a day.','No breast cancer or liver disease.','Prefers fewer periods; one partner.'],
+ pe:['BP 128/80.','No other exam needed.','Urine hCG negative.'],
+ rf:['Estrogen contraindications: migraine with aura, smoker ≥35, VTE, uncontrolled HTN, breast cancer, liver disease','<6 weeks postpartum and breastfeeding'],
+ co:['LARC is most effective (IUD, implant)','Expected bleeding changes for each method','Condoms for STI protection','Emergency contraception options','Smoking cessation']},
+infert:{hx:['14 months of regular intercourse.','Cycles every 45–60 days.','No STIs or surgery; mild cramps.','Partner has no children; uses no testosterone.','No galactorrhea or thyroid symptoms.'],
+ pe:['BMI 30, mild hirsutism.','Normal thyroid; no galactorrhea.','Normal pelvic exam.'],
+ rf:['Age (especially >35)','Anovulation (PCOS, thyroid, prolactin)','Prior PID / STI','Endometriosis','Smoking','Obesity or low BMI','Male factor'],
+ co:['Timed intercourse; fertile window','Folic acid; healthy weight; stop smoking','Treatment options and success rates','Multiple-pregnancy risk with ovulation induction']},
+meno:{hx:['8–10 hot flashes a day, night sweats, poor sleep, vaginal dryness.','No cancer, clots, stroke or liver disease.','Non-smoker.','Mother had hip fracture.'],
+ pe:['BP 124/78.','Normal breasts; atrophic vaginal mucosa.','No bleeding.'],
+ rf:['HT risks: VTE, stroke, breast cancer (combined E+P), gallbladder disease'],
+ co:['Lowest dose for symptom control; reassess yearly','Report any vaginal bleeding','Bone health: calcium, vitamin D, exercise, DEXA at 65','Non-hormonal options exist','Lubricants / vaginal estrogen for dryness']},
+prenatal:{hx:['G1; no medical problems except chronic hypertension; no surgeries.','Takes lisinopril.','No genetic disease in the family.','No tobacco, alcohol or drugs; feels safe at home.','Up to date except flu and Tdap.'],
+ pe:['BP 136/86, BMI 32.','Normal pelvic exam.','FHT 160s by Doppler.'],
+ rf:['Preeclampsia risk: chronic HTN, obesity','Age ≥35: aneuploidy risk'],
+ co:['Switch lisinopril to labetalol or nifedipine','Aspirin 81 mg from 12 weeks','Weight gain goal 11–20 lb (BMI ≥30)','Warning signs: bleeding, headache, vision changes','Avoid alcohol, smoking, raw fish, unpasteurized cheese']},
+csec:{hx:['Yes — ruptured membranes, 6 cm for 6 hours with adequate contractions.','—','—','—','—','—','—'],
+ pe:['Consent signed.','Type and screen sent.','Foley placed.','Spinal placed.','Left tilt applied.'],
+ rf:['Cesarean risks: hemorrhage, infection, VTE, bladder/bowel injury','Future: previa/accreta, uterine rupture'],
+ co:['TOLAC may be an option next time (low transverse incision)','Wound care and signs of infection','VTE prevention: walk early','Pain control; no heavy lifting for 6 weeks']}
+};
 /* ---- Engine ---- */
 const obStrip=t=>t[0]==='!'?t.slice(1):t;
 function obState(){ const S=G.ob=G.ob||{}; S.log=S.log||[]; S.best=S.best||{}; S.bestMC=S.bestMC||{}; S.bestMX=S.bestMX||{}; S.mcDone=S.mcDone||{}; S.trips=S.trips||[]; S.got=S.got||{}; S.badges=S.badges||{}; S.rf=S.rf||{n:0,c:0}; S.n=S.n||0; return S; }
 function obCase(id){ return OB_CASES.find(c=>c.id===id); }
 function obShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 const OB_STOP=new Set(['before','after','other','signs','history','status','patient','within','unless','options']);
-const OB_GENERIC=/vital|\bcbc\b|type and|pregnan|hcg|\brh\b|rhogam|\bbmi\b|blood pressure|\bbp\b|fetal heart|ultrasound|exam|consent|counsel|follow-up|screen|coag|transfus|antibiotic|admit|fluid|bleed/i;
+const OB_GENERIC=/vital|\bcbc\b|type and|pregnan|hcg|\brh\b|rhogam|\bbmi\b|blood pressure|\bbp\b|fetal heart|ultrasound|exam|consent|counsel|follow-up|screen/i;
 function obWords(t){ return new Set(t.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(' ').filter(w=>w.length>=6&&!OB_STOP.has(w))); }
 const obSec=c=>c.id==='prenatal'?'OB':c.sec;
 function obDistract(c,k,correct,n){ const kk=k==='cb'?'plan':k, cw=new Set(); correct.forEach(t=>obWords(t).forEach(w=>cw.add(w)));
   const pool=[]; for(const o of OB_CASES){ if(obSec(o)===obSec(c)) continue; for(const s of o.st){ if((s.k==='cb'?'plan':s.k)!==kk) continue; for(const p of s.pts){ const t=obStrip(p); if(OB_GENERIC.test(t)) continue; let ov=0; obWords(t).forEach(w=>{ if(cw.has(w)) ov++; }); if(!ov) pool.push(t); } } }
   return obShuffle([...new Set(pool)]).slice(0,n); }
-const OB_STAGE_Q={hx:'What do you want to know?',pe:'What do you examine?',ddx:'Differential?',wu:'Workup?',plan:'Management plan?',cb:'Curveball'};
-function obBuild(c,mode,vi){ const X=OB_X[c.id]||{}, V=vi>=0&&X.v?X.v[vi]:{}, st=[];
-  const pre=(arr,ps)=>(ps||[]).some(p=>obStrip(arr).startsWith(p)||arr.startsWith(p));
-  const sbFor=k=>V.sb?(V.sb.after===k?V.sb:null):(X.sb&&X.sb.after===k?X.sb:null);
-  for(const s of c.st){ const k=s.k; let pts=s.pts.filter(p=>!pre(p,V.del&&V.del[k])).concat((V.add&&V.add[k])||[]);
-    const res=(V.res&&V.res[k])||s.res||null;
-    if(mode==='pr'||(mode==='mx'&&['hx','pe','ddx'].includes(k))) st.push({type:'free',k,q:s.q,pts,res,chk:{},ans:''});
-    else { const corr=pts.map(p=>({t:obStrip(p),g:p[0]==='!'?'c':'o'}));
-      const traps=((X.tr&&X.tr[k])||[]).concat((V.harm&&V.harm[k])||[]).filter(([t])=>!corr.some(o=>o.t===t)).map(([t,why])=>({t,g:'h',why}));
-      const wr=obDistract(c,k,corr.map(o=>o.t),mode==='mc'?4:3).map(t=>({t,g:'w'}));
-      st.push({type:'sel',k,q:s.q,opts:obShuffle(corr.concat(traps,wr)),pick:{},res}); }
-    const sb=sbFor(k); if(sb) st.push({type:'sb',k:'sb',q:sb.q,opts:obShuffle(sb.o.map(([t,g])=>({t,g}))),why:sb.why,pick:null});
-    if(X.ord&&X.ord.after===k&&mode!=='pr') st.push({type:'ord',k:'ord',q:X.ord.q,items:X.ord.items.slice(),shown:obShuffle(X.ord.items.map((t,i)=>i)),seq:[]}); }
+/* ---- Oral-exam engine: one pick at a time, "what else?", rubric scoring ---- */
+const OB_DOM={DA:'Data acquisition',PS:'Problem solving',MG:'Management',CK:'Comprehension & knowledge'};
+const OB_RFQ={meno:'What are the risks of hormone therapy?',contra:'What are the contraindications to estrogen-containing methods?',csec:'What are the risks of cesarean delivery?',prenatal:'What risk factors does this patient have?',heg:'List risk factors for nausea and vomiting in pregnancy.'};
+const OB_STDQ={hx:'What additional history would you like to obtain?',pe:'What focused physical exam would you perform?',ddx:'What is your differential diagnosis?',wu:'What workup would you order, and why?',plan:'How would you manage this patient?'};
+const OB_GENQ=/^(what do you want to know|history|exam|what is your exam|differential|workup|management|what do you examine)/i;
+function obDistractEx(c,field,correct,n){ const cw=new Set(); correct.forEach(t=>obWords(t).forEach(w=>cw.add(w))); const pool=[];
+  for(const o of OB_CASES){ if(obSec(o)===obSec(c)) continue; const E=OB_EX[o.id]; if(!E||!E[field]) continue; for(const t of E[field]){ let ov=0; obWords(t).forEach(w=>{ if(cw.has(w)) ov++; }); if(!ov&&!OB_GENERIC.test(t)) pool.push(t); } }
+  return obShuffle([...new Set(pool)]).slice(0,n); }
+function obMkList(k,dom,q,key,traps,junkT){ const junk=traps.map(([t,why])=>({t,h:1,why})).concat(junkT.map(t=>({t})));
+  return {type:'list',k,dom,q,key,junk,ids:obShuffle(key.map((_,i)=>'k'+i).concat(junk.map((_,i)=>'j'+i))),picked:[],done:false}; }
+function obBuild(c,vi){ const X=OB_X[c.id]||{}, V=vi>=0&&X.v?X.v[vi]:{}, E=OB_EX[c.id]||{}, st=[];
+  const del=(p,ps)=>(ps||[]).some(x=>obStrip(p).startsWith(x));
+  const ansOf=(k,p,s)=>{ const i=s.pts.indexOf(p); const o=E.ans&&E.ans[vi]&&E.ans[vi][k]&&E.ans[vi][k][i]; if(o) return o; if(V.stem&&(k==='hx'||k==='pe')) return 'Noted — consistent with the presentation.'; return i>=0&&E[k]&&E[k][i]&&E[k][i]!=='—'?E[k][i]:null; };
+  for(const s of c.st){ const k=s.k; const pts=s.pts.filter(p=>!del(p,V.del&&V.del[k])).concat((V.add&&V.add[k])||[]);
+    const dom=['hx','pe','wu'].includes(k)?'DA':k==='ddx'?'PS':k==='cb'&&c.id==='heg'?'CK':'MG';
+    const q=OB_GENQ.test(s.q)&&OB_STDQ[k]?OB_STDQ[k]:s.q;
+    const key=pts.map(p=>({t:obStrip(p),crit:p[0]==='!',a:['hx','pe'].includes(k)?ansOf(k,p,s):null}));
+    const traps=((X.tr&&X.tr[k])||[]).concat((V.harm&&V.harm[k])||[]).filter(([t])=>!key.some(o=>o.t===t));
+    const nj={hx:4,pe:3,ddx:3,wu:3,plan:2,cb:2}[k]||2;
+    const L=obMkList(k,dom,q,key,traps,obDistract(c,k,key.map(o=>o.t),nj)); L.res=(V.res&&V.res[k])||s.res||null; st.push(L);
+    const sb=V.sb?(V.sb.after===k?V.sb:null):(X.sb&&X.sb.after===k?X.sb:null);
+    if(sb){ const pb=X.pb&&X.pb.after===k?X.pb:(rnd()<.35?{q:'Are you sure about that?'}:null); st.push({type:'sb',k:'sb',dom:/why|mean|pattern|karyotype|definitive|criterion|defined|vaccine|candidate/i.test(sb.q)?'CK':'PS',q:sb.q,opts:obShuffle(sb.o.map(([t,g])=>({t,g}))),why:sb.why,pick:null,first:null,pb,pushed:false,done:false}); }
+    if(X.ord&&X.ord.after===k) st.push({type:'ord',k:'ord',dom:'MG',q:X.ord.q,items:X.ord.items.slice(),shown:obShuffle(X.ord.items.map((t,i)=>i)),seq:[],done:false}); }
+  if(E.rf&&E.rf.length) st.push(obMkList('rf','CK',OB_RFQ[c.id]||'List the risk factors for this condition.',E.rf.map(t=>({t})),[],obDistractEx(c,'rf',E.rf,3)));
+  if(E.co&&E.co.length) st.push(obMkList('co','MG',`What counseling would you provide to this patient?`,E.co.map(t=>({t})),[],obDistractEx(c,'co',E.co,2)));
   return {stem:V.stem||(c.stem+(V.s||'')),st}; }
-/* scoring of one stage → {sc,mx,hz:[{k,t}]} */
-function obGrade(s){ const hz=[]; let sc=0,mx=0;
-  if(s.type==='sel'){ let pen=0; s.opts.forEach((o,i)=>{ const p=!!s.pick[i]; if(o.g==='c'||o.g==='o'){ const w=o.g==='c'?2:1; mx+=w; if(p) sc+=w; else if(o.g==='c') hz.push({k:'crit',t:o.t}); } else if(p){ if(o.g==='h'){ pen+=2; hz.push({k:'trap',t:o.t,why:o.why}); } else { pen+=1; hz.push({k:'wrong',t:o.t}); } } }); sc=Math.max(0,sc-pen); }
-  else if(s.type==='free'){ s.pts.forEach((p,i)=>{ const w=p[0]==='!'?2:1; mx+=w; if(s.chk[i]) sc+=w; else if(w===2) hz.push({k:'crit',t:obStrip(p)}); }); }
-  else if(s.type==='sb'){ mx=2; const o=s.opts[s.pick]; if(o){ sc=o.g==='b'?2:o.g==='a'?1:0; if(o.g==='h') hz.push({k:'trap',t:o.t}); else if(o.g==='w') hz.push({k:'wrong',t:o.t}); } }
-  else if(s.type==='ord'){ mx=s.items.length; s.seq.forEach((v,i)=>{ if(v===i) sc++; }); if(s.seq[0]!==0) hz.push({k:'crit',t:'First priority: '+s.items[0]}); }
-  if((s.type==='sel'||s.type==='free')&&mx&&sc/mx<.5) hz.push({k:'wrong',t:'Weak answer: '+s.q});
-  return {sc,mx,hz}; }
-/* ---- settlers and survival ---- */
+function obGrade(s){ const hz=[], rv=[]; let sc=0,mx=0;
+  if(s.type==='list'){ let pen=0; s.key.forEach((o,i)=>{ const w=o.crit?2:1; mx+=w; if(s.picked.includes('k'+i)) sc+=w; else { rv.push({k:o.crit?'crit':'miss',t:o.t,a:o.a}); if(o.crit) hz.push({k:'crit',t:o.t}); } });
+    s.junk.forEach((o,i)=>{ if(!s.picked.includes('j'+i)) return; if(o.h){ pen+=2; hz.push({k:'trap',t:o.t,why:o.why}); rv.push({k:'harm',t:o.t,a:o.why}); } else { pen+=1; hz.push({k:'wrong',t:o.t}); rv.push({k:'junk',t:o.t}); } });
+    sc=Math.max(0,sc-pen); if(mx&&sc/mx<.5) hz.push({k:'wrong',t:'Weak answer: '+s.q}); }
+  else if(s.type==='sb'){ mx=2; const o=s.opts[s.pick], f=s.opts[s.first]; const best=s.opts.find(x=>x.g==='b');
+    if(o){ sc=o.g==='b'?(f&&f.g!=='b'?1:2):o.g==='a'?1:0; if(o.g==='h'){ hz.push({k:'trap',t:o.t}); rv.push({k:'harm',t:o.t,a:'Best: '+best.t}); } else if(o.g!=='b'){ hz.push({k:'wrong',t:o.t}); rv.push({k:f&&f.g==='b'?'flip':'wrongsb',t:s.q,a:'Best: '+best.t+(s.why?' — '+s.why:'')}); } } }
+  else if(s.type==='ord'){ mx=s.items.length; s.seq.forEach((v,i)=>{ if(v===i) sc++; }); if(s.seq[0]!==0){ hz.push({k:'crit',t:'First priority: '+s.items[0]}); rv.push({k:'crit',t:'First priority: '+s.items[0]}); } }
+  return {sc,mx,hz,rv}; }
+const obBand=n=>n>=9?'Superior':n>=7?'Good':n>=5?'Meets expectations':n>=3?'Needs improvement':'Unsatisfactory';
+function obRubric(stages){ const D={}; for(const k in OB_DOM) D[k]={sc:0,mx:0,rv:[]};
+  for(const s of stages){ if(!s.g) continue; const d=D[s.dom]; d.sc+=s.g.sc; d.mx+=s.g.mx; d.rv.push(...s.g.rv.map(r=>Object.assign({q:s.q},r))); }
+  let tot=0; for(const k in D){ const d=D[k], p=d.mx?d.sc/d.mx:.5; d.p=p; d.score=clamp(Math.round(1+8*p),1,9); tot+=d.score;
+    const bad=d.rv.filter(r=>r.k==='crit'||r.k==='harm'||r.k==='flip'||r.k==='wrongsb');
+    d.cm=p>=.85&&!bad.length?'Thorough and well organized.':bad.length?bad.slice(0,3).map(r=>(r.k==='harm'?'Harmful: ':r.k==='crit'?'Missed critical: ':r.k==='flip'?'Changed a correct answer: ':'Incorrect: ')+r.t).join(' · '):`Covered ${Math.round(p*100)}% of key points; be more complete.`; }
+  return {D,tot}; }
+/* ---- run lifecycle ---- */
+function obBegin(cids,mode,sid,stims){ const S=obState(); if(!Array.isArray(cids)) cids=[cids]; if(S.run){ toast('Finish or leave the current case first.'); return; }
+  let s=null; if(sid){ s=byId(sid); if(!obEligible(s)){ toast('Pick a healthy adult who is free to go.'); return; }
+    stims=Math.max(0,Math.min(3,stims|0,Math.floor(G.res.stims))); G.res.stims-=stims; unassign(s); s.exp='ob';
+    log(`${fullName(s)} set out for the ruined hospital${cids.length>1?' on a double shift':`: “${obCase(cids[0]).title}”`}${stims?` with ${stims} stim${stims>1?'s':''}`:''}.`,'study'); }
+  S.run={mode,cases:cids,ci:0,cres:[],sid:s?s.id:null,stims:s?stims:0,t0:Date.now(),hz:[]}; obLoadCase(S.run); UI.ob={v:'run'}; UI.modal={t:'ob'}; save(); }
+function obLoadCase(R){ const c=obCase(R.cases[R.ci]), X=OB_X[c.id]; R.cid=c.id; R.vi=X&&X.v&&rnd()<.6?Math.floor(rnd()*X.v.length):-1; const B=obBuild(c,R.vi); R.stem=B.stem; R.st=B.st; R.si=0; R.rev=false; }
+function obAbandon(){ const S=obState(), R=S.run; if(!R) return; const s=R.sid&&byId(R.sid);
+  if(s){ S.trips.push({sid:s.id,cid:R.cid,back:Date.now()+120000,out:{fate:'retreat',hp:s.health,ev:[],lost:[],loot:[],stims:R.stims,pct:0}}); log(`${s.first} turned back from the ruined hospital empty-handed.`,'study'); }
+  S.run=null; UI.ob={v:'list'}; save(); }
+const obMock=R=>R.mode==='mock';
+function obPickItemId(id){ const R=obState().run; if(!R) return; const s=R.st[R.si]; if(s.done) return;
+  if(s.type==='list'){ if(!s.picked.includes(id)) s.picked.push(id); }
+  else if(s.type==='sb'){ const i=+id; if(s.first==null) s.first=i; s.pick=i; if(s.pb&&!s.pushed){ s.pushed='ask'; return; } obCloseStage(R,s); }
+  else if(s.type==='ord'){ const v=+id; if(!s.seq.includes(v)) s.seq.push(v); if(s.seq.length===s.items.length) obCloseStage(R,s); } }
+function obCloseStage(R,s){ s.done=true; s.g=obGrade(s); R.hz.push(...s.g.hz); R.rev=true; if(obMock(R)) obNext(); }
+function obNext(){ const S=obState(), R=S.run; if(!R) return; const s=R.st[R.si]; if(!s.done) return;
+  if(R.si<R.st.length-1){ R.si++; R.rev=false; const d=document.querySelector('#modal .dlg'); if(d) d.scrollTop=0; save(); return; }
+  const rb=obRubric(R.st); R.cres.push({cid:R.cid,vi:R.vi,D:rb.D,tot:rb.tot,stem:R.stem});
+  if(R.ci<R.cases.length-1){ R.ci++; obLoadCase(R); const d=document.querySelector('#modal .dlg'); if(d) d.scrollTop=0; save(); return; }
+  obFinish(); }
+function obFinish(){ const S=obState(), R=S.run; let sc=0,mx=0; for(const cr of R.cres) for(const k in cr.D){ sc+=cr.D[k].sc; mx+=cr.D[k].mx; }
+  const pct=mx?sc/mx:0, P=Math.round(pct*100), crits=R.hz.filter(h=>h.k==='crit').length, mock=obMock(R);
+  const mins=Math.min(mock?40:20,Math.max(1,Math.round((Date.now()-R.t0)/60000))); logStudy('other',mins,0,null,mock?'OB/GYN mock oral exam':'OB/GYN oral case',true);
+  const caps=Math.round(pct*(R.sid?50:30)*R.cres.length), res=Math.round(pct*12*R.cres.length); G.res.caps+=caps; G.res.research+=res;
+  for(const cr of R.cres){ const cp=cr.tot; S.bestR=S.bestR||{}; S.bestR[cr.cid]=Math.max(S.bestR[cr.cid]||0,cp); if(R.sid){ const p=Math.round((cp-4)/32*100); S.bestMX[cr.cid]=Math.max(S.bestMX[cr.cid]||0,p); } else S.best[cr.cid]=Math.max(S.best[cr.cid]||0,cp); }
+  const final=mock?R.cres.reduce((a,c)=>a+c.tot,0)/8:null; if(mock){ S.mocks=S.mocks||[]; S.mocks.unshift({d:G.day,ts:Date.now(),final,cases:R.cres.map(c=>c.cid)}); }
+  const summ={mode:R.mode,cres:R.cres,pct:P,crits,hz:R.hz,caps,res,mins,final,day:G.day,ts:Date.now()};
+  const s=R.sid&&byId(R.sid); if(s){ const D=obDanger(R,s); let loot=[]; for(let i=0;i<R.cres.length;i++) loot=loot.concat(obLoot({mode:'mx',hz:R.hz},pct,Math.round(crits/R.cres.length),s)); S.n++; S.trips.push({id:S.n,sid:s.id,cid:R.cres[0].cid,back:Date.now()+120000,out:Object.assign(D,{loot,stims:R.stims,pct:P,mode:R.mode})}); summ.trip=S.n; summ.sid=s.id; }
+  S.log.unshift({mode:R.mode,cids:R.cres.map(c=>c.cid),tots:R.cres.map(c=>c.tot),final,pct:P,day:G.day,ts:Date.now()}); if(S.log.length>300) S.log.length=300;
+  log(`OB/GYN ${mock?`mock oral exam: final ${final.toFixed(2)} (${final>=3.5?'PASS':'conditional pass'})`:`case · ${obCase(R.cres[0].cid).title}: ${R.cres[0].tot}/36`}. +${caps} caps, +${res} research, ${mins} min logged.`,'study');
+  S.run=null; UI.ob={v:'done',sum:summ}; save(); }
 function obEligible(s){ return s&&!s.died&&isAdult(s)&&!s.exp&&!s.preg&&!s.detained&&!s.waiting&&s.id!==G.leader&&s.health>=50; }
 function obArmor(s){ const o=gearOf(s,'o'), m=gearOf(s,'a'), w=gearOf(s,'w'); const arm=Math.min(.32,(o?o.tier*.06:0)+(m?m.tier*.02:0)), eb=clamp((effStat(s,'E')-5)*.025,-.1,.15); return {arm,eb,wd:w?w.dmg:0}; }
 function obSurvival(s,stims){ const A=obArmor(s); return Math.round(s.health*(1+A.arm+A.eb)+A.wd*1.5+stims*22); }
 const OB_HZ={crit:['A ceiling panel collapsed','Feral dogs cornered them','A raider ambush in the stairwell','An electrical fire broke out','A floor gave way'],wrong:['They tripped over debris','Broken glass cut them','A door jammed on them'],trap:['A raider gang caught them in the open','An oxygen tank exploded','The ward caught fire around them','They were trapped under rubble']};
 function obDanger(run,s){ const A=obArmor(s); let hp=s.health, stims=run.stims, used=0; const ev=[];
-  for(const h of run.hz){ let d=h.k==='crit'?ri(10,17):h.k==='trap'?ri(20,32):ri(4,8); const raider=rnd()<.4; d*=1-A.arm-A.eb; if(raider) d=Math.max(2,d-(A.wd?A.wd*.8:-3)); d=Math.round(d);
+  for(const h of run.hz){ let d=h.k==='crit'?ri(8,14):h.k==='trap'?ri(16,26):ri(3,6); const raider=rnd()<.4; d*=1-A.arm-A.eb; if(raider) d=Math.max(2,d-(A.wd?A.wd*.8:-3)); d=Math.round(d);
     hp-=d; ev.push({m:`${pick(OB_HZ[h.k])}${raider?' (they fought back'+(A.wd?' with the weapon':' unarmed')+')':''}`,d,why:h.t,k:h.k});
     if(hp<35&&stims>0&&hp>-15){ stims--; used++; hp=Math.min(100,hp+25); ev.push({m:'Used a stim',d:-25}); } }
   const traps=run.hz.filter(h=>h.k==='trap').length; let fate='fine', dis=null;
-  if(hp<=0){ if(rnd()<.7) fate='dead'; else { fate='disabled'; hp=12; dis=pick(['hcv','smoke','aki']); } }
+  if(hp<=0){ if(rnd()<.6) fate='dead'; else { fate='disabled'; hp=12; dis=pick(['hcv','smoke','aki']); } }
   else if(hp<30){ fate='serious'; if(rnd()<.12) dis=pick(['hcv','smoke','aki']); }
   else if(hp<s.health-12) fate='minor';
   const lost=[]; if(fate==='dead') lost.push('o','w','a'); else if(traps||hp<40){ const b=traps*.1; if(rnd()<.25+b) lost.push('w'); if(rnd()<.15+b) lost.push('o'); if(rnd()<.15+b) lost.push('a'); }
@@ -5624,35 +5811,6 @@ function obLoot(run,pct,crits,s){ const S=obState(), out=[]; const t=obRollTier(
   return out; }
 function obGive(k,S,why){ if(S.got[k]){ const c=SCRAP[ITEMS[k].tier]*2; G.res.caps+=c; return `duplicate ${ITEMS[k].name} → ${c} caps`; } S.got[k]=G.day; addItem(k); return `${TIERS[ITEMS[k].tier]} ${ITEMS[k].name}${why?' ('+why+')':''}`; }
 /* ---- run lifecycle ---- */
-function obBegin(cid,mode,sid,stims){ const S=obState(), c=obCase(cid); if(!c) return;
-  if(S.run){ toast('Finish or abandon the current case first.'); return; }
-  let s=null; if(mode!=='pr'){ s=byId(sid); if(!obEligible(s)){ toast('Pick a healthy adult who is free to go.'); return; }
-    stims=Math.max(0,Math.min(3,stims|0,Math.floor(G.res.stims))); G.res.stims-=stims; unassign(s); s.exp='ob';
-    log(`${fullName(s)} set out for the ruined hospital: “${c.title}”${stims?` with ${stims} stim${stims>1?'s':''}`:''}.`,'study'); }
-  const X=OB_X[cid]; const vi=X&&X.v&&rnd()<.6?Math.floor(rnd()*X.v.length):-1, B=obBuild(c,mode,vi);
-  S.run={cid,mode,sid:s?s.id:null,stims:mode==='pr'?0:stims,vi,stem:B.stem,st:B.st,si:0,rev:false,t0:Date.now(),hz:[],sc:0,mx:0};
-  UI.ob={v:'run'}; UI.modal={t:'ob'}; save(); }
-function obAbandon(){ const S=obState(), R=S.run; if(!R) return; const s=R.sid&&byId(R.sid);
-  if(s){ S.trips.push({sid:s.id,cid:R.cid,back:Date.now()+120000,out:{fate:'retreat',hp:s.health,ev:[],lost:[],loot:[],stims:R.stims,pct:0}}); log(`${s.first} turned back from the ruined hospital empty-handed.`,'study'); }
-  S.run=null; UI.ob={v:'list'}; save(); }
-function obSubmit(){ const R=obState().run; if(!R) return; const s=R.st[R.si];
-  if(s.type==='free'&&!R.rev){ const t=document.getElementById('obAns'); if(t){ s.ans=t.value; t.blur(); } R.rev=true; return; }
-  if(s.type==='ord'&&s.seq.length<s.items.length){ toast('Place every step first.'); return; }
-  if(s.type==='sb'&&s.pick==null){ toast('Pick one answer.'); return; }
-  if(s.type==='free'){ /* ticks already in */ }
-  const g=obGrade(s); s.g=g; R.rev=true; }
-function obNext(){ const R=obState().run; if(!R||!R.rev) return; const s=R.st[R.si]; if(!s.g) s.g=obGrade(s); R.sc+=s.g.sc; R.mx+=s.g.mx; R.hz.push(...s.g.hz);
-  if(R.si<R.st.length-1){ R.si++; R.rev=false; const d=document.querySelector('#modal .dlg'); if(d) d.scrollTop=0; save(); } else obFinish(); }
-function obFinish(){ const S=obState(), R=S.run, c=obCase(R.cid), pct=R.mx?R.sc/R.mx:0, P=Math.round(pct*100), crits=R.hz.filter(h=>h.k==='crit').length;
-  const mins=Math.min(20,Math.max(1,Math.round((Date.now()-R.t0)/60000))); logStudy('other',mins,0,null,'OB/GYN oral case',true);
-  const caps=Math.round(pct*(R.mode==='pr'?30:50)), res=Math.round(pct*12); G.res.caps+=caps; G.res.research+=res;
-  const summ={cid:R.cid,mode:R.mode,pct:P,crits,hz:R.hz,caps,res,mins,day:G.day,ts:Date.now()};
-  if(R.mode==='pr'){ S.best[R.cid]=Math.max(S.best[R.cid]||0,P); }
-  else { const bk=R.mode==='mc'?'bestMC':'bestMX'; S[bk][R.cid]=Math.max(S[bk][R.cid]||0,P); S.mcDone[R.cid]=1;
-    const s=byId(R.sid); if(s){ const D=obDanger(R,s), loot=obLoot(R,pct,crits,s); S.n++; S.trips.push({id:S.n,sid:s.id,cid:R.cid,back:Date.now()+120000,out:Object.assign(D,{loot,stims:R.stims,pct:P,mode:R.mode})}); summ.trip=S.n; summ.sid=s.id; } }
-  S.log.unshift(summ); if(S.log.length>300) S.log.length=300;
-  log(`OB/GYN ${R.mode==='pr'?'practice':R.mode==='mc'?'expedition (MC)':'expedition (mixed)'} · ${c.title}: ${P}%${crits?`, ${crits} critical miss${crits>1?'es':''}`:''}. +${caps} caps, +${res} research, ${mins} min logged.`,'study');
-  S.run=null; UI.ob={v:'done',sum:summ}; save(); }
 function obReturn(T){ const S=obState(); S.trips=S.trips.filter(x=>x!==T); const s=byId(T.sid), O=T.out, c=obCase(T.cid); if(!s){ return; }
   const got=[];
   if(O.fate==='dead'){ for(const k of ['o','w','a']) if(s.gear&&s.gear[k]){ const id=s.gear[k]; G.items=G.items.filter(i=>i.id!==id); s.gear[k]=null; }
@@ -5679,61 +5837,6 @@ function obRf(i){ const S=obState(), q=OB_RF[UI.ob.rq]; if(!q||UI.ob.ra!=null) r
   UI.ob.rn=(UI.ob.rn||0)+1; if(UI.ob.rn%10===0){ logStudy('other',5,0,null,'OB/GYN rapid fire',true); } save(); }
 function obRfNext(){ let k; do{ k=Math.floor(rnd()*OB_RF.length); }while(OB_RF.length>1&&k===UI.ob.rq); UI.ob.rq=k; UI.ob.ra=null; }
 /* ---- UI ---- */
-const OB_MODE={pr:'Practice',mc:'Expedition · MC',mx:'Expedition · Mixed'};
-function obBox(){ const S=obState(), R=S.run, n=Object.keys(S.bestMX).length, got=Object.keys(S.got).length, tot=Object.keys(ITEMS).filter(k=>ITEMS[k].ob).length;
-  const out=S.trips.map(T=>{ const s=byId(T.sid); return s?`${s.first} returns in ${Math.max(0,Math.ceil((T.back-Date.now())/1000))}s`:''; }).filter(Boolean).join(' · ');
-  return `<div class="box" style="border-color:#c86b9a"><h4>🩺 OB/GYN orals · Operation Delivery Room</h4><p class="lede" style="font-size:12px">Send a settler into the ruined hospital: each oral case is one expedition. Good answers bring back exclusive outfits, masks and weapons; missed critical actions and harmful orders hurt the settler. ${got}/${tot} exclusive items collected · ${n}/${OB_CASES.length} cases cleared in mixed mode.${out?' <b>'+out+'</b>':''}</p><div class="row">${R?`<button class="btn sm pri" data-a="obOpen" data-v="run">Resume: ${esc(obCase(R.cid).title)}</button>`:`<button class="btn sm pri" data-a="obGo" data-v="weak">Next case</button>`}<button class="btn sm" data-a="obOpen" data-v="list">All cases</button><button class="btn sm" data-a="obOpen" data-v="loot">Collection</button><button class="btn sm" data-a="obOpen" data-v="rf">Rapid fire</button><button class="btn sm" data-a="obOpen" data-v="guide">Study table</button></div></div>`; }
-function obTabs(){ const v=UI.ob.v; const on=k=>v===k||(k==='list'&&['pick','run','done'].includes(v)); const b=(k,t)=>`<button class="${on(k)?'on':''}" data-a="obOpen" data-v="${k}">${t}</button>`;
-  return `<div class="seg" style="margin-bottom:10px">${b('list','Cases')}${b('loot','Collection')}${b('rf','Rapid fire')}${b('guide','Study table')}</div>`; }
-const obPctTag=(p,l)=>p==null?`<span class="tag" style="opacity:.55">${l} –</span>`:`<span class="tag ${p>=80?'g':p>=60?'':'r'}">${l} ${p}%</span>`;
-function obList(){ const S=obState(); let h=`${S.run?`<div class="alertline" style="border-color:#c86b9a"><b>Case in progress: ${esc(obCase(S.run.cid).title)}</b>&nbsp;<button class="btn sm pri" data-a="obOpen" data-v="run">Resume</button></div>`:''}
-  <p class="lede" style="font-size:12px"><b>Practice</b>: free response, no risk, no loot. <b>MC expedition</b>: multiple choice with trap answers; loot is harder to earn. <b>Mixed expedition</b> unlocks after one MC run of that case: free response for history/exam/differential, MC for workup and plan, better loot (Legendary drops only here). Patients vary between runs, so read the stem.</p>`;
-  for(const sec of ['OB','GYN']){ h+=`<div class="box"><h4>${sec==='OB'?'Obstetrics':'Gynecology'}</h4>${OB_CASES.filter(c=>c.sec===sec).map(c=>`<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:4px;margin:3px 0"><span style="font-size:13px"><b>${esc(c.title)}</b> <span class="muted" style="font-size:11px">${esc(c.topic)}</span></span><span>${obPctTag(S.bestMC[c.id],'MC')} ${obPctTag(S.bestMX[c.id],'Mixed')} <button class="btn sm" data-a="obPr" data-v="${c.id}">Practice</button><button class="btn sm pri" data-a="obPick" data-v="${c.id}">Expedition</button></span></div>`).join('')}</div>`; }
-  return h; }
-function obPickView(){ const S=obState(), c=obCase(UI.ob.cid), mxOk=!!S.mcDone[c.id]; UI.ob.mode=UI.ob.mode==='mx'&&mxOk?'mx':'mc'; const st=UI.ob.stims|0;
-  const el=G.settlers.filter(obEligible).sort((a,b)=>obSurvival(b,0)-obSurvival(a,0));
-  let h=`<div class="box" style="border-color:#c86b9a"><h4>Expedition · ${esc(c.title)}</h4><p class="lede" style="font-size:12px">${esc(c.topic)}. The settler goes into the ruined hospital while you work the case and comes home 2 minutes after you finish. Each missed critical action, wrong order or harmful choice becomes a hazard in the ruins. Outfit tier, mask, Endurance, weapon and stims decide how much they can take.</p>
-  <div class="seg" style="margin:6px 0"><button class="${UI.ob.mode==='mc'?'on':''}" data-a="obMode" data-v="mc">Multiple choice</button><button class="${UI.ob.mode==='mx'?'on':''}" data-a="obMode" data-v="mx" ${mxOk?'':'disabled title="Do one MC run of this case first"'}>Mixed ${mxOk?'':'🔒'}</button></div>
-  <div class="row" style="gap:6px">Stims to bring: ${[0,1,2,3].map(n=>`<button class="btn sm ${st===n?'pri':''}" data-a="obStims" data-v="${n}" ${n>Math.floor(G.res.stims)?'disabled':''}>${n}</button>`).join('')} <span class="muted" style="font-size:12px">${Math.floor(G.res.stims)} in storage</span></div></div>`;
-  if(!el.length) return h+'<p class="lede">Nobody is free: settlers need to be healthy adults (health 50+), not pregnant, not the leader, and not already away.</p>';
-  h+=`<div class="box"><h4>Choose who goes</h4>${el.slice(0,40).map(s=>{ const o=gearOf(s,'o'), w=gearOf(s,'w'), m=gearOf(s,'a'), sv=obSurvival(s,st), col=sv>=150?'#5ab46e':sv>=115?'#e2c46a':'#ff7d72';
-    return `<div class="row" style="justify-content:space-between;margin:3px 0;gap:6px"><span style="font-size:12px"><b style="font-size:13px">${esc(fullName(s))}</b> · health ${Math.round(s.health)} · E ${Math.round(effStat(s,'E'))} · L ${Math.round(effStat(s,'L'))}<br><span class="muted">${o?`<span class="tier${o.tier}">${esc(o.name)}</span>`:'Jumpsuit'} · ${w?`<span class="tier${w.tier}">${esc(w.name)}</span>`:'unarmed'} · ${m?`<span class="tier${m.tier}">${esc(m.name)}</span>`:'no mask'}</span></span><span><b style="color:${col};font-size:12px">toughness ${sv}</b> <button class="btn sm pri" data-a="obSend" data-id="${s.id}">Send</button></span></div>`; }).join('')}</div>`;
-  return h; }
-function obOpt(o,i,s,R){ const p=s.type==='sel'?!!s.pick[i]:s.pick===i; let st='', tag='';
-  if(R.rev){ const good=o.g==='c'||o.g==='o'||o.g==='b'||o.g==='a';
-    if(good&&p) st='background:rgba(90,180,110,.25);border-color:#5ab46e', tag=o.g==='a'?'✓ acceptable':'✓';
-    else if(good) st=o.g==='c'?'border-color:#ff7d72;border-style:dashed':'border-color:#e2c46a;border-style:dashed', tag=o.g==='c'?'<b style="color:#ff7d72">MISSED · CRITICAL</b>':s.type==='sb'?'best answer':'missed';
-    else if(p) st=o.g==='h'?'background:rgba(180,30,30,.35);border-color:#ff4a3a':'background:rgba(255,125,114,.18);border-color:#ff7d72', tag=o.g==='h'?`<b style="color:#ff6a5a">HARMFUL</b>${o.why?' · '+esc(o.why):''}`:'✗ not indicated';
-    else if(o.g==='h') st='opacity:.75', tag=`<span style="color:#ff9d92">trap avoided${o.why?' · '+esc(o.why):''}</span>`;
-    else st='opacity:.5'; }
-  else if(p) st='background:rgba(200,107,154,.28);border-color:#c86b9a';
-  return `<button class="btn sm" data-a="obPickOpt" data-v="${i}" ${R.rev?'disabled':''} style="display:flex;width:100%;text-align:left;gap:8px;margin:3px 0;white-space:normal;${st}"><span style="flex:none">${s.type==='sel'?(p?'☑':'☐'):(p?'◉':'○')}</span><span>${esc(o.t)}${tag?`<br><small>${tag}</small>`:''}</span></button>`; }
-function obRunView(){ const S=obState(), R=S.run; if(!R) return obList(); const c=obCase(R.cid), s=R.st[R.si], who=R.sid&&byId(R.sid);
-  let h=`<div class="box" style="border-color:#c86b9a"><h4>${OB_MODE[R.mode]} · ${esc(c.topic)} · step ${R.si+1} of ${R.st.length}${who?` · ${esc(who.first)} in the ruins`:''}</h4><p style="font-size:14px;line-height:1.45">${esc(R.stem)}</p>${R.hz.length&&R.mode!=='pr'?`<p class="lede" style="font-size:11px;color:#ff9d92">Hazards so far: ${R.hz.length}</p>`:''}</div>`;
-  for(let i=0;i<R.si;i++){ const p=R.st[i]; if(p.res) h+=`<div class="alertline" style="font-size:12px"><b>Results:</b>&nbsp;${esc(p.res)}</div>`; }
-  h+=`<div class="box"><h4>${esc(s.q)}</h4>`;
-  if(s.type==='sel') h+=`<p class="lede" style="font-size:12px">Select everything that belongs. Leaving out a critical step or choosing a harmful one costs ${R.mode==='pr'?'points':'your settler'}.</p>`+s.opts.map((o,i)=>obOpt(o,i,s,R)).join('');
-  else if(s.type==='sb') h+=`<p class="lede" style="font-size:12px">Pick the single best answer.</p>`+s.opts.map((o,i)=>obOpt(o,i,s,R)).join('')+(R.rev&&s.why?`<p style="font-size:13px;margin-top:6px"><b>Why:</b> ${esc(s.why)}</p>`:'');
-  else if(s.type==='ord'){ h+=`<p class="lede" style="font-size:12px">Tap the steps in the order you would do them.</p><ol style="font-size:13px;margin:4px 0 8px 18px">${s.seq.map((v,i)=>`<li style="${R.rev?(v===i?'color:#5ab46e':'color:#ff7d72'):''}">${esc(s.items[v])}${R.rev&&v!==i?` <small class="muted">(should be: ${esc(s.items[i])})</small>`:''}</li>`).join('')}</ol>`;
-    if(!R.rev) h+=s.shown.filter(v=>!s.seq.includes(v)).map(v=>`<button class="btn sm" data-a="obOrd" data-v="${v}" style="display:block;width:100%;text-align:left;margin:3px 0;white-space:normal">${esc(s.items[v])}</button>`).join('')+(s.seq.length?`<button class="btn sm" data-a="obOrdReset">Reset order</button>`:''); }
-  else if(s.type==='free'){ if(!R.rev) h+=`<textarea id="obAns" rows="5" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px;border-radius:8px;background:var(--bg2,#1b1814);color:inherit;border:1px solid var(--line,#444)" placeholder="Say it out loud or type it (optional), as you would to the examiner…">${esc(s.ans||'')}</textarea>`;
-    else { if(s.ans) h+=`<div class="lede" style="font-size:12px;white-space:pre-wrap;border-left:3px solid #c86b9a;padding-left:8px;margin-bottom:8px">${esc(s.ans)}</div>`;
-      h+=`<p class="lede" style="font-size:12px">Tick only what you actually said:</p>`+s.pts.map((p,i)=>{ const on=!!s.chk[i], cr=p[0]==='!'; return `<button class="btn sm" data-a="obChk" data-v="${i}" ${s.g?'disabled':''} style="display:flex;width:100%;text-align:left;gap:8px;margin:3px 0;white-space:normal;${on?'background:rgba(90,180,110,.25);border-color:#5ab46e':''}"><span style="flex:none">${on?'☑':'☐'}</span><span>${cr?'<b style="color:#ff7d72">CRITICAL</b> ':''}${esc(obStrip(p))}</span></button>`; }).join(''); } }
-  if(R.rev&&s.res) h+=`<div class="alertline" style="margin-top:8px;font-size:13px"><b>Results:</b>&nbsp;${esc(s.res)}</div>`;
-  const last=R.si===R.st.length-1;
-  if(!R.rev) h+=`<div class="row" style="margin-top:8px"><button class="btn pri" data-a="obSubmit">${s.type==='free'?'Reveal the key':'Lock in'}</button><button class="btn sm" data-a="obQuit">${R.mode==='pr'?'Stop':'Retreat (settler comes back empty-handed)'}</button></div>`;
-  else if(s.type==='free'&&!s.g) h+=`<div class="row" style="margin-top:8px"><button class="btn pri" data-a="obSubmit">Done ticking</button></div>`;
-  else { const g=s.g; h+=`<p class="lede" style="font-size:12px;margin-top:6px">Step score ${g.sc}/${g.mx}${g.hz.length&&R.mode!=='pr'?` · <span style="color:#ff9d92">${g.hz.length} hazard${g.hz.length>1?'s':''} in the ruins</span>`:''}</p><div class="row"><button class="btn pri" data-a="obNext">${last?'Finish case':'Next step →'}</button></div>`; }
-  return h+'</div>'; }
-function obDoneView(){ const S=obState(), M=UI.ob.sum; if(!M) return obList(); const c=obCase(M.cid), T=M.trip?S.trips.find(x=>x.id===M.trip)||(S.lastBack&&S.lastBack.id===M.trip?S.lastBack:null):null, s=M.sid&&anyById(M.sid);
-  let h=`<div class="box" style="border-color:${M.pct>=80&&!M.crits?'#5ab46e':M.pct<50?'#ff7d72':'#c86b9a'}"><h4>${esc(c.title)} · ${OB_MODE[M.mode]} · ${M.pct}%</h4><ul class="facts" style="font-size:12px"><li>+${M.caps} caps, +${M.res} research, ${M.mins} min logged as study</li>${M.crits?`<li style="color:#ff9d92">${M.crits} critical action${M.crits>1?'s':''} missed</li>`:''}</ul>`;
-  const miss=M.hz.filter(z=>z.k!=='wrong'); if(miss.length) h+=`<p style="font-size:12px;margin:6px 0 2px"><b>Review these:</b></p><ul class="facts" style="font-size:12px">${miss.map(z=>`<li>${z.k==='trap'?'<b style="color:#ff6a5a">Harmful:</b> ':'<b style="color:#ff9d92">Missed:</b> '}${esc(z.t)}${z.why?' — '+esc(z.why):''}</li>`).join('')}</ul>`;
-  h+='</div>';
-  if(T&&s){ const O=T.out;
-    if(!T.done){ const sec=Math.max(0,Math.ceil((T.back-Date.now())/1000)); h+=`<div class="box"><h4>${esc(s.first)} is making their way back · ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}</h4><p class="lede" style="font-size:12px">What happened in the ruins:</p><ul class="facts" style="font-size:12px">${O.ev.length?O.ev.map(e=>`<li>${esc(e.m)}${e.d>0?` <span style="color:#ff9d92">−${e.d} health</span>`:e.d<0?` <span style="color:#5ab46e">+${-e.d}</span>`:''}${e.why?` <small class="muted">(${esc(e.why)})</small>`:''}</li>`).join(''):'<li>A clean run. Nothing touched them.</li>'}</ul></div>`; }
-    else { const D=T.done; h+=`<div class="box" style="border-color:${D.fate==='dead'?'#ff4a3a':D.fate==='fine'?'#5ab46e':'#e2c46a'}"><h4>${D.fate==='dead'?`${esc(s.first)} did not come back`:`${esc(s.first)} is home · ${({fine:'unhurt',minor:'minor injuries',serious:'seriously injured',disabled:'barely alive'})[D.fate]||''}`}</h4>${D.fate==='dead'?'<p class="lede">Everything they carried was lost in the ruins.</p>':`<ul class="facts" style="font-size:13px">${(D.got||[]).map(g=>`<li><b>${esc(g)}</b></li>`).join('')||'<li>No loot this time.</li>'}${(D.lostN||[]).map(n=>`<li style="color:#ff9d92">Lost: ${esc(n)}</li>`).join('')}${s.chronic&&O.dis===s.chronic.t?`<li style="color:#ff9d92">Caught ${esc(DISEASES[O.dis].name)}</li>`:''}</ul>`}</div>`; } }
-  h+=`<div class="box"><h4>Pearl</h4><p style="font-size:13px">${esc(c.pearl)}</p></div><div class="row"><button class="btn pri" data-a="obGo" data-v="weak">Next case</button><button class="btn" data-a="obPick" data-v="${c.id}">Run it again</button><button class="btn" data-a="obOpen" data-v="list">All cases</button></div>`;
-  return h; }
 function obLootView(){ const S=obState(); let h=`<p class="lede" style="font-size:12px">These can only be found in the ruined hospital. Topic mastery (every case in a topic at 90%+ in mixed mode) guarantees an Epic drop. The Stork is awarded for 80%+ on all ${OB_CASES.length} cases in mixed mode.</p>`;
   for(let t=0;t<6;t++){ const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].ob&&ITEMS[k].tier===t); if(!ks.length) continue;
     h+=`<div class="box"><h4 style="color:${TIERC[t]}">${TIERS[t]} · ${ks.filter(k=>S.got[k]).length}/${ks.length}</h4>${ks.map(k=>{ const d=ITEMS[k], g=S.got[k]; return `<div style="font-size:12px;margin:2px 0;${g?'':'opacity:.45'}">${g?'✅':'⬜'} ${d.t==='w'?'⚔':d.t==='a'?'🎭':'👕'} <b class="tier${t}">${esc(d.name)}</b>${d.fem?' <span class="muted">(women)</span>':''} <span class="muted">${d.t==='w'?'Damage '+d.dmg:Object.entries(d.bon).map(([a,b])=>a+' +'+b).join(' ')}</span></div>`; }).join('')}</div>`; }
@@ -5752,29 +5855,90 @@ function obGuide(){ const cols=['Differential Diagnosis','Pertinent History','Ke
   const tk=x=>x.toLowerCase().split(/[\s/(–-]+/).filter(Boolean).slice(0,2).join(' '); const cs=OB_CASES.filter(c=>tk(c.topic)===tk(r.Topic));
   for(const c of cs){ const pl=c.st.filter(s=>s.k==='plan'||s.k==='cb'), X=OB_X[c.id]||{}; h+=`<div class="box"><h4>Plan · ${esc(c.title)}</h4>${pl.map(s=>`<p class="lede" style="font-size:12px;margin:4px 0"><b>${esc(s.q)}</b></p><ul class="facts" style="font-size:12px">${s.pts.map(p=>`<li>${p[0]==='!'?'<b style="color:#ff7d72">★</b> '+esc(p.slice(1)):esc(p)}</li>`).join('')}</ul>`).join('')}${X.tr&&X.tr.plan?`<p class="lede" style="font-size:12px;margin:4px 0"><b>Traps examiners love:</b></p><ul class="facts" style="font-size:12px">${X.tr.plan.map(([t,w])=>`<li><span style="color:#ff9d92">✗ ${esc(t)}</span> — ${esc(w)}</li>`).join('')}</ul>`:''}${X.v?`<p class="lede" style="font-size:12px;margin:4px 0"><b>What changes the answer:</b></p><ul class="facts" style="font-size:12px">${X.v.map(v=>`<li>${esc((v.stem||v.s||'').trim()||'Different result: '+(v.res?Object.values(v.res)[0]:''))}${v.add?' → '+esc(Object.values(v.add).flat().map(obStrip).join('; ')):''}${v.harm?` <span style="color:#ff9d92">(avoid: ${esc(Object.values(v.harm).flat().map(x=>x[0]).join('; '))})</span>`:''}</li>`).join('')}</ul>`:''}<p style="font-size:12px"><b>Pearl:</b> ${esc(c.pearl)}</p><div class="row"><button class="btn sm" data-a="obPr" data-v="${c.id}">Practice</button><button class="btn sm pri" data-a="obPick" data-v="${c.id}">Expedition</button></div></div>`; }
   return h; }
+/* ---- UI ---- */
+const OB_MODE={pr:'Practice',ex:'Expedition',mock:'Mock oral exam'};
+const OB_CSS=`<style>.obbig{font-size:17px;line-height:1.5}.obbig .box h4{font-size:13px}.obbig .ob-q{font-size:19px;font-weight:600;margin:4px 0 10px}.obbig .ob-opt{display:block;width:100%;text-align:left;margin:6px 0;white-space:normal;font-size:16.5px;padding:11px 14px;line-height:1.35;border-radius:10px}.obbig .ob-ex{border-left:4px solid #c86b9a;padding:8px 12px;margin:8px 0;background:rgba(200,107,154,.08);border-radius:6px}.obbig .ob-me{border-left:4px solid #7fb8e8;padding:6px 12px;margin:6px 0 2px;background:rgba(127,184,232,.07);border-radius:6px}.obbig .ob-ans{padding:2px 12px 6px 16px;color:var(--ink,#eee);font-size:15.5px}.obbig .ob-done{font-size:16px;padding:12px 16px;margin-top:10px}.obbig .facts li{font-size:15px;margin:3px 0}.obbig .lede{font-size:14.5px}#modal .dlg:has(.obbig){max-width:900px;width:min(900px,96vw)}</style>`;
+function obBox(){ const S=obState(), R=S.run, n=Object.keys(S.bestMX).length, got=Object.keys(S.got).length, tot=Object.keys(ITEMS).filter(k=>ITEMS[k].ob).length, lm=(S.mocks||[])[0];
+  const out=S.trips.map(T=>{ const s=byId(T.sid); return s?`${s.first} returns in ${Math.max(0,Math.ceil((T.back-Date.now())/1000))}s`:''; }).filter(Boolean).join(' · ');
+  return `<div class="box" style="border-color:#c86b9a"><h4>🩺 OB/GYN orals · Operation Delivery Room</h4><p class="lede" style="font-size:12px">Oral-exam cases scored on your rubric (data acquisition, problem solving, management, knowledge). Send a settler and each case becomes a trip into the ruined hospital. ${got}/${tot} exclusive items · ${n}/${OB_CASES.length} cases done on expedition.${lm?` Last mock: <b>${lm.final.toFixed(2)}</b> ${lm.final>=3.5?'(pass)':'(conditional)'}.`:''}${out?' <b>'+out+'</b>':''}</p><div class="row">${R?`<button class="btn sm pri" data-a="obOpen" data-v="run">Resume</button>`:`<button class="btn sm pri" data-a="obMockGo">Mock oral exam</button><button class="btn sm" data-a="obGo" data-v="weak">Next case</button>`}<button class="btn sm" data-a="obOpen" data-v="list">All cases</button><button class="btn sm" data-a="obOpen" data-v="loot">Collection</button><button class="btn sm" data-a="obOpen" data-v="rf">Rapid fire</button><button class="btn sm" data-a="obOpen" data-v="guide">Study table</button></div></div>`; }
+function obTabs(){ const v=UI.ob.v; const on=k=>v===k||(k==='list'&&['pick','run','done'].includes(v)); const b=(k,t)=>`<button class="${on(k)?'on':''}" data-a="obOpen" data-v="${k}">${t}</button>`;
+  return `<div class="seg" style="margin-bottom:10px">${b('list','Cases')}${b('loot','Collection')}${b('rf','Rapid fire')}${b('guide','Study table')}</div>`; }
+const obTag=(v,l)=>v==null?`<span class="tag" style="opacity:.55">${l} –</span>`:`<span class="tag ${v>=28?'g':v>=18?'':'r'}">${l} ${v}/36</span>`;
+function obList(){ const S=obState(); S.bestR=S.bestR||{}; let h=`${S.run?`<div class="alertline" style="border-color:#c86b9a"><b>In progress: ${esc(obCase(S.run.cid).title)}</b>&nbsp;<button class="btn sm pri" data-a="obOpen" data-v="run">Resume</button></div>`:''}
+  <div class="box" style="border-color:#c86b9a"><h4>Mock oral exam</h4><p class="lede">Two random cases back to back, like the real exam. No feedback until the end; then you get the evaluation sheet (each area 1–9, total ÷ 8, pass at 3.5).</p><div class="row"><button class="btn pri" data-a="obMockGo">Start a mock exam</button>${(S.mocks||[]).slice(0,6).map(m=>`<span class="tag ${m.final>=3.5?'g':'r'}">${m.final.toFixed(2)}</span>`).join(' ')}</div></div>
+  <p class="lede" style="font-size:13px"><b>How it works:</b> the examiner asks; you pick <b>one</b> answer at a time. For list questions (history, exam, differential, workup, plan, risk factors, counseling) the examiner answers and asks “What else?” until you choose <b>That’s all</b>. You only learn what you ask. <b>Practice</b> has no risk; <b>Expedition</b> sends a settler.</p>`;
+  for(const sec of ['OB','GYN']){ h+=`<div class="box"><h4>${sec==='OB'?'Obstetrics':'Gynecology'}</h4>${OB_CASES.filter(c=>c.sec===sec).map(c=>`<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:4px;margin:4px 0"><span style="font-size:14px"><b>${esc(c.title)}</b> <span class="muted" style="font-size:12px">${esc(c.topic)}</span></span><span>${obTag(S.bestR[c.id],'Best')} <button class="btn sm" data-a="obPr" data-v="${c.id}">Practice</button><button class="btn sm pri" data-a="obPick" data-v="${c.id}">Expedition</button></span></div>`).join('')}</div>`; }
+  return h; }
+function obPickView(){ const O=UI.ob, mock=O.mock, c=!mock&&obCase(O.cid); const st=O.stims|0;
+  const el=G.settlers.filter(obEligible).sort((a,b)=>obSurvival(b,0)-obSurvival(a,0));
+  let h=`<div class="box" style="border-color:#c86b9a"><h4>${mock?'Mock oral exam · 2 random cases':'Expedition · '+esc(c.title)}</h4><p class="lede">${mock?'Run it as practice, or send a settler on a double shift (two loot rolls, twice the danger).':esc(c.topic)+'.'} The settler comes home 2 minutes after you finish. Missed critical points, wrong answers and harmful choices become hazards in the ruins. Outfit tier, mask, Endurance, weapon and stims decide how much they can take.</p>
+  ${mock?`<div class="row"><button class="btn pri" data-a="obMockPr">Practice mock (no settler)</button></div>`:''}
+  <div class="row" style="gap:6px;margin-top:6px">Stims to bring: ${[0,1,2,3].map(n=>`<button class="btn sm ${st===n?'pri':''}" data-a="obStims" data-v="${n}" ${n>Math.floor(G.res.stims)?'disabled':''}>${n}</button>`).join('')} <span class="muted" style="font-size:12px">${Math.floor(G.res.stims)} in storage</span></div></div>`;
+  if(!el.length) return h+'<p class="lede">Nobody is free: settlers need to be healthy adults (health 50+), not pregnant, not the leader, and not already away.</p>';
+  h+=`<div class="box"><h4>Choose who goes</h4>${el.slice(0,40).map(s=>{ const o=gearOf(s,'o'), w=gearOf(s,'w'), m=gearOf(s,'a'), sv=obSurvival(s,st), col=sv>=150?'#5ab46e':sv>=115?'#e2c46a':'#ff7d72';
+    return `<div class="row" style="justify-content:space-between;margin:4px 0;gap:6px"><span style="font-size:13px"><b style="font-size:14px">${esc(fullName(s))}</b> · health ${Math.round(s.health)} · E ${Math.round(effStat(s,'E'))} · L ${Math.round(effStat(s,'L'))}<br><span class="muted">${o?`<span class="tier${o.tier}">${esc(o.name)}</span>`:'Jumpsuit'} · ${w?`<span class="tier${w.tier}">${esc(w.name)}</span>`:'unarmed'} · ${m?`<span class="tier${m.tier}">${esc(m.name)}</span>`:'no mask'}</span></span><span><b style="color:${col};font-size:12px">toughness ${sv}</b> <button class="btn sm pri" data-a="obSend" data-id="${s.id}">Send</button></span></div>`; }).join('')}</div>`;
+  return h; }
+function obStageReview(s){ const g=s.g; if(!g) return ''; let h=`<div class="box" style="margin-top:10px"><h4>Step score ${g.sc}/${g.mx} · ${OB_DOM[s.dom]}</h4>`;
+  if(s.type==='list'){ const got=s.key.filter((o,i)=>s.picked.includes('k'+i)); h+=got.length?`<ul class="facts">${got.map(o=>`<li style="color:#7fd38a">✓ ${esc(o.t)}</li>`).join('')}</ul>`:'';
+    const ms=g.rv.filter(r=>r.k==='crit'||r.k==='miss'); if(ms.length) h+=`<p style="margin:6px 0 2px"><b>You didn’t ${s.k==='hx'?'ask':'mention'}:</b></p><ul class="facts">${ms.map(r=>`<li>${r.k==='crit'?'<b style="color:#ff7d72">CRITICAL</b> ':''}${esc(r.t)}${r.a?` <span class="muted">→ ${esc(r.a)}</span>`:''}</li>`).join('')}</ul>`;
+    const bd=g.rv.filter(r=>r.k==='harm'||r.k==='junk'); if(bd.length) h+=`<p style="margin:6px 0 2px"><b>Not indicated:</b></p><ul class="facts">${bd.map(r=>`<li style="color:#ff9d92">${r.k==='harm'?'<b>HARMFUL</b> ':'✗ '}${esc(r.t)}${r.a?' — '+esc(r.a):''}</li>`).join('')}</ul>`; }
+  else if(s.type==='sb'){ const o=s.opts[s.pick], b=s.opts.find(x=>x.g==='b'); h+=`<p>${o.g==='b'?'<b style="color:#7fd38a">Correct.</b>':o.g==='a'?'<b style="color:#e2c46a">Acceptable.</b>':`<b style="color:#ff7d72">${o.g==='h'?'Harmful.':'Incorrect.'}</b>`} Best answer: <b>${esc(b.t)}</b>${s.why?`. ${esc(s.why)}`:''}${s.first!=null&&s.first!==s.pick?` <span class="muted">(you changed your answer from “${esc(s.opts[s.first].t)}”)</span>`:''}</p>`; }
+  else if(s.type==='ord') h+=`<ol style="margin-left:20px">${s.items.map((t,i)=>`<li style="color:${s.seq[i]===i?'#7fd38a':'#ff9d92'}">${esc(t)}${s.seq[i]!==i?` <span class="muted">(you put: ${esc(s.items[s.seq[i]])})</span>`:''}</li>`).join('')}</ol>`;
+  return h+'</div>'; }
+function obRunView(){ const S=obState(), R=S.run; if(!R) return obList(); const c=obCase(R.cid), s=R.st[R.si], who=R.sid&&byId(R.sid), mock=obMock(R);
+  let h=`<div class="muted" style="font-size:12px;margin-bottom:4px">${OB_MODE[R.mode]}${R.cases.length>1?` · case ${R.ci+1} of ${R.cases.length}`:''}${mock?'':` · ${esc(c.topic)}`} · step ${R.si+1} of ${R.st.length}${who?` · ${esc(who.first)} is in the ruins`:''}${R.hz.length&&R.sid&&!mock?` · <span style="color:#ff9d92">${R.hz.length} hazards</span>`:''}</div>
+  <div class="ob-ex"><b>Examiner:</b> ${esc(R.stem)}</div>`;
+  for(let i=0;i<R.si;i++){ const p=R.st[i]; if(p.res) h+=`<div class="ob-ex"><b>Examiner:</b> Your results come back. ${esc(p.res)}</div>`; }
+  h+=`<div class="ob-q">${esc(s.q)}</div>`;
+  if(s.type==='list'){ for(const id of s.picked){ const o=id[0]==='k'?s.key[+id.slice(1)]:s.junk[+id.slice(1)]; h+=`<div class="ob-me">${esc(o.t)}</div><div class="ob-ans"><b>Examiner:</b> ${esc((id[0]==='k'&&o.a)||'Okay.')}</div>`; }
+    if(!s.done){ if(s.picked.length) h+=`<div class="ob-q" style="font-size:17px">What else?</div>`;
+      h+=s.ids.filter(id=>!s.picked.includes(id)).map(id=>{ const o=id[0]==='k'?s.key[+id.slice(1)]:s.junk[+id.slice(1)]; return `<button class="btn ob-opt" data-a="obAns" data-v="${id}">${esc(o.t)}</button>`; }).join('')+`<button class="btn pri ob-done" data-a="obEnough">That’s all</button>`; } }
+  else if(s.type==='sb'){ if(s.pushed==='ask') h+=`<div class="ob-me">${esc(s.opts[s.pick].t)}</div><div class="ob-ex"><b>Examiner:</b> ${esc(s.pb.q)}</div><div class="row"><button class="btn pri ob-done" data-a="obStand">Yes, I’m sure</button><button class="btn ob-done" data-a="obRethink">Let me reconsider</button></div>`;
+    else h+=`<p class="lede">Pick the single best answer.</p>`+s.opts.map((o,i)=>{ let st=''; if(s.done){ if(o.g==='b') st='background:rgba(90,180,110,.25);border-color:#5ab46e'; else if(i===s.pick) st='background:rgba(255,125,114,.2);border-color:#ff7d72'; else st='opacity:.55'; } return `<button class="btn ob-opt" data-a="obAns" data-v="${i}" ${s.done?'disabled':''} style="${st}">${esc(o.t)}</button>`; }).join(''); }
+  else if(s.type==='ord'){ h+=`<p class="lede">Tap the steps in the order you would do them.</p><ol style="margin:4px 0 8px 22px">${s.seq.map(v=>`<li>${esc(s.items[v])}</li>`).join('')}</ol>`;
+    if(!s.done) h+=s.shown.filter(v=>!s.seq.includes(v)).map(v=>`<button class="btn ob-opt" data-a="obAns" data-v="${v}">${esc(s.items[v])}</button>`).join('')+(s.seq.length?`<button class="btn sm" data-a="obOrdReset">Reset order</button>`:''); }
+  if(s.done&&!mock){ if(s.res) h+=`<div class="ob-ex"><b>Examiner:</b> Your results come back. ${esc(s.res)}</div>`; h+=obStageReview(s)+`<div class="row"><button class="btn pri ob-done" data-a="obNext">${R.si===R.st.length-1?(R.ci<R.cases.length-1?'Next case →':'Finish'):'Next question →'}</button></div>`; }
+  if(!s.done) h+=`<div class="row" style="margin-top:14px"><button class="btn sm" data-a="obQuit">${R.sid?'Retreat (settler comes back empty-handed)':'Stop'}</button></div>`;
+  return h; }
+function obSheet(cr,i){ const c=obCase(cr.cid); return `<div class="box" style="border-color:${cr.tot/4>=3.5?'#5ab46e':'#ff7d72'}"><h4>Case #${i+1} · ${esc(c.topic)} · ${cr.tot}/36</h4><p class="lede" style="font-size:13px">${esc(cr.stem)}</p>
+  <table style="width:100%;border-collapse:collapse;font-size:14.5px;table-layout:fixed;word-break:break-word">${Object.keys(OB_DOM).map(k=>{ const d=cr.D[k]; return `<tr style="border-top:1px solid var(--line,#333)"><td style="padding:6px 4px;width:34%"><b>${OB_DOM[k]}</b></td><td style="padding:6px 4px;width:22%"><b style="font-size:18px;color:${d.score>=7?'#7fd38a':d.score>=5?'#e2c46a':'#ff7d72'}">${d.score}</b> <span class="muted" style="font-size:12px">${obBand(d.score)}</span></td><td style="padding:6px 4px;font-size:13.5px">${esc(d.cm)}</td></tr>`; }).join('')}</table>
+  <details style="margin-top:8px"><summary style="cursor:pointer">Full review</summary>${Object.keys(OB_DOM).map(k=>{ const rv=cr.D[k].rv; return rv.length?`<p style="margin:8px 0 2px"><b>${OB_DOM[k]}</b></p><ul class="facts">${rv.map(r=>`<li style="${r.k==='harm'||r.k==='junk'?'color:#ff9d92':''}">${r.k==='crit'?'<b style="color:#ff7d72">CRITICAL</b> ':r.k==='harm'?'<b>HARMFUL</b> ':r.k==='junk'?'✗ ':r.k==='flip'?'↩ ':r.k==='wrongsb'?'✗ ':''}${esc(r.t)}${r.a?` <span class="muted">→ ${esc(r.a)}</span>`:''}</li>`).join('')}</ul>`:''; }).join('')}</details>
+  <p style="font-size:14px;margin-top:8px"><b>Pearl:</b> ${esc(c.pearl)}</p></div>`; }
+function obDoneView(){ const S=obState(), M=UI.ob.sum; if(!M) return obList(); const T=M.trip?S.trips.find(x=>x.id===M.trip)||(S.lastBack&&S.lastBack.id===M.trip?S.lastBack:null):null, s=M.sid&&anyById(M.sid);
+  let h=M.final!=null?`<div class="box" style="border-color:${M.final>=3.5?'#5ab46e':'#ff7d72'}"><h4>Final score</h4><p style="font-size:22px;margin:4px 0"><b>${M.final.toFixed(2)}</b> / 9 · <b style="color:${M.final>=3.5?'#7fd38a':'#ff7d72'}">${M.final>=3.5?'PASS':'CONDITIONAL PASS'}</b></p><p class="lede">(Case 1 + Case 2) ÷ 8. Pass at 3.5.</p></div>`:'';
+  h+=M.cres.map((cr,i)=>obSheet(cr,i)).join('');
+  h+=`<p class="lede">+${M.caps} caps, +${M.res} research, ${M.mins} min logged as study.</p>`;
+  if(T&&s){ const O=T.out;
+    if(!T.done){ const sec=Math.max(0,Math.ceil((T.back-Date.now())/1000)); h+=`<div class="box"><h4>${esc(s.first)} is making their way back · ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}</h4><ul class="facts">${O.ev.length?O.ev.map(e=>`<li>${esc(e.m)}${e.d>0?` <span style="color:#ff9d92">−${e.d} health</span>`:e.d<0?` <span style="color:#5ab46e">+${-e.d}</span>`:''}${e.why?` <small class="muted">(${esc(e.why)})</small>`:''}</li>`).join(''):'<li>A clean run. Nothing touched them.</li>'}</ul></div>`; }
+    else { const D=T.done; h+=`<div class="box" style="border-color:${D.fate==='dead'?'#ff4a3a':D.fate==='fine'?'#5ab46e':'#e2c46a'}"><h4>${D.fate==='dead'?`${esc(s.first)} did not come back`:`${esc(s.first)} is home · ${({fine:'unhurt',minor:'minor injuries',serious:'seriously injured',disabled:'barely alive'})[D.fate]||''}`}</h4>${D.fate==='dead'?'<p class="lede">Everything they carried was lost in the ruins.</p>':`<ul class="facts">${(D.got||[]).map(g=>`<li><b>${esc(g)}</b></li>`).join('')||'<li>No loot this time.</li>'}${(D.lostN||[]).map(n=>`<li style="color:#ff9d92">Lost: ${esc(n)}</li>`).join('')}${s.chronic&&O.dis===s.chronic.t?`<li style="color:#ff9d92">Caught ${esc(DISEASES[O.dis].name)}</li>`:''}</ul>`}</div>`; } }
+  h+=`<div class="row"><button class="btn pri" data-a="obMockGo">New mock exam</button><button class="btn" data-a="obGo" data-v="weak">Next case</button><button class="btn" data-a="obOpen" data-v="list">All cases</button></div>`;
+  return h; }
 function obModal(){ UI.ob=UI.ob||{v:'list'}; const v=UI.ob.v;
   const body=v==='run'?obRunView():v==='done'?obDoneView():v==='pick'?obPickView():v==='rf'?obRfView():v==='guide'?obGuide():v==='loot'?obLootView():obList();
-  return `<header><h2>🩺 OB/GYN orals · Operation Delivery Room</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">${obTabs()}${body}</div>`; }
-function obPickNext(){ const S=obState(); const sc=c=>Math.max(S.bestMX[c.id]??-1,S.mcDone[c.id]?(S.bestMC[c.id]||0)*.6:-1); const lo=Math.min(...OB_CASES.map(sc)); return pick(OB_CASES.filter(c=>sc(c)===lo)).id; }
+  return `${OB_CSS}<header><h2>🩺 OB/GYN orals · Operation Delivery Room</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd obbig">${obTabs()}${body}</div>`; }
+function obPickNext(){ const S=obState(); S.bestR=S.bestR||{}; const sc=c=>S.bestR[c.id]??-1; const lo=Math.min(...OB_CASES.map(sc)); return pick(OB_CASES.filter(c=>sc(c)===lo)).id; }
+function obMockCases(){ const lce=['AUB','Diabetes','First','Fetal','Multiple','Ovarian','Post-Menopausal','Postpartum','Pre','Preterm','Third','UTI']; const a=obShuffle(OB_CASES.filter(c=>c.id!=='csec')); const x=a[0]; const y=a.find(c=>c.topic!==x.topic); return [x.id,y.id]; }
 function obClick(a,v,id){ const O=UI.ob=UI.ob||{v:'list'}, S=obState(), R=S.run;
   switch(a){
     case 'obOpen': if(v==='run'&&!R) v='list'; O.v=v; if(v==='rf'&&O.rq==null) obRfNext(); UI.modal={t:'ob'}; break;
-    case 'obGo': { const cid=v==='weak'?obPickNext():v; if(R){ UI.ob={v:'run'}; UI.modal={t:'ob'}; toast('Finish or retreat from the current case first.'); break; } UI.ob={v:'pick',cid,stims:0,mode:S.mcDone[cid]?'mx':'mc'}; UI.modal={t:'ob'}; break; }
-    case 'obPick': if(R){ UI.ob={v:'run'}; toast('Finish or retreat from the current case first.'); break; } UI.ob={v:'pick',cid:v,stims:0,mode:S.mcDone[v]?'mx':'mc'}; UI.modal={t:'ob'}; break;
-    case 'obPr': obBegin(v,'pr'); break;
-    case 'obMode': O.mode=v; break;
+    case 'obGo': { const cid=v==='weak'?obPickNext():v; if(R){ UI.ob={v:'run'}; UI.modal={t:'ob'}; toast('Finish or leave the current case first.'); break; } UI.ob={v:'pick',cid,stims:0}; UI.modal={t:'ob'}; break; }
+    case 'obPick': if(R){ UI.ob={v:'run'}; toast('Finish or leave the current case first.'); break; } UI.ob={v:'pick',cid:v,stims:0}; UI.modal={t:'ob'}; break;
+    case 'obMockGo': if(R){ UI.ob={v:'run'}; UI.modal={t:'ob'}; toast('Finish or leave the current case first.'); break; } UI.ob={v:'pick',mock:true,stims:0}; UI.modal={t:'ob'}; break;
+    case 'obMockPr': obBegin(obMockCases(),'mock'); break;
+    case 'obPr': obBegin([v],'pr'); break;
     case 'obStims': O.stims=+v; break;
-    case 'obSend': obBegin(O.cid,O.mode,id,O.stims|0); break;
-    case 'obPickOpt': { if(!R||R.rev) break; const s=R.st[R.si]; if(s.type==='sel') s.pick[v]=!s.pick[v]; else if(s.type==='sb') s.pick=+v; break; }
-    case 'obOrd': { if(!R||R.rev) break; const s=R.st[R.si]; if(!s.seq.includes(+v)) s.seq.push(+v); break; }
-    case 'obOrdReset': if(R&&!R.rev) R.st[R.si].seq=[]; break;
-    case 'obChk': { if(!R) break; const s=R.st[R.si]; if(!s.g) s.chk[v]=!s.chk[v]; break; }
-    case 'obSubmit': { if(!R) break; const s=R.st[R.si]; if(s.type==='free'&&R.rev&&!s.g){ s.g=obGrade(s); } else obSubmit(); save(); break; }
+    case 'obSend': if(O.mock) obBegin(obMockCases(),'mock',id,O.stims|0); else obBegin([O.cid],'ex',id,O.stims|0); break;
+    case 'obAns': obPickItemId(v); break;
+    case 'obEnough': { if(!R) break; const s=R.st[R.si]; if(s.type==='list'&&!s.done) obCloseStage(R,s); break; }
+    case 'obStand': { if(!R) break; const s=R.st[R.si]; s.pushed=true; obCloseStage(R,s); break; }
+    case 'obRethink': { if(!R) break; const s=R.st[R.si]; s.pushed=true; s.pick=null; break; }
+    case 'obOrdReset': if(R&&!R.st[R.si].done) R.st[R.si].seq=[]; break;
     case 'obNext': obNext(); break;
     case 'obQuit': obAbandon(); break;
     case 'obRf': obRf(+v); break;
     case 'obRfNext': obRfNext(); break;
-    case 'obG': O.g=+v; break; } }
+    case 'obG': O.g=+v; break; }
+  if(R&&S.run) save(); }
 /* ===== END OB/GYN ORAL BOARDS ===== */
 
 function drawRoom(c,r,t,lit){
@@ -6539,7 +6703,7 @@ document.addEventListener('click',e=>{
     case 'milRes': { const s=byId(id); if(s){ const r=s.room&&roomById(s.room); if(r&&MIL_POSTS.includes(r.type)) unassign(s); enlist(s,'reserve'); } break; }
     case 'milPromo': { const s=byId(id); if(s) promote(s); break; }
     case 'milOff': { const s=byId(id); if(s) discharge(s); break; }
-    case 'obOpen': case 'obGo': case 'obPick': case 'obPr': case 'obMode': case 'obStims': case 'obSend': case 'obPickOpt': case 'obOrd': case 'obOrdReset': case 'obChk': case 'obSubmit': case 'obNext': case 'obQuit': case 'obRf': case 'obRfNext': case 'obG': obClick(a,el.dataset.v,id); break;
+    case 'obOpen': case 'obGo': case 'obPick': case 'obPr': case 'obMockGo': case 'obMockPr': case 'obStims': case 'obSend': case 'obAns': case 'obEnough': case 'obStand': case 'obRethink': case 'obOrdReset': case 'obNext': case 'obQuit': case 'obRf': case 'obRfNext': case 'obG': obClick(a,el.dataset.v,id); break;
     case 'cmsStart': cmsStart(); break;
     case 'cmsReport': UI.modal={t:'cms'}; break;
     case 'cmsCancel': if(G.cms){ G.cms=null; if(G.session) G.session.nextAtk=Date.now()+ri(9,18)*60000; log('CMS form cancelled. Raids can come again.','study'); toast('CMS form mode off.'); } if(UI.modal&&UI.modal.t==='cms') UI.modal=null; break;
@@ -6703,7 +6867,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
