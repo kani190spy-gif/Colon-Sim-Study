@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.0</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.1</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1553,7 +1553,8 @@ function sessionModal(){
 }
 
 /* ---------- save ---------- */
-function save(){ if(!G) return; G.savedAt=Date.now(); CLOUD.dirty=true; try{localStorage.setItem(KEY,JSON.stringify(G));}catch(e){} }
+const DESKTOP=!!(window.desktop&&window.desktop.isDesktop);
+function save(){ if(!G) return; G.savedAt=Date.now(); CLOUD.dirty=true; let js=null; try{ js=JSON.stringify(G); localStorage.setItem(KEY,js);}catch(e){} if(DESKTOP&&js){ try{ window.desktop.save(js); }catch(e){} } }
 /* ===== Cloud save: one private copy per player, synced across devices ===== */
 const CLOUD={db:null,uid:null,ready:false,busy:false,dirty:false,fresh:false,pushedAt:0,seen:0,status:'local',at:0,
   dev:(()=>{ try{ let d=localStorage.getItem('colony-dev'); if(!d){ d=Math.random().toString(36).slice(2,10); localStorage.setItem('colony-dev',d); } return d; }catch(e){ return 'x'+Math.random().toString(36).slice(2,8); } })()};
@@ -1616,7 +1617,7 @@ async function cloudInit(){
 }
 function cloudLabel(){ const s=CLOUD.status; return s==='synced'?`Saved to your account${CLOUD.at?' · '+new Date(CLOUD.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):''}`:s==='syncing'?'Connecting to your account…':s==='full'?'Account storage is full; saving on this device only':s==='error'?`Couldn’t reach your account; saving on this device and retrying${CLOUD.err?' ('+CLOUD.err+')':''}`:'Saving on this device only'; }
 
-function load(){ try{const r=localStorage.getItem(KEY); if(r){const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g);}}catch(e){} return null; }
+function load(){ if(DESKTOP){ try{ const r=window.desktop.load(); if(r){ const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g); } }catch(e){} } try{const r=localStorage.getItem(KEY); if(r){const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g);}}catch(e){} return null; }
 
 /* =================== SCENE =================== */
 const WD={pad:16,shaft:78,roomW:250,floorH:144,surfH:196};
@@ -1671,7 +1672,7 @@ function makeRock(){
 }
 function sizeCanvas(){
   const wrap=document.getElementById('sceneWrap'); const cw=wrap.clientWidth||900;
-  SC=clamp(cw/worldW,.42,1.55)*UI.zoom; DPR=Math.min(1.5,window.devicePixelRatio||1);
+  SC=clamp(cw/worldW,.42,1.55)*UI.zoom; DPR=DESKTOP?(window.devicePixelRatio||1):Math.min(1.5,window.devicePixelRatio||1);
   const w=Math.round(worldW*SC), h=Math.round(worldH()*SC);
   if(cv.width!==Math.round(w*DPR)||cv.height!==Math.round(h*DPR)){ cv.width=Math.round(w*DPR); cv.height=Math.round(h*DPR); cv.style.width=w+'px'; cv.style.height=h+'px'; }
 }
@@ -2473,7 +2474,7 @@ function settleEmergencies(){ for(const e of [...(G.emerg||[])]) resolveEm(e,fal
 
 let CHEER=0;
 // settler sprites: each settler is drawn into its own small canvas ~10 times a second and copied every frame
-const SPR=new Map(), SPR_FPS=10, SPR_MX=54, SPR_MY=128, SPR_H=146;
+const SPR=new Map(), SPR_FPS=window.desktop?15:10, SPR_MX=54, SPR_MY=128, SPR_H=146;
 function drawPersonCached(c,a,s,t,opt){
   const pose=opt.pose||a.pose; if(pose==='down'||pose==='bed'||pose==='stretcher'||pose==='ride'){ drawPerson(c,a,s,t,opt); return; }
   const S=DPR*SC; let E=SPR.get(s.id);
@@ -5019,7 +5020,7 @@ function citModal(){ const P=citPolicy(), A=G.settlers.filter(isAdult), C=A.filt
   <div class="box"><h4>Citizens (${C.length}) · how they lean right now</h4><p class="lede" style="font-size:12px">Only you can see this.</p>${C.sort((a,b)=>(a.lean||'').localeCompare(b.lean||'')||a.id-b.id).map(s=>row(s,'',`${BLOCS[s.lean||'loyal'].n} · would vote ${vote(s)}${s.citD!=null?` · citizen since ${fdate(s.citD)}`:s.bd!=null?' · born here':''}${s.citGrudge>8?' · still bitter about the wait':''}${s.immStance==='strict'?' · wants stricter immigration':''}${s.arrestedBy?' · once detained':''}`)).join('')}</div></div>`; }
 
 // room art is cached and redrawn about 10 times a second; settlers are still drawn every frame
-const ROOM_CACHE=new Map(); let ROOM_FPS=10;
+const ROOM_CACHE=new Map(); let ROOM_FPS=window.desktop?15:10;
 function drawRoomCached(c,r,t,lit){
   const S=DPR*SC, m=6, x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), hgt=WD.floorH;
   const key=[r.type,r.w||1,r.level,r.floor,r.col,lit?1:0,G.flags.power?1:0,HOVER&&HOVER.room===r.id?1:0,S.toFixed(3),r.workers.length,G.officeTheme||''].join('|');
