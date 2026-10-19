@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.5</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.6</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -417,6 +417,7 @@ const POLICIES={
 const SLOTS=[0,0,2,3,4];
 const QSRC=['UWorld','AMBOSS','NBME','Other'];
 const TIERS=['Common','Uncommon','Rare','Epic','Legendary','Mythic'], TIERC=['#d8cfc0','#7fd38a','#7fb8e8','#c08cf0','#f2b83b','#ff7a6a'], SCRAP=[15,35,60,120,200,400];
+function lootKeys(){ return Object.keys(ITEMS).filter(k=>!ITEMS[k].ob); }
 const ITEMS={
   wrench:{t:'w',name:'Pipe wrench',tier:0,dmg:3,draw:'wrench'},
   bat:{t:'w',name:'Baseball bat',tier:0,dmg:3,draw:'bat'},
@@ -703,7 +704,7 @@ function mkMVP(note){
   STATS.forEach(k=>s.s[k]=Math.max(st[k]||0,ri(4,6))); if(myth) STATS.forEach(k=>s.s[k]=Math.min(10,st[k]?st[k]+1:Math.max(s.s[k],6))); s.pre=rnd()<.15?s.pre:null; s.chronic=null; s.mvp=key; s.title=title; s.happy=80;
   Object.assign(s.look,lk||{}); if(lk&&lk.style==='bald') s.look.custom=false;
   s.note=note||pick(['A face everyone at the gate recognizes.','Word of the shelter reached even them.','Walked in with a crowd of wanderers trailing behind.']);
-  const w=pick(Object.keys(ITEMS).filter(k=>ITEMS[k].t==='w'&&ITEMS[k].tier>=(myth?4:3)&&ITEMS[k].tier<=(myth?5:4)));
+  const w=pick(lootKeys().filter(k=>ITEMS[k].t==='w'&&ITEMS[k].tier>=(myth?4:3)&&ITEMS[k].tier<=(myth?5:4)));
   const ok=MVP_GEAR[kind].filter(k=>ITEMS[k]);
   return {s,expires:G.day+45,gear:{w,o:key==='tito'?'o_marshal':ok.length?pick(ok):undefined},mvp:true};
 }
@@ -816,7 +817,7 @@ function newGame(opts){
   log(`${fullName(elder)} complains of chest tightness on the stairs. Without healthcare, nobody can say why.`,'health');
   log('Amir and Lejla share the quarters. Couples in quarters may start a family.','family');
 }
-function starterBps(g){ const b=new Set(g.bps||[]); for(const it of g.items) b.add(it.k); for(const t of ['w','o']){ const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0&&!b.has(k)); for(let i=0;i<2&&ks.length;i++) b.add(ks.splice(Math.floor(rnd()*ks.length),1)[0]); } g.bps=[...b]; }
+function starterBps(g){ const b=new Set(g.bps||[]); for(const it of g.items) b.add(it.k); for(const t of ['w','o']){ const ks=lootKeys().filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0&&!b.has(k)); for(let i=0;i<2&&ks.length;i++) b.add(ks.splice(Math.floor(rnd()*ks.length),1)[0]); } g.bps=[...b]; }
 function migrate(g){
   if(!g.citV){ g.citV=1; for(const p of g.settlers||[]) p.cit='citizen'; }
   for(const r of g.rooms||[]) if(r.type==='precinct'&&(r.w||1)<2){ const occ=(f,c)=>(g.rooms||[]).some(q=>q!==r&&q.floor===f&&c>=q.col&&c<q.col+(q.w||1)); if(r.col+1<6&&!occ(r.floor,r.col+1)) r.w=2; else if(r.col>0&&!occ(r.floor,r.col-1)){ r.col--; r.w=2; } }
@@ -844,12 +845,13 @@ function migrate(g){
 }
 function addItem(k){ const it={id:G.nextId++,k}; G.items.push(it); return it; }
 const itemById=id=>G.items.find(i=>i.id===id);
-const holderOf=id=>G.settlers.find(s=>s.gear&&(s.gear.o===id||s.gear.w===id));
+const holderOf=id=>G.settlers.find(s=>s.gear&&(s.gear.o===id||s.gear.w===id||s.gear.a===id));
 function gearOf(s,slot){ const id=s.gear&&s.gear[slot]; if(!id) return null; const it=itemById(id); return it?ITEMS[it.k]:null; }
-function bonusOf(s,k){ const o=gearOf(s,'o'); return o&&o.bon&&o.bon[k]||0; }
+function bonusOf(s,k){ const o=gearOf(s,'o'), m=gearOf(s,'a'); return (o&&o.bon&&o.bon[k]||0)+(m&&m.bon&&m.bon[k]||0); }
 function equip(s,slot,id){
   s.gear=s.gear||{};
-  if(id){ const h=holderOf(id); if(h&&h!==s){ if(h.gear.o===id) h.gear.o=null; if(h.gear.w===id) h.gear.w=null; } }
+  if(id&&slot==='o'){ const it=itemById(id); if(it&&ITEMS[it.k].fem&&s.sex!=='F'){ toast('That outfit is for women only.'); return; } }
+  if(id){ const h=holderOf(id); if(h&&h!==s){ if(h.gear.o===id) h.gear.o=null; if(h.gear.w===id) h.gear.w=null; if(h.gear.a===id) h.gear.a=null; } }
   s.gear[slot]=id||null;
 }
 
@@ -943,7 +945,7 @@ function rollTier(streak,luck){
   const leg=(streak>=5?.01+.008*Math.min(streak-5,10):.002)+luck*.0015, rare=.12+.025*Math.min(streak,10)+luck*.006, r=rnd();
   return r<leg?2:r<leg+rare?1:0;
 }
-function lootItem(e,band){ const r=rnd(), tier=band===0?(r<.7?0:1):band===1?(r<.7?2:3):(r<.55?3:r<.9?4:5); let keys=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===tier); if(!keys.length) keys=Object.keys(ITEMS).filter(k=>ITEMS[k].tier<=tier); const k=pick(keys); e.loot.items.push(k); return ITEMS[k]; }
+function lootItem(e,band){ const r=rnd(), tier=band===0?(r<.7?0:1):band===1?(r<.7?2:3):(r<.55?3:r<.9?4:5); let keys=lootKeys().filter(k=>ITEMS[k].tier===tier); if(!keys.length) keys=lootKeys().filter(k=>ITEMS[k].tier<=tier); const k=pick(keys); e.loot.items.push(k); return ITEMS[k]; }
 function addLoot(e,tier,why){
   const L=e.loot; let m;
   if(tier===2){ const r=rnd(); if(r<.45){const it=lootItem(e,2);m=`a ${TIERS[it.tier].toLowerCase()} ${it.name}`;} else if(r<.8){const it=lootItem(e,1);m=`a ${it.name}`;} else {const c=ri(150,260);L.caps+=c;L.research+=25;m=`a sealed vault cache (${c} caps, 25 research)`;} }
@@ -1091,7 +1093,7 @@ function setPartner(a,b){
 function removeSettler(s,cause,departed){
   unassign(s);
   G.settlers=G.settlers.filter(x=>x!==s);
-  if((cause==='Killed on expedition'||cause==='Killed in the wasteland')&&s.gear){ const ids=[s.gear.o,s.gear.w].filter(Boolean); G.items=G.items.filter(i=>!ids.includes(i.id)); }
+  if((cause==='Killed on expedition'||cause==='Killed in the wasteland'||cause==='Died in the ruined hospital')&&s.gear){ const ids=[s.gear.o,s.gear.w,s.gear.a].filter(Boolean); G.items=G.items.filter(i=>!ids.includes(i.id)); }
   else if(!departed){ const a=AG.get(s.id); let x,l,dir=1; if(a&&!a.hidden&&!s.exp){ x=a.x; l=a.l; dir=a.dir||1; } else { const r=s.room&&roomById(s.room)||G.rooms.find(q=>q.type==='quarters'); if(r){ x=roomX(r.col)+60; l=r.floor; } }
     if(x!=null){ const its=gearItems(s); settlerBody(s,x,l,its,dir); } }
   s.gear={};
@@ -1355,7 +1357,7 @@ function mkVisitor(kind){
   s.note=n;
   if(rnd()<.3) s.look.scar=pick(['cheek','eye','brow','chin']);
   if(rnd()<.12&&kind!=='elite'){ s.look.ghoul=true; s.note+=' Radiation has left their skin peeling and patchy.'; }
-  const gear={}, wtier=()=>{ const q=rnd(); return q<.70?0:q<.95?1:q<.995?2:3; }, gi=t=>{ const tr=wtier(); let ks=Object.keys(ITEMS).filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===tr&&!['scrubs','chef','o_zmaj'].includes(k)); if(!ks.length) ks=Object.keys(ITEMS).filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0); return pick(ks); };
+  const gear={}, wtier=()=>{ const q=rnd(); return q<.70?0:q<.95?1:q<.995?2:3; }, gi=t=>{ const tr=wtier(); let ks=lootKeys().filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===tr&&!['scrubs','chef','o_zmaj'].includes(k)); if(!ks.length) ks=lootKeys().filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0); return pick(ks); };
   if(rnd()<.5){ const first=rnd()<.55?'w':'o'; gear[first]=gi(first); if(rnd()<.12){ const o2=first==='w'?'o':'w'; gear[o2]=gi(o2); } }
   return {s,expires:G.day+30,gear};
 }
@@ -1687,6 +1689,7 @@ function lookOf(s){
   const o=gearOf(s,'o'); let L=Object.assign({},LOOKS[o?o.look:'jumpsuit']);
   if(!o&&s.rank===2) L=Object.assign({},LOOKS.scrubs);
   if(s.rank===3&&!L.coat&&!L.plates&&!L.hood&&!L.g) L.coat='#f4f1ea';
+  const ac=gearOf(s,'a'); if(ac&&ac.mask) L.g=Object.assign({},L.g||{},{mask:ac.mask});
   return L;
 }
 function stationX(r,i){
@@ -2198,8 +2201,8 @@ function gearLeg(c,O,p,front,X){ const Lg=O.leg||{}, {dir}=X, lw=X.lw||1;
 
 /* ---- head layer: hats, helmets, masks ---- */
 const FULLHEAD={recon:1,paStd:1,paTalon:1,paSov:1,paSalv:1,paSteel:1,paHonor:1,stealth:1,dive:1,hazHelm:1,plague:0,secHelmet:0};
-function gearHeadBack(c,H){ if(!H) return; if(H.t==='hood'||H.t==='cultHood'||H.t==='headdress'){ gEl(c,-1,-.5,13.2,14.6,H.c,0,.8); } }
-function gearHead(c,O,t,X){ const H=O.hat, M=O.mask;
+function gearHeadBack(c,H){ if(!H) return; if(H.t==='hijab'){ gEl(c,-1,-.5,13.2,14.6,H.c,0,.8); gPoly(c,[[-12,2],[-14.4,17],[-2,18],[-2,6]],H.c,.6); return; } if(H.t==='hood'||H.t==='cultHood'||H.t==='headdress'){ gEl(c,-1,-.5,13.2,14.6,H.c,0,.8); } }
+function gearHead(c,O,t,X){ const H=O.hat, M=O.mask; if(M&&OBM_DRAW[M.t]) OBM_DRAW[M.t](c,M);
   if(O.goggles){ c.save(); gRR(c,-10,-9.6,21,2.6,1,'#3a3326',.5); for(const gx of [1,6.6]){ gEl(c,gx,-8.4,2.6,2.2,'#5d646c',0,.6); gEl(c,gx,-8.4,1.8,1.5,O.goggles,0,.3); c.fillStyle='rgba(255,255,255,.6)'; c.fillRect(gx-1,-9.4,.8,.6); } c.restore(); }
   if(M){ if(M.t==='resp'){ gRR(c,2.4,3.2,8.6,6.6,2.4,M.c||'#3a3f45',.7); for(let q=0;q<3;q++) gLine(c,[[4.2+q*2,4.6],[4.2+q*2,8.4]],'rgba(0,0,0,.35)',.5); gEl(c,9.4,8.6,2,2,M.c2||'#5d646c',0,.5); gLine(c,[[2.4,5],[-7,3]],'#2a2622',.8); }
     else if(M.t==='scarf'){ c.beginPath(); c.moveTo(-9.6,2.4); c.quadraticCurveTo(2,1,11,2.4); c.lineTo(10.4,8); c.quadraticCurveTo(6,13.2,1,13); c.quadraticCurveTo(-6,12,-9.6,6); c.closePath(); gB(c,M.c); gLine(c,[[-6,6],[8,6.4]],shade(M.c,-.25),.5); gLine(c,[[-5,9],[6,9.6]],shade(M.c,-.25),.5); }
@@ -2208,6 +2211,7 @@ function gearHead(c,O,t,X){ const H=O.hat, M=O.mask;
     else if(M.t==='cage'){ gPoly(c,[[-2,-8],[11,-8],[11.6,10],[5,13],[-2,11]],'rgba(0,0,0,0)',.01); c.strokeStyle='#2a2622'; c.lineWidth=2.2; for(let q=0;q<5;q++){ c.beginPath(); c.moveTo(-1+q*2.8,-8); c.lineTo(-1+q*2.8,11-Math.abs(q-2)*.6); c.stroke(); } c.strokeStyle=M.c||'#8a6a4a'; c.lineWidth=1.2; for(let q=0;q<5;q++){ c.beginPath(); c.moveTo(-1+q*2.8,-8); c.lineTo(-1+q*2.8,11-Math.abs(q-2)*.6); c.stroke(); } gRR(c,-3,-9.6,15,2.6,.8,M.c||'#8a6a4a',.6); gRR(c,-3,2,15,2,.6,M.c||'#8a6a4a',.5); } }
   if(!H) return;
   const c1=H.c, c2=H.c2||shade(c1,-.3);
+  if(OBH_DRAW[H.t]){ OBH_DRAW[H.t](c,H,c1,c2); return; }
   switch(H.t){
     case 'greathelm': { gRR(c,-11.4,-17,23.4,27,4,c1); c.fillStyle='rgba(255,255,255,.18)'; c.fillRect(-9,-15,3.6,22); gRR(c,1,-4.4,11.6,2.2,.6,'#15110d',.3); for(let q=0;q<3;q++) for(let r=0;r<2;r++){ c.fillStyle='#15110d'; c.fillRect(5.6+q*2.2,3+r*2.2,1,1); } gLine(c,[[11.6,-15],[11.6,9]],shade(c1,-.25),.8); if(H.gold){ gLine(c,[[-11,-12],[12,-12]],H.gold,1); gLine(c,[[6.4,-12],[6.4,-4.6]],H.gold,.8); gLine(c,[[6.4,-2],[6.4,8]],H.gold,.8); } if(H.plume){ c.beginPath(); c.moveTo(-3,-17); c.quadraticCurveTo(-7,-29,-18,-26); c.quadraticCurveTo(-11,-22,-7,-17); c.closePath(); gB(c,H.plume); } break; }
     case 'bascinet': { if(H.mail){ c.beginPath(); c.moveTo(-11.6,-6); c.lineTo(-12.4,10); c.quadraticCurveTo(-4,14,4,12.6); c.lineTo(4,8); c.quadraticCurveTo(-4,9,-8,-4); c.closePath(); gB(c,shade(c1,-.18)); c.fillStyle='rgba(0,0,0,.28)'; for(let yy=-4;yy<12;yy+=2) for(let xx=-11;xx<3;xx+=2) c.fillRect(xx,yy,.7,.7); } c.beginPath(); c.moveTo(-11.6,-4); c.bezierCurveTo(-12,-16,-2,-22,4,-21); c.bezierCurveTo(9,-18,11.6,-12,11.4,-6); c.lineTo(-11.6,-4); c.closePath(); gB(c,c1); c.fillStyle='rgba(255,255,255,.22)'; c.beginPath(); c.ellipse(0,-14,4,2,-.4,0,TAU); c.fill(); break; }
@@ -2251,7 +2255,7 @@ function gearHead(c,O,t,X){ const H=O.hat, M=O.mask;
     case 'hazHelm': { c.beginPath(); c.ellipse(0,-1,14,15,0,0,TAU); gB(c,c1); gEl(c,3.6,1,9,10,'rgba(170,215,235,.42)',0,.7); c.fillStyle='rgba(255,255,255,.55)'; c.beginPath(); c.ellipse(.4,-4,2.4,4,.3,0,TAU); c.fill(); gRR(c,-12,10,24,4,1.6,'#2a2d31',.6); gEl(c,-11,5,2.6,2.6,'#3a3f45',0,.5); break; }
   }
 }
-const COVERS_HAIR={helmet:1,helmetR:1,secHelmet:1,fire:1,crown:1,gladiator:1,warlord:1,recon:1,stealth:1,paStd:1,paTalon:1,paSov:1,paSalv:1,paSteel:1,paHonor:1,dive:1,hazHelm:1,hood:1,cultHood:1,headdress:1,headwrap:1};
+const COVERS_HAIR={hijab:1,surgcap:1,helmet:1,helmetR:1,secHelmet:1,fire:1,crown:1,gladiator:1,warlord:1,recon:1,stealth:1,paStd:1,paTalon:1,paSov:1,paSalv:1,paSteel:1,paHonor:1,dive:1,hazHelm:1,hood:1,cultHood:1,headdress:1,headwrap:1};
 
 /* ===== Wasteland weapons catalog: 60 drawings built from shared parts ===== */
 const WT=()=>(typeof performance!=='undefined'?performance.now():Date.now())/1000;
@@ -2484,7 +2488,7 @@ function drawPersonCached(c,a,s,t,opt){
   if(!E){ const cv2=document.createElement('canvas'); E={cv:cv2,cx:cv2.getContext('2d'),t:-9,key:'',ph:(s.id%7)/70}; SPR.set(s.id,E); }
   if(!E.cx){ drawPerson(c,a,s,t,opt); return; }
   E.seen=t;
-  const key=[pose,a.dir||1,opt.hold?1:0,opt.ring?1:0,opt.angry?1:0,opt.mourn?1:0,opt.cradle?1:0,opt.ert?1:0,opt.focus?1:0,s.gear&&s.gear.o,s.gear&&s.gear.w,S.toFixed(3),Math.floor(age(s)),s.preg?1:0,s.health<40?1:0,a.lifting?1:0,a.recoil>0?1:0,UI.modal&&UI.modal.t==='settler'&&UI.modal.id===s.id?1:0].join('|');
+  const key=[pose,a.dir||1,opt.hold?1:0,opt.ring?1:0,opt.angry?1:0,opt.mourn?1:0,opt.cradle?1:0,opt.ert?1:0,opt.focus?1:0,s.gear&&s.gear.o,s.gear&&s.gear.w,s.gear&&s.gear.a,S.toFixed(3),Math.floor(age(s)),s.preg?1:0,s.health<40?1:0,a.lifting?1:0,a.recoil>0?1:0,UI.modal&&UI.modal.t==='settler'&&UI.modal.id===s.id?1:0].join('|');
   const fps=SPR.size>220?6:SPR.size>120?8:SPR_FPS;
   if(E.key!==key||t-E.t>=1/fps||t<E.t){
     const W=Math.ceil(2*SPR_MX*S), H=Math.ceil(SPR_H*S);
@@ -3366,7 +3370,7 @@ const matLine=m=>Object.keys(MATS).filter(k=>m&&m[k]).map(k=>`${m[k]} ${MATS[k].
 // blueprints
 function rollTierB(b){ b=clamp(b,0,1); const w=[40-25*b,30-8*b,16+8*b,8+10*b,2.5+5*b,.5+1.5*b], tot=w.reduce((a,x)=>a+x,0); let q=rnd()*tot, t=0; for(;t<5&&q>=w[t];t++) q-=w[t]; return t; }
 function rollBlueprint(b){ const t=rollTierB(b); const known=new Set(G.bps||[]);
-  for(let d=0;d<6;d++){ for(const tt of [t-d,t+d]){ if(tt<0||tt>5) continue; const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===tt&&!known.has(k)&&!k.startsWith('o_zmaj')); if(ks.length) return pick(ks); } }
+  for(let d=0;d<6;d++){ for(const tt of [t-d,t+d]){ if(tt<0||tt>5) continue; const ks=lootKeys().filter(k=>ITEMS[k].tier===tt&&!known.has(k)&&!k.startsWith('o_zmaj')); if(ks.length) return pick(ks); } }
   return null; }
 function learnBp(k,why){ if(!k) return false; G.bps=G.bps||[]; if(G.bps.includes(k)) return false; G.bps.push(k); const it=ITEMS[k]; log(`Blueprint found${why?' ('+why+')':''}: ${TIERS[it.tier]} ${it.name}. It can now be built in the ${it.t==='w'?'Weapon':'Outfit'} Factory.`,'study'); return true; }
 function recipe(k){ const it=ITEMS[k], t=it.tier, R={}, add=(m,n)=>{ if(n>0) R[m]=(R[m]||0)+n; };
@@ -3405,7 +3409,7 @@ function wEvent(w,s){
   else if(r<.48){ const c=Math.round(ri(4,16)*(1+h*.35)*(1+luck*.04)); w.loot.caps+=c; wLog(w,`Found ${c} caps.`,'t0'); }
   else if(r<.72){ const g=addMats(w.loot.mats,ri(1,2+Math.floor(h/2)),b); wLog(w,`Collected scrap: ${matLine(g)}.`,'t0'); }
   else if(r<.72+Math.min(.12,.035+h*.012+luck*.003)){ const k=rollBlueprint(b); if(k&&!w.loot.bps.includes(k)){ w.loot.bps.push(k); wLog(w,`Found a blueprint: ${ITEMS[k].name}.`,'t'+Math.min(2,ITEMS[k].tier>>1)); } else { const c=ri(10,25); w.loot.caps+=c; wLog(w,`Found a cache with ${c} caps.`,'t0'); } }
-  else if(r<.90){ if(rnd()<.35+h*.05){ const t=rollTierB(b*.85); const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); const k=pick(ks); w.loot.items.push(k); wLog(w,`Found a ${TIERS[t].toLowerCase()} ${ITEMS[k].name}.`,'t'+Math.min(2,t>>1)); } else wLog(w,pick(WFLAV)); }
+  else if(r<.90){ if(rnd()<.35+h*.05){ const t=rollTierB(b*.85); const ks=lootKeys().filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); const k=pick(ks); w.loot.items.push(k); wLog(w,`Found a ${TIERS[t].toLowerCase()} ${ITEMS[k].name}.`,'t'+Math.min(2,t>>1)); } else wLog(w,pick(WFLAV)); }
   else wLog(w,pick(WFLAV));
   while(s.health<35&&w.stims>0){ w.stims--; w.used++; s.health=Math.min(100,s.health+STIM_HEAL); wLog(w,`Used a stim (+${STIM_HEAL} health). ${w.stims} left.`,'good'); }
 }
@@ -3594,14 +3598,14 @@ function drawShaft(c,x0,top0){
 }
 /* ===== Bodies, looting, burial and the graveyard ===== */
 const GRAVE0=()=>worldW-46, GRAVEX=i=>GRAVE0()-(i%9)*21-(Math.floor(i/9)%2)*10, GRAVEROW=i=>Math.floor(i/9)%2;
-function gearItems(s){ const ids=[s.gear&&s.gear.o,s.gear&&s.gear.w].filter(Boolean); const its=G.items.filter(i=>ids.includes(i.id)); G.items=G.items.filter(i=>!ids.includes(i.id)); return its; }
+function gearItems(s){ const ids=[s.gear&&s.gear.o,s.gear&&s.gear.w,s.gear&&s.gear.a].filter(Boolean); const its=G.items.filter(i=>ids.includes(i.id)); G.items=G.items.filter(i=>!ids.includes(i.id)); return its; }
 function addBody(b){ G.bodies=G.bodies||[]; b.id=G.nextId++; G.bodies.push(b); if(G.bodies.length>24){ const old=G.bodies.find(x=>x.kind==='raider'); if(old) G.bodies=G.bodies.filter(x=>x!==old); } return b; }
 function settlerBody(s,x,l,items,dir){ const o=gearOf(s,'o'); return addBody({kind:'settler',sid:s.id,name:fullName(s),x,l,dir:dir||1,items:(items||[]).map(i=>i.k),L:o?o.look:null}); }
 // raider gear rarity: scavengers carry junk, warbands carry decent kit; legendary is rare and mythic never comes off a raider
 const RAID_GEAR=[[85,15,0,0,0,0],[35,45,18,2,0,0],[0,25,45,25,5,0]];
 function raidGearTier(rt){ const w=RAID_GEAR[rt]||RAID_GEAR[0]; let q=rnd()*100; for(let i=0;i<w.length;i++){ q-=w[i]; if(q<0) return i; } return 0; }
 function raiderLoot(f){ const L={caps:ri(...[[5,12],[10,24],[18,40]][f.tier]),items:[],mats:{},bps:[]};
-  if(rnd()<[.30,.40,.55][f.tier]){ const t=raidGearTier(f.tier); let ks=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); if(!ks.length) ks=Object.keys(ITEMS).filter(k=>ITEMS[k].tier<=t&&k!=='o_zmaj'); L.items.push(pick(ks)); }
+  if(rnd()<[.30,.40,.55][f.tier]){ const t=raidGearTier(f.tier); let ks=lootKeys().filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); if(!ks.length) ks=lootKeys().filter(k=>ITEMS[k].tier<=t&&k!=='o_zmaj'); L.items.push(pick(ks)); }
   if(rnd()<.45) addMats(L.mats,ri(1,2),f.tier*.2);
   if(rnd()<[.03,.06,.12][f.tier]){ const k=rollBlueprint(f.tier*.3); if(k) L.bps.push(k); }
   return L; }
@@ -4148,7 +4152,7 @@ function cmsFinish(shelf,score){ score=Math.round(+score);
     const add=T.h*60, before=G.boost; G.boost=Math.min(BOOST_CAP,G.boost+add); const day=dayRec(today); day.earned+=G.boost-before; got.push(`+${hm(G.boost-before)} reactor charge`);
     G.res.research+=T.res; got.push(`+${T.res} research`); if(T.caps){ G.res.caps+=T.caps; got.push(`+${T.caps} caps`); }
     if(T.stims){ const s0=G.res.stims; G.res.stims=Math.min(stimCap(),G.res.stims+T.stims); if(G.res.stims>s0) got.push(`+${Math.round(G.res.stims-s0)} stim${G.res.stims-s0>1?'s':''}`); }
-    if(T.item!=null){ const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===T.item&&k!=='o_zmaj'); if(ks.length){ const k=pick(ks); addItem(k); got.push(`a ${TIERS[T.item].toLowerCase()} ${ITEMS[k].name}`); } }
+    if(T.item!=null){ const ks=lootKeys().filter(k=>ITEMS[k].tier===T.item&&k!=='o_zmaj'); if(ks.length){ const k=pick(ks); addItem(k); got.push(`a ${TIERS[T.item].toLowerCase()} ${ITEMS[k].name}`); } }
     if(T.bp&&rnd()<T.bp){ const k=rollBlueprint(.3+T.item*.15); if(k&&learnBp(k,'earned on a CMS form')) got.push(`a blueprint (${ITEMS[k].name})`); }
     if(T.morale){ for(const s of G.settlers) s.happy=Math.min(100,s.happy+T.morale); got.push(`+${T.morale} happiness for everyone`); }
     if(T.mvp){ let v=G.bos?mkMVP(`Heard the whole shelter cheering about a ${shelf} score of ${score}.`):null; if(!v) v=mkVisitor('elite'); G.gate.push(v); got.push(`${G.bos&&v.mvp?'a Legend':'an exceptional wanderer'} at the gate: ${fullName(v.s)}${v.s.title?` (${v.s.title})`:''}`); }
@@ -4223,7 +4227,7 @@ WDRAW.w_longsword=c=>{ K.wrapGrip(c,-6,0,2.2,'#5a3a22'); wDot(c,-6.6,0,1.3,'#c9a
 ITEMS.w_longsword={t:'w',name:'Knight’s Longsword',tier:3,dmg:11,draw:'w_longsword',cat:'melee',long:false,heavy:false,fx:null}; }
 
 /* ===== Childbirth complications (risk rises from 35; no births after 45) ===== */
-function birthRisk(m){ const a=age(m); let p=a<35?.02:.02+(a-35)*.015; if(m.health<50) p+=.05; if(G.ob&&G.ob.buff>G.day) p*=.7; if(rnd()>=p) return;
+function birthRisk(m){ const a=age(m); let p=a<35?.02:.02+(a-35)*.015; if(m.health<50) p+=.05; if(rnd()>=p) return;
   const r=rnd(), kind=r<.5?'hem':r<.8?'pre':'pcm', staffed=!!(G.care&&G.care.staffed), surg=typeof surgReady==='function'&&surgReady();
   const what={hem:'a postpartum hemorrhage',pre:'severe preeclampsia',pcm:'peripartum cardiomyopathy'}[kind];
   let die=staffed?(kind==='hem'?(surg?.03:.08):.05):.3; if(a>=40) die+=.03;
@@ -4241,7 +4245,7 @@ function clerkOf(){ const T=G.trader; if(!T) return null; const ws=G.rooms.filte
 function tMult(){ const c=byId(G.trader&&G.trader.clerk), C=c?effStat(c,'C'):3, e=G.inst.econ||0; return {sell:Math.min(1.35,(.8+.04*C)*(1+.05*e)),buy:Math.max(.85,1.4-.03*C-.05*e)}; }
 function rollTraderTier(){ const e=G.inst.econ||0, w=[35-e*4,35,20+e*2,8+e*2,2+e,0]; let q=rnd()*w.reduce((a,b)=>a+b,0); for(let i=0;i<w.length;i++){ q-=w[i]; if(q<0) return i; } return 0; }
 function traderStock(){ const st=[], used=new Set();
-  for(let i=0;i<2;i++){ const t=rollTraderTier(); const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'&&!used.has(k)); if(ks.length){ const k=pick(ks); used.add(k); st.push({kind:'item',k,base:ITEM_VAL[t]}); } }
+  for(let i=0;i<2;i++){ const t=rollTraderTier(); const ks=lootKeys().filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'&&!used.has(k)); if(ks.length){ const k=pick(ks); used.add(k); st.push({kind:'item',k,base:ITEM_VAL[t]}); } }
   st.push({kind:'stims',q:3,base:54}); st.push({kind:'meds',q:5,base:45});
   const mk=pick(Object.keys(MATS).filter(m=>MATS[m].r>=1)); st.push({kind:'mat',m:mk,q:4,base:MAT_VAL[MATS[mk].r]*4*1.6});
   if(rnd()<.35){ const k=rollBlueprint(.25); if(k) st.push({kind:'bp',k,base:ITEM_VAL[ITEMS[k].tier]*1.4}); }
@@ -5379,87 +5383,398 @@ const OB_RF=[
 ];
 const OB_GUIDE=[{"Topic": "Abnormal Uterine Bleeding (premenopausal)", "Differential Diagnosis": "Pregnancy/ectopic, PALM-COEIN causes (polyp, adenomyosis, leiomyoma, malignancy/hyperplasia, coagulopathy, ovulatory dysfunction, endometrial, iatrogenic), thyroid disease, PCOS", "Pertinent History": "Menstrual pattern (frequency, duration, volume, regularity); sexual and contraceptive history; bleeding/clotting history; family history; meds", "Key Physical Exam": "Pelvic exam with speculum + bimanual; signs of anemia; signs of PCOS/thyroid disease", "Management": "Pregnancy test and CBC with platelets in all; treat by PALM-COEIN etiology — LNG-IUD, combined OCPs, tranexamic acid; surgical options: endometrial ablation, hysterectomy", "Risk Factors / High-Yield Facts": "PALM-COEIN classification (Polyp, Adenomyosis, Leiomyoma, Malignancy/hyperplasia, Coagulopathy, Ovulatory, Endometrial, Iatrogenic, Not classified). Consider von Willebrand disease in adolescents (Lebduska et al., Medical Clinics of North America , 2023).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Diabetes in Pregnancy", "Differential Diagnosis": "Pre-gestational vs gestational diabetes; impaired glucose tolerance; secondary causes (steroids, thyroid); polyhydramnios/macrosomia from other causes", "Pertinent History": "Prior GDM, family history of DM, prior macrosomia; polyuria/polydipsia; symptoms of infection", "Key Physical Exam": "BMI/weight gain; fundal height (macrosomia/polyhydramnios); BP (co-existing preeclampsia)", "Management": "Screen with glucose tolerance testing; glycemic control with diet, then insulin/metformin; fetal growth surveillance; antenatal testing", "Risk Factors / High-Yield Facts": "GDM risk factors: BMI >25 plus first-degree relative with DM, high-risk ethnicity, hypertension, or prior GDM (Ramírez, American Family Physician , 2023). GDM increases risk of spontaneous preterm birth, PPROM, and preeclampsia (Huang et al., BMC Pregnancy Childbirth , 2025).", "section": "Obstetrics — LCE Topics"}, {"Topic": "First Trimester Bleeding", "Differential Diagnosis": "Threatened/inevitable/incomplete/missed abortion, ectopic pregnancy, molar pregnancy, subchorionic hematoma, implantation bleeding, cervical/vaginal lesion or polyp, infection", "Pertinent History": "LMP/dating; pain; passage of tissue; prior ectopic; assisted reproduction", "Key Physical Exam": "Vitals (hemodynamic stability); speculum (source, os open/closed); bimanual (adnexal mass/tenderness, uterine size)", "Management": "Quantitative β-hCG + transvaginal ultrasound; serial β-hCG; Rh status and RhoGAM if indicated; manage threatened/missed/incomplete abortion, ectopic, or molar pregnancy accordingly", "Risk Factors / High-Yield Facts": "~15–25% of pregnancies have first-trimester bleeding; associated with miscarriage, preterm delivery, low birth weight, stillbirth. ~1–2% of pregnancies are ectopic — the leading cause of first-trimester maternal mortality. Discriminatory β-hCG ~2,000 mIU/mL for intrauterine sac on TVUS (Matar et al., Journal of International Medical Research , 2025; Hill et al., Scientific Reports , 2024; Frasca et al., AFP , 2023).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Fetal Growth Restriction", "Differential Diagnosis": "Constitutionally small (SGA) vs true FGR; placental insufficiency; aneuploidy; congenital infection (TORCH); maternal vascular disease; wrong dates", "Pertinent History": "Maternal comorbidities (hypertension, prior FGR); smoking; symphysis-fundal height lag", "Key Physical Exam": "Fundal height >3 cm below GA; BP", "Management": "Confirm with ultrasound biometry (EFW <10th percentile); serial umbilical artery Doppler — every 1–2 wk initially, weekly if decreased EDF, 2–3×/wk if absent EDF; hospitalize + steroids + delivery planning if reversed EDF (REDV)", "Risk Factors / High-Yield Facts": "SGA ≠ FGR — FGR defined by abnormal growth velocity/placental insufficiency (abnormal UA Doppler). Early (<32 wk) associated with UA Doppler abnormalities; late with low MCA PI. Antenatal corticosteroids and MgSO4 for anticipated preterm birth (SMFM Consult #52, Martins et al., 2020; Lees et al., AJOG , 2022).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Multiple Gestation", "Differential Diagnosis": "Twin/higher-order gestation; molar pregnancy; polyhydramnios; uterine fibroids; incorrect dating", "Pertinent History": "Assisted reproduction; family history of twins; hyperemesis; rapid uterine growth", "Key Physical Exam": "Fundal height greater than dates; multiple fetal heart tones", "Management": "Establish chorionicity in first trimester; low-dose aspirin for preeclampsia prevention; serial ultrasound every 2 wk from 16 wk in monochorionic (TTTS surveillance); delivery timing by chorionicity (MCMA 32–34 wk, cesarean)", "Risk Factors / High-Yield Facts": "Main maternal complications: preeclampsia, GDM, preterm labor; most perinatal morbidity from prematurity. Monochorionic twins: TTTS, TAPS, TRAP. No role for prophylactic tocolysis, cerclage, or progesterone in unselected twins (ACOG, 2021; ASRM, 2022).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Postpartum Hemorrhage", "Differential Diagnosis": "Uterine atony (Tone), genital tract laceration (Trauma), retained products (Tissue), coagulopathy (Thrombin); uterine inversion; uterine rupture", "Pertinent History": "Prolonged/induced labor; prior PPH; chorioamnionitis; high parity; overdistended uterus", "Key Physical Exam": "Uterine tone (atony); inspect genital tract for lacerations; assess for retained placenta; vitals", "Management": "Bimanual uterine massage + oxytocin first-line; add methylergonovine, carboprost, misoprostol; tranexamic acid within 3 h; IV crystalloids; balloon tamponade, compression sutures, UAE; 1:1:1 transfusion if unstable", "Risk Factors / High-Yield Facts": "Four T's: Tone (atony, most common), Trauma , Tissue (retained POC), Thrombin (coagulopathy). Methylergonovine contraindicated in hypertension; carboprost contraindicated in asthma (Bienstock et al., NEJM , 2021; ACOG, 2017).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Preeclampsia–Eclampsia / Hypertension in Pregnancy", "Differential Diagnosis": "Chronic HTN, gestational HTN, preeclampsia ± severe features, eclampsia, HELLP; chronic HTN with superimposed preeclampsia; secondary HTN; TTP/HUS; acute fatty liver", "Pertinent History": "Headache, visual changes, RUQ pain; prior preeclampsia; chronic HTN, renal/autoimmune disease; nulliparity", "Key Physical Exam": "BP ≥140/90 (severe ≥160/110); edema; hyperreflexia/clonus; fundal height", "Management": "Labs: CBC, creatinine, AST/ALT, LDH, urine protein/creatinine; treat BP ≥160/110 with labetalol, nifedipine, or hydralazine; MgSO4 for seizure prophylaxis/treatment; delivery at 37 wk (without severe features) or 34 wk (severe features); low-dose aspirin prophylaxis from 12 wk in high-risk", "Risk Factors / High-Yield Facts": "ACE-I/ARBs strictly contraindicated. MgSO4 toxicity → stop infusion, give IV calcium gluconate. Eclampsia MgSO4: 4 g load then 1 g/hr; continue 24 h postpartum (Farahi et al., AFP , 2024; Mol et al., Lancet , 2016; ACOG per Sinkey et al., 2020).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Preterm Labor / PPROM", "Differential Diagnosis": "True preterm labor vs false labor; PPROM vs urinary incontinence/normal discharge; abruption; chorioamnionitis; UTI; cervical insufficiency", "Pertinent History": "Contractions, leaking fluid, pelvic pressure; prior preterm birth; UTI; abnormal discharge", "Key Physical Exam": "Sterile speculum (pooling, nitrazine, ferning for PPROM); cervical exam/TVUS cervical length; fetal heart rate", "Management": "Single course antenatal corticosteroids 24–34 wk if delivery within 7 days; tocolysis (nifedipine, indomethacin, terbutaline) up to 48 h to allow steroids; MgSO4 for neuroprotection <32 wk; GBS prophylaxis; latency antibiotics for PPROM", "Risk Factors / High-Yield Facts": "Tocolysis contraindicated in chorioamnionitis, nonreassuring status, severe preeclampsia, hemodynamic instability. PPROM risk factors: prior PPROM, UTI, abnormal discharge, low BMI, nulliparity, GDM. Maintenance tocolysis not recommended (ACOG, 2016; Giouleka et al., 2022; Geremew et al., 2024).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Third Trimester Bleeding", "Differential Diagnosis": "Placenta previa (painless), placental abruption (painful, rigid uterus), vasa previa (bleeding with ROM + fetal distress), uterine rupture, bloody show/labor, lower genital tract lesion", "Pertinent History": "Painless vs painful bleeding; prior cesarean/placenta previa; trauma; cocaine use", "Key Physical Exam": "Avoid digital exam until previa excluded ; vitals; uterine tone/tenderness; fetal monitoring", "Management": "Ultrasound for placental location; CBC, type & screen, coagulation studies; Rh status; fetal monitoring; delivery depending on stability and GA", "Risk Factors / High-Yield Facts": "Classic: placenta previa (painless), abruption (painful, rigid uterus), vasa previa (bleeding with ROM + fetal distress). Also lower genital tract lesions and early labor (SMFM Consult #44, 2018).", "section": "Obstetrics — LCE Topics"}, {"Topic": "UTI / Renal Disease in Pregnancy", "Differential Diagnosis": "Asymptomatic bacteriuria, cystitis, pyelonephritis; nephrolithiasis; preterm labor; appendicitis; vaginitis; chorioamnionitis", "Pertinent History": "Dysuria, frequency, urgency; flank pain/fever (pyelonephritis); prior UTI", "Key Physical Exam": "Costovertebral angle tenderness; fever; vitals", "Management": "Screen for asymptomatic bacteriuria with urine culture early in pregnancy; treat ASB (≥100,000 CFU/mL) and cystitis with 5–7 day targeted course; pyelonephritis → inpatient IV antibiotics, total 14 days; avoid empiric amoxicillin/ampicillin (E. coli resistance)", "Risk Factors / High-Yield Facts": "Treating ASB reduces pyelonephritis (from 20–35% to 1–4%), preterm birth, and low birth weight. GBS bacteriuria → intrapartum prophylaxis. Nitrofurantoin/fosfomycin acceptable; avoid near term for nitrofurantoin (ACOG, 2023; IDSA, 2019; Ansaldi et al., 2023).", "section": "Obstetrics — LCE Topics"}, {"Topic": "Abnormal Pap Test", "Differential Diagnosis": "ASC-US, LSIL, HSIL, ASC-H, AGC; reactive/inflammatory changes; cervical dysplasia (CIN 1–3); invasive cervical cancer; transient HPV infection", "Pertinent History": "Prior Pap/HPV results; HPV vaccination; immunosuppression; smoking; sexual history", "Key Physical Exam": "Speculum exam of cervix; bimanual", "Management": "Manage per ASCCP risk-based guidelines: colposcopy with biopsy for higher-risk results; HPV cotesting; excisional treatment (LEEP/cone) for high-grade dysplasia", "Risk Factors / High-Yield Facts": "Persistent high-risk HPV drives cervical dysplasia/cancer. Smoking and immunosuppression (HIV) increase risk. (General cervical cancer screening/management principles; specific ASCCP thresholds not detailed in retrieved sources.)", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Amenorrhea", "Differential Diagnosis": "Pregnancy; outflow tract anomaly (imperforate hymen, Asherman, Müllerian agenesis); primary ovarian insufficiency/Turner; hypothalamic (functional, Kallmann); pituitary (prolactinoma, Sheehan); PCOS; thyroid disease; androgen-secreting tumor", "Pertinent History": "Primary vs secondary; menarche/menstrual pattern; weight change, exercise, stress, eating habits; galactorrhea; hyperandrogenic or vasomotor symptoms; uterine instrumentation", "Key Physical Exam": "Anthropometrics, Tanner staging; signs of hyperandrogenism (acne, hirsutism, clitoromegaly); Turner stigmata (webbed neck, short stature); anosmia (Kallmann); vaginal patency", "Management": "Pregnancy test first; then FSH, LH, prolactin, TSH; add androgens/17-OHP if hyperandrogenism; karyotype, pelvic/brain imaging as indicated", "Risk Factors / High-Yield Facts": "Categories: outflow tract, primary ovarian insufficiency, hypothalamic/pituitary, other endocrine. Sheehan syndrome after PPH; Asherman after instrumentation. Rapid hyperandrogenism → rule out androgen-secreting tumor (ASRM, 2024; Klein et al., AFP , 2019; Pitts et al., JAMA , 2021).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Contraception", "Differential Diagnosis": "N/A (counseling topic) — screen for conditions affecting eligibility: migraine with aura, uncontrolled HTN, VTE history, smoking ≥35 yo, breast cancer, liver disease", "Pertinent History": "Pregnancy intentions; medical comorbidities (HTN, migraine with aura, VTE); smoking/age; bleeding preferences", "Key Physical Exam": "BP (screen before CHC); otherwise minimal exam needed to initiate most methods", "Management": "Use CDC U.S. MEC to screen contraindications; LARC (IUD, implant) most effective (<1%/yr) and first-line for appropriate candidates; counsel on STI protection; emergency contraception (copper IUD most effective, then ulipristal)", "Risk Factors / High-Yield Facts": "CHCs contraindicated in migraine with aura (stroke risk) and uncontrolled HTN (MEC 3/4). Estrogen methods increase VTE risk. Progestin-only and LARC safe in HTN (Teal & Edelman, JAMA , 2021; Paradise et al., AFP , 2022; CDC U.S. MEC).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Endometriosis", "Differential Diagnosis": "Primary/secondary dysmenorrhea, adenomyosis, PID/chronic pelvic pain, ovarian cyst/endometrioma, interstitial cystitis, IBS, leiomyoma, adhesions", "Pertinent History": "Dysmenorrhea, cyclic/noncyclic pelvic pain, dyspareunia, dyschezia; infertility; young menarche, short cycles, nulliparity", "Key Physical Exam": "Tender nodularity of cul-de-sac/uterosacral ligaments, fixed retroverted uterus; exam may be normal", "Management": "Clinical diagnosis supported by TVUS/MRI (normal imaging does not exclude); first-line NSAIDs + combined OCPs or progestins; second-line GnRH agonists/antagonists with add-back; aromatase inhibitors third-line; laparoscopic excision/ablation if medical therapy fails", "Risk Factors / High-Yield Facts": "90% report pelvic pain, 26% infertility; diagnosis often delayed 5–12 years. Definitive dx = surgical visualization. ~25% recur within 12 months of stopping hormones (As-Sanie et al., JAMA , 2025; Taylor et al., Lancet , 2021).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Infertility", "Differential Diagnosis": "Ovulatory dysfunction (PCOS, hypothalamic, POI, thyroid/prolactin), tubal factor (PID, endometriosis), male factor, uterine/cervical factor, diminished ovarian reserve, unexplained", "Pertinent History": "Duration of attempts; cycle regularity; prior pregnancies; STI/PID; male partner history", "Key Physical Exam": "Thyroid, breast, pelvic exam; signs of hyperandrogenism/PCOS", "Management": "Evaluate after 12 mo (<35 yo) or 6 mo (≥35 yo); earlier if risk factors; assess ovulation, tubal patency (HSG/SHG), ovarian reserve, and semen analysis in male partner", "Risk Factors / High-Yield Facts": "Male factor in 40–50% of couples — obtain semen analysis early. Most common causes: ovulatory dysfunction, male factor, tubal disease; ~15–30% unexplained (ACOG Committee Opinion 781, 2019; ASRM, 2021; Carson & Kallen, JAMA , 2021).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Menopause Management", "Differential Diagnosis": "Natural/physiologic menopause; primary ovarian insufficiency; thyroid disease; hyperprolactinemia; pregnancy; medication effects; postmenopausal bleeding workup if bleeding present", "Pertinent History": "Vasomotor symptoms (hot flashes, night sweats); genitourinary symptoms; last menstrual period; contraindications (breast/endometrial cancer, VTE, CVD, liver disease)", "Key Physical Exam": "BP; breast and pelvic exam; evaluate any vaginal bleeding", "Management": "Hormone therapy (HT) is most effective for moderate–severe vasomotor symptoms; add progestogen if uterus present; lowest effective dose; vaginal estrogen for isolated GSM; nonhormonal options (SSRIs/SNRIs, gabapentin) if contraindicated", "Risk Factors / High-Yield Facts": "Best candidates: <60 yo or within 10 yr of menopause. Combined estrogen-progestogen increases breast cancer, VTE, stroke risk; transdermal has lower thrombotic risk. Not recommended for chronic disease prevention (USPSTF) (Crandall et al., JAMA , 2023; Shifren et al., JAMA , 2019).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Ovarian / Pelvic Mass", "Differential Diagnosis": "Functional cyst, endometrioma, dermoid/mature teratoma, cystadenoma, leiomyoma, tubo-ovarian abscess, ectopic, ovarian torsion, epithelial ovarian cancer, metastasis", "Pertinent History": "Bloating, early satiety, pelvic pain, urinary symptoms; family history (BRCA, Lynch); menopausal status", "Key Physical Exam": "Abdominal/pelvic exam for mass, ascites, nodularity, fixation", "Management": "Transvaginal ultrasound is first-line imaging; CA-125 (and risk models — RMI, O-RADS, IOTA ADNEX); simple cysts ≤10 cm may be monitored; refer to gyn-onc for suspicious features", "Risk Factors / High-Yield Facts": "Malignancy concern: size >10 cm, solid/papillary components, irregularity, ascites, high Doppler flow; elevated CA-125 + mass in postmenopausal woman highly suspicious. Prioritize fertility preservation in young patients (ACOG, 2016; ACR O-RADS, 2022; Sisodia & Del Carmen, NEJM , 2022).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Pelvic Pain / STI", "Differential Diagnosis": "PID/tubo-ovarian abscess, ectopic pregnancy, ovarian torsion, ruptured/hemorrhagic cyst, endometriosis, appendicitis, UTI/pyelonephritis, cervicitis (GC/CT)", "Pertinent History": "Pain timing/location; discharge; dyspareunia; sexual history; fever", "Key Physical Exam": "Cervical motion/adnexal tenderness (PID); mucopurulent discharge; abdominal exam", "Management": "NAAT for gonorrhea/chlamydia; empiric PID treatment (ceftriaxone + doxycycline + metronidazole); treat partners; screen for other STIs", "Risk Factors / High-Yield Facts": "PID can cause tubal infertility and ectopic pregnancy. Always exclude ectopic (pregnancy test) and torsion in acute pelvic pain — ~40% of ectopics are missed at first visit (CDC STI Treatment Guidelines, 2021; Frasca et al., AFP , 2023; Fauconnier et al., Obstetrics & Gynecology , 2020).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Polycystic Ovary Syndrome / Hirsutism", "Differential Diagnosis": "PCOS; nonclassic congenital adrenal hyperplasia; androgen-secreting tumor; Cushing syndrome; thyroid dysfunction; hyperprolactinemia; idiopathic hirsutism; drug-induced", "Pertinent History": "Menstrual irregularity/oligomenorrhea; hirsutism, acne; weight gain; infertility; family history of DM", "Key Physical Exam": "BMI; Ferriman-Gallwey score for hirsutism (≥6 abnormal); acne, acanthosis nigricans, alopecia", "Management": "Rotterdam criteria (2 of 3: oligo/anovulation, hyperandrogenism, polycystic ovaries); first-line combined OCPs for menstrual/hyperandrogenism; add spironolactone after 6 mo; metformin for metabolic features; lifestyle/weight loss; letrozole for ovulation induction", "Risk Factors / High-Yield Facts": "Screen for metabolic syndrome, T2DM, OSA, depression, and endometrial hyperplasia (ensure withdrawal bleed ≥ every 3 months). Antiandrogens are teratogenic — use with contraception (Teede et al., 2023; Huddleston & Dokras, JAMA , 2022).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Postmenopausal Bleeding", "Differential Diagnosis": "Endometrial/vaginal atrophy, endometrial polyp, endometrial hyperplasia, endometrial cancer, cervical cancer/polyp, exogenous hormones/tamoxifen, submucosal fibroid", "Pertinent History": "Any bleeding after menopause; unopposed estrogen/tamoxifen use; obesity, diabetes; family history", "Key Physical Exam": "Pelvic/speculum exam for lesions; bimanual", "Management": "Transvaginal ultrasound first — endometrial thickness ≤4 mm has >99% NPV for cancer; endometrial sampling if >4 mm or persistent bleeding; hysteroscopy + D&C if recurrent/persistent", "Risk Factors / High-Yield Facts": "Endometrial cancer is the most common gynecologic cancer; bleeding is the presenting sign in >90%. Risk factors: age, obesity, unopposed estrogen, PCOS, T2DM, tamoxifen, family history (ACOG Committee Opinion 734, 2018; Matteson et al., JAMA Internal Medicine , 2018).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Prenatal Evaluation and Care", "Differential Diagnosis": "N/A (routine care) — risk-stratify for: aneuploidy, GDM, preeclampsia, Rh alloimmunization, infection, fetal anomalies", "Pertinent History": "Obstetric/gyn history; medical/surgical history; medications; family and genetic history; substance use", "Key Physical Exam": "Baseline BP, weight/BMI; pelvic exam; fundal height and fetal heart tones at follow-up", "Management": "Dating ultrasound; routine labs (blood type/Rh, CBC, infectious screening); aneuploidy and genetic screening; GDM screening; low-dose aspirin from 12 wk if preeclampsia risk factors; immunizations", "Risk Factors / High-Yield Facts": "Carefully review medical, social, and family history to assess aspirin candidacy for preeclampsia prevention. Preeclampsia risk factors include prior preeclampsia, chronic HTN, diabetes, autoimmune disease, multifetal gestation, obesity, age ≥35 (Ramírez, AFP , 2023).", "section": "Gynecology — NBME/MCE Review Topics"}, {"Topic": "Vulvovaginitis", "Differential Diagnosis": "Bacterial vaginosis, vulvovaginal candidiasis, trichomoniasis, atrophic vaginitis, contact/irritant dermatitis, physiologic discharge, cervicitis (GC/CT), foreign body", "Pertinent History": "Discharge (color, odor), itching, irritation; new partners; recent antibiotics; diabetes", "Key Physical Exam": "External genital exam; speculum for discharge characteristics; vaginal pH, wet mount, whiff test", "Management": "Bacterial vaginosis: metronidazole; candidiasis: topical azole or fluconazole; trichomoniasis: metronidazole + treat partner; in pregnancy use metronidazole (avoid tinidazole), topical azoles for candidiasis", "Risk Factors / High-Yield Facts": "BV in pregnancy associated with PPROM, preterm birth, endometritis. Trichomoniasis requires partner treatment. Metronidazole safe in all trimesters; fluconazole avoided in first trimester (Geer & Klega, AFP , 2025; CDC STI Guidelines, 2021; IUSTI/WHO, 2018).", "section": "Gynecology — NBME/MCE Review Topics"}];
 
-function obState(){ G.ob=G.ob||{log:[],best:{},buff:0,rf:{n:0,c:0}}; return G.ob; }
+/* ---- Thinking layer: traps, variants, single-best, ordering ---- */
+const OB_X={
+pph:{tr:{plan:[['Give methylergonovine 0.2 mg as a rapid IV push','Given IM; IV push can cause severe hypertension and stroke'],['Wait for the CBC and coags before giving any uterotonic','Atony is treated immediately; labs run in parallel'],['Give TXA once she is 6 hours postpartum','Benefit only within 3 hours of birth']],wu:[['CT abdomen/pelvis before any treatment','Unstable patient: bedside assessment, never CT first']]},
+ v:[{s:' She has moderate persistent asthma.',del:{plan:['Carboprost']},harm:{plan:[['Carboprost (Hemabate) 250 mcg IM','Bronchospasm: contraindicated in asthma']]}},
+    {s:' She had preeclampsia this pregnancy; BP is now 158/102.',del:{plan:['Methylergonovine']},harm:{plan:[['Methylergonovine (Methergine) 0.2 mg IM','Vasoconstriction: contraindicated in hypertension/preeclampsia']]}},
+    {res:{wu:'Uterus firms with massage but bleeding continues. The placenta is missing a cotyledon; ultrasound shows echogenic material in the cavity.'},add:{plan:['!Manual removal / suction curettage of retained tissue (with anesthesia)']},sb:{after:'wu',q:'Firm uterus, missing cotyledon, echogenic cavity. Main cause?',o:[['Retained placental tissue','b'],['Uterine atony','w'],['Cervical laceration','w'],['Amniotic fluid embolism','w']],why:'Tissue: inspect the placenta and sweep/curette the cavity.'}}],
+ sb:{after:'wu',q:'Boggy uterus above the umbilicus, no lacerations, placenta intact. Most likely cause?',o:[['Uterine atony','b'],['Retained placenta','w'],['Coagulopathy','w'],['Uterine inversion','w']],why:'Atony causes ~70–80% of PPH.'},
+ ord:{after:'plan',q:'Put your first moves in order.',items:['Call for help + two large-bore IVs','Bimanual massage + oxytocin','Second-line uterotonic (checking contraindications)','Tranexamic acid 1 g IV','Balloon tamponade','OR: compression sutures / ligation / hysterectomy']}},
+pec:{tr:{plan:[['IV furosemide to bring the BP down','Not an antihypertensive for severe-range BP; she is often volume-depleted'],['Start lisinopril','ACE inhibitors are contraindicated in pregnancy'],['Hold magnesium unless she seizes','Mg is prophylaxis for severe features: give it now'],['3 L crystalloid bolus','Pulmonary edema risk: restrict fluids']]},
+ v:[{s:' Correction: she is at 31 weeks and stable after BP control.',del:{plan:['Deliver: ≥34']},add:{plan:['!Betamethasone now (31 wk), then plan delivery; deliver sooner if she worsens','Magnesium also gives fetal neuroprotection <32 wk']}},
+    {res:{wu:'Platelets 82k, AST 210, ALT 190, LDH 780, schistocytes on smear. NST reactive.'},add:{plan:['!HELLP syndrome: stabilize, magnesium, BP control and deliver']},sb:{after:'wu',q:'Platelets 82k, AST 210, LDH 780, schistocytes. Diagnosis?',o:[['HELLP syndrome','b'],['Preeclampsia without severe features','w'],['Acute fatty liver of pregnancy','w'],['Immune thrombocytopenia','w']],why:'Hemolysis, Elevated Liver enzymes, Low Platelets.'}}],
+ sb:{after:'wu',q:'BP 168/112, headache, scotomata, platelets 140k. Classify:',o:[['Preeclampsia with severe features','b'],['Gestational hypertension','w'],['Chronic hypertension','w'],['Preeclampsia without severe features','w']],why:'Severe-range BP and cerebral/visual symptoms are severe features.'}},
+eclamp:{tr:{plan:[['Emergency cesarean while she is still seizing','Stabilize the mother first'],['Phenytoin as first-line','Magnesium is superior for eclampsia'],['Diazepam instead of magnesium','Benzodiazepines are only for refractory seizures']]},
+ sb:{after:'pe',q:'Fetal heart rate is 80 during the seizure. Best next step?',o:[['Stabilize mother, give Mg: FHR usually recovers in 3–10 min','b'],['Crash cesarean now','h'],['Forceps delivery','h'],['Terbutaline','w']],why:'Maternal hypoxia causes the bradycardia; fix the mother first.'},
+ ord:{after:'plan',q:'Order your actions.',items:['Left lateral, protect airway, oxygen','Magnesium sulfate 4–6 g IV','Treat BP ≥160/110','Assess the fetus once mother is stable','Deliver']}},
+ectopic:{tr:{plan:[['Prescribe folic acid with methotrexate','Folate antagonizes methotrexate'],['Skip RhoGAM in the first trimester','Rh-negative bleeding still needs anti-D'],['Discharge without scheduled hCG follow-up','Days 4 and 7 hCG are required']],cb:[['Give methotrexate now','Unstable/ruptured: surgery, never MTX'],['Repeat the ultrasound in 48 hours','Unstable: OR now']]},
+ v:[{res:{wu:'β-hCG 9,800. TVUS: no IUP, 3 cm left adnexal mass WITH fetal cardiac activity. Rh negative. Stable.'},del:{plan:['Stable + criteria met']},add:{plan:['!Not a methotrexate candidate (cardiac activity, high hCG): laparoscopic salpingectomy']},harm:{plan:[['Methotrexate 50 mg/m² IM','Cardiac activity and hCG >5,000 predict failure']]},sb:{after:'wu',q:'hCG 9,800, cardiac activity in a tubal mass. Best management?',o:[['Laparoscopic salpingectomy','b'],['Methotrexate 50 mg/m²','w'],['Expectant management','h'],['D&C','w']],why:'MTX fails too often with cardiac activity or high hCG.'}}],
+ sb:{after:'wu',q:'hCG 3,200, no IUP, 2.8 cm mass, no cardiac activity, stable. Best treatment?',o:[['Methotrexate 50 mg/m² IM','b'],['Laparoscopic salpingectomy','a'],['Repeat hCG in 48 h only','w'],['D&C','w']],why:'She meets MTX criteria; surgery is also acceptable.'},
+ ord:{after:'cb',q:'Ruptured ectopic: order your steps.',items:['Recognize shock, call for help','Two large-bore IVs + type and crossmatch','Resuscitate: fluids, blood, massive transfusion','OR: laparoscopy or laparotomy']}},
+miscarriage:{tr:{plan:[['Methotrexate','Not used for incomplete abortion'],['Discharge without confirming the uterus is empty','Follow-up is required']]},
+ v:[{s:' Temp 38.9 °C, foul-smelling discharge, HR 118.',add:{plan:['!Septic abortion: IV broad-spectrum antibiotics + prompt suction D&C']},harm:{plan:[['Expectant management for 2 weeks','Infected tissue must be evacuated now']]}},
+    {s:' She is Rh negative.',add:{plan:['!RhoGAM (anti-D immune globulin)']}}],
+ sb:{after:'ddx',q:'Open os, some tissue passed, more remains. Type?',o:[['Incomplete abortion','b'],['Threatened abortion','w'],['Missed abortion','w'],['Complete abortion','w']],why:'Open os + partial passage = incomplete.'}},
+molar:{tr:{plan:[['Misoprostol medical evacuation','Suction D&C is preferred'],['Encourage a new pregnancy soon','Avoid pregnancy during hCG surveillance']]},
+ sb:{after:'wu',q:'Snowstorm pattern, no fetus, hCG 240,000. Karyotype?',o:[['46,XX (all paternal)','b'],['69,XXY','w'],['45,X','w'],['47,XX,+21','w']],why:'Complete mole: empty egg fertilized by sperm.'}},
+previa:{tr:{pe:[['Digital cervical exam to check dilation','Can cause catastrophic hemorrhage in previa']],plan:[['Induction of labor at 37 weeks','Previa requires cesarean'],['Tocolysis despite heavy ongoing bleeding','Contraindicated with hemorrhage']]},
+ v:[{s:' Correction: she is at 37 weeks.',del:{plan:['Admit; stable and preterm','Betamethasone','Magnesium for neuroprotection']},add:{plan:['!At 37 weeks with bleeding: cesarean delivery now']}},
+    {s:' Blood type O negative.',add:{plan:['!RhoGAM, dosed by Kleihauer-Betke']}}],
+ sb:{after:'hx',q:'Painless bright red bleeding at 32 weeks, soft nontender uterus. Most likely?',o:[['Placenta previa','b'],['Placental abruption','w'],['Vasa previa','w'],['Uterine rupture','w']],why:'Painless = previa until proven otherwise.'}},
+abruption:{tr:{plan:[['Tocolysis to stop contractions','Contraindicated in abruption'],['Wait for ultrasound confirmation before acting','Abruption is a clinical diagnosis']]},
+ sb:{after:'wu',q:'Late decelerations, fibrinogen 140, platelets 90k. Best next step?',o:[['Resuscitate with blood products and deliver urgently','b'],['Expectant management with steroids','h'],['Induce and wait','w'],['MRI','w']],why:'Nonreassuring fetus + coagulopathy: deliver.'}},
+ptl:{tr:{plan:[['Indomethacin for 2 weeks','Max 48 h; ductal closure, oligohydramnios'],['Maintenance tocolysis after 48 hours','No benefit']]},
+ v:[{s:' Correction: she is at 33 weeks.',del:{plan:['Magnesium sulfate for fetal','Tocolysis up to 48 h']},add:{plan:['Tocolysis with nifedipine up to 48 h (no indomethacin after 32 wk)']},harm:{plan:[['Magnesium for fetal neuroprotection','Only below 32 weeks'],['Indomethacin tocolysis','Avoid after 32 weeks']]}},
+    {s:' She has penicillin anaphylaxis; GBS status unknown.',del:{plan:['GBS prophylaxis']},add:{plan:['!GBS prophylaxis with vancomycin (clindamycin only if the isolate is susceptible)']},harm:{plan:[['Penicillin G 5 million units IV','Anaphylaxis history']]}}],
+ sb:{after:'pe',q:'Regular contractions and cervix 3 cm at 30 weeks. Diagnosis?',o:[['Preterm labor','b'],['False labor','w'],['Cervical insufficiency','w'],['PPROM','w']],why:'Contractions + cervical change before 37 weeks.'}},
+pprom:{tr:{plan:[['Digital cervical exams every 4 hours','Raises infection risk'],['Deliver now at 31 weeks without infection','Expectant management until 34 weeks'],['Tocolysis for a week','Not recommended in PPROM']],cb:[['Continue expectant management and add tocolysis','Chorioamnionitis: deliver'],['Crash cesarean because of chorioamnionitis','Chorio itself is not a cesarean indication']]},
+ sb:{after:'wu',q:'Pooling and ferning at 31 weeks, no infection. Plan?',o:[['Admit, latency antibiotics, steroids, Mg, deliver at 34 wk','b'],['Induce now','w'],['Home on bed rest','h'],['Cerclage','h']],why:'Expectant management with latency antibiotics.'}},
+gdm:{tr:{plan:[['Glyburide preferred over insulin','Insulin is first-line'],['Deliver at 36 weeks for diet-controlled GDM','39 0/7–40 6/7 weeks'],['Repeat the 1-hour screen postpartum','75 g 2-hour OGTT at 4–12 weeks']]},
+ v:[{s:' Despite diet, fasting glucose stays 105–110 mg/dL.',add:{plan:['!Start insulin (bedtime NPH for fasting hyperglycemia)']}}],
+ sb:{after:'wu',q:'Two-step testing: what is diagnostic on the 3-hour 100 g OGTT?',o:[['Two or more abnormal values','b'],['One abnormal value','w'],['Fasting >90 alone','w'],['Any value >200','w']],why:'Carpenter-Coustan: ≥2 abnormal values.'}},
+fgr:{tr:{plan:[['Expectant management to 39 weeks','Absent EDF: deliver at 33–34 weeks'],['Skip steroids','Give if delivery <34 weeks']]},
+ v:[{res:{wu:'EFW 4th percentile. Umbilical artery Doppler: REVERSED end-diastolic flow.'},sb:{after:'wu',q:'Reversed EDF at 32 weeks. Plan?',o:[['Admit, steroids, deliver (30–32 wk window)','b'],['Weekly Doppler, deliver at 37 wk','h'],['Deliver at 39 wk','h'],['Repeat ultrasound in 2 weeks','h']],why:'Reversed EDF: deliver at 30–32 weeks.'}}],
+ sb:{after:'wu',q:'Absent EDF at 32 weeks. Delivery timing?',o:[['33–34 weeks (after steroids)','b'],['Immediately at 32 weeks','a'],['37 weeks','w'],['39 weeks','h']],why:'AEDV: 33–34 weeks.'}},
+twins:{tr:{plan:[['Routine cerclage for twins','Not indicated'],['Planned vaginal delivery for MCMA twins','MCMA: cesarean at 32–34 weeks']]},
+ sb:{after:'ddx',q:'One placenta, thin membrane, T-sign. Key complication to screen for?',o:[['Twin-twin transfusion syndrome','b'],['Cord entanglement','w'],['Conjoined twins','w'],['Vanishing twin','w']],why:'MCDA: ultrasound every 2 weeks from 16 weeks for TTTS.'}},
+pyelo:{tr:{plan:[['Outpatient oral ciprofloxacin','Avoid fluoroquinolones; pyelo in pregnancy is admitted'],['Empiric amoxicillin alone','E. coli resistance'],['Stop antibiotics once afebrile (3 days total)','14 days total']],cb:[['No treatment: she has no symptoms','Always treat ASB in pregnancy'],['TMP-SMX at 38 weeks','Kernicterus risk near term']]},
+ sb:{after:'plan',q:'Still febrile after 72 hours of ceftriaxone. Next?',o:[['Renal ultrasound for obstruction or abscess','b'],['Switch to oral and discharge','h'],['Stop antibiotics','h'],['Add steroids','w']],why:'Failure to improve: look for obstruction/abscess, broaden coverage.'}},
+aub:{tr:{plan:[['Endometrial ablation while she still wants children','Ablation is for completed childbearing'],['Discharge on oral iron alone','She is unstable: stop the bleeding'],['IV estrogen despite a history of DVT','Contraindicated']]},
+ v:[{stem:'A 15-year-old has heavy periods since menarche, soaking a pad an hour for 8 days, and bruises easily. BP 98/60, HR 108.',del:{plan:['Surgical:']},add:{plan:['!Test for von Willebrand disease (vWF antigen, activity, factor VIII)']},harm:{plan:[['Hysterectomy','Never first line in an adolescent']]},sb:{after:'wu',q:'Teen with heavy bleeding since menarche and easy bruising. Most likely cause?',o:[['von Willebrand disease','b'],['Endometrial cancer','w'],['Fibroids','w'],['PCOS','a']],why:'Screen adolescents with heavy menstrual bleeding for vWD.'}}],
+ sb:{after:'plan',q:'Still soaking a pad an hour after transfusion and IV estrogen. Next?',o:[['D&C (or uterine tamponade)','b'],['Start an OCP and discharge','h'],['Hysterectomy in 6 weeks','w'],['MRI pelvis','w']],why:'Failed medical therapy in an unstable patient: surgical control.'}},
+pid:{tr:{plan:[['Azithromycin alone','Inadequate for PID'],['Remove the IUD in every case','Not required'],['Treat the patient but not partners','Partners must be treated']]},
+ v:[{res:{wu:'hCG negative. Ultrasound: 5 cm complex left adnexal mass with debris (tubo-ovarian abscess).'},del:{plan:['Outpatient:']},add:{plan:['!TOA: admit for IV antibiotics; drain if no response in 48–72 h or ≥7–8 cm']},harm:{plan:[['Outpatient oral regimen','A TOA requires admission']]}}],
+ sb:{after:'pe',q:'Minimum criterion to start empiric PID treatment?',o:[['Cervical motion, uterine, or adnexal tenderness','b'],['Positive NAAT','w'],['Fever >38.3 °C','w'],['TOA on ultrasound','w']],why:'Treat on clinical criteria; don’t wait for tests.'}},
+torsion:{tr:{plan:[['Get a CT before going to the OR','Delay kills the ovary'],['Oophorectomy because the ovary looks dusky','Detorse and preserve'],['Discharge because Doppler flow is normal','Normal flow does not exclude torsion']]},
+ sb:{after:'wu',q:'Normal Doppler flow, pain persists, 6 cm cyst. Next?',o:[['Diagnostic laparoscopy','b'],['Discharge with NSAIDs','h'],['Repeat ultrasound in 6 weeks','h'],['CT abdomen','w']],why:'Torsion is a surgical diagnosis.'}},
+mass:{tr:{plan:[['Laparoscopic cystectomy by a general gynecologist','Suspected cancer: gynecologic oncology'],['Repeat ultrasound in 6–8 weeks','Suspicious mass needs referral now']]},
+ v:[{stem:'A 24-year-old has a 5 cm right ovarian cyst found incidentally on imaging. She has no symptoms.',res:{wu:'5 cm simple, thin-walled, anechoic cyst. No ascites.'},del:{plan:['Refer to gynecologic','Surgical staging','Platinum']},add:{plan:['!Simple cyst <10 cm in a young woman: repeat ultrasound in 6–12 weeks (most resolve)']},harm:{plan:[['Oophorectomy','Benign simple cyst']]},sb:{after:'wu',q:'24-year-old, 5 cm simple cyst. Plan?',o:[['Repeat ultrasound in 6–12 weeks','b'],['Oophorectomy','h'],['CA-125 and oncology referral','w'],['Chemotherapy','h']],why:'Simple cysts in reproductive age usually resolve.'}}],
+ sb:{after:'wu',q:'Postmenopausal, complex mass, ascites, CA-125 610. Next?',o:[['Refer to gynecologic oncology for staging surgery','b'],['Repeat ultrasound in 3 months','h'],['Laparoscopic cystectomy','w'],['Paracentesis only','w']],why:'Outcomes are better when gyn oncology operates.'}},
+pmb:{tr:{plan:[['Reassure: spotting is normal after menopause','Any postmenopausal bleeding needs evaluation'],['Estrogen-only HRT','Unopposed estrogen worsens hyperplasia']]},
+ sb:{after:'wu',q:'Biopsy: atypical hyperplasia. Done with childbearing. Best treatment?',o:[['Total hysterectomy','b'],['Progestin therapy (LNG-IUD)','a'],['Observation','h'],['Endometrial ablation','w']],why:'High risk of coexisting cancer.'}},
+amen:{tr:{plan:[['Combined OCPs to protect her bones','OCPs don’t restore bone; fix the energy deficit'],['Start a weight-loss program','She is underweight']]},
+ sb:{after:'wu',q:'Low FSH, low estradiol, normal TSH and prolactin, BMI 17. Diagnosis?',o:[['Functional hypothalamic amenorrhea','b'],['Primary ovarian insufficiency','w'],['PCOS','w'],['Asherman syndrome','w']],why:'Low FSH = central cause.'}},
+pcos:{tr:{plan:[['Spironolactone without contraception','Teratogenic'],['No endometrial protection needed','Anovulation causes hyperplasia'],['Clomiphene over letrozole first-line','Letrozole has higher live-birth rates']]},
+ sb:{after:'wu',q:'Testosterone 250 ng/dL with rapid virilization. Next?',o:[['Imaging for an androgen-secreting tumor','b'],['Start OCPs','w'],['Reassure: PCOS','h'],['Metformin','w']],why:'Very high testosterone or rapid virilization = tumor workup.'}},
+endo:{tr:{plan:[['Hysterectomy first-line at 29 while trying to conceive','Fertility-sparing treatment first'],['A normal ultrasound rules it out','It does not']]},
+ sb:{after:'wu',q:'Definitive diagnosis of endometriosis?',o:[['Laparoscopy with visualization ± biopsy','b'],['Transvaginal ultrasound','w'],['CA-125','w'],['MRI','a']],why:'Imaging finds endometriomas but can miss peritoneal disease.'}},
+pap:{tr:{plan:[['Repeat Pap in 3 years','HSIL/CIN 3 needs treatment'],['Hysterectomy for CIN 3','Excision (LEEP/cone) is treatment']]},
+ v:[{s:' She is 14 weeks pregnant.',del:{plan:['Excisional treatment']},add:{plan:['!Pregnant: colposcopy ± biopsy, NO endocervical curettage; defer treatment to postpartum unless cancer is suspected']},harm:{plan:[['LEEP now during pregnancy','Defer unless invasion is suspected']]}}],
+ sb:{after:'wu',q:'Age 25, ASC-US, reflex HPV negative. Next?',o:[['Routine screening per ASCCP (low risk)','b'],['Colposcopy','w'],['LEEP','h'],['Hysterectomy','h']],why:'HPV-negative ASC-US is low risk.'}},
+vv:{tr:{plan:[['Treat her partner for BV','Not recommended for BV'],['Oral fluconazole for BV','Wrong organism']]},
+ v:[{stem:'A 26-year-old has frothy yellow-green discharge, itching and dysuria. She has a new partner.',res:{wu:'pH 5.8, motile flagellated organisms, strawberry cervix.'},add:{plan:['!Trichomoniasis: metronidazole 500 mg BID ×7 d AND treat the partner; test for other STIs']},sb:{after:'wu',q:'Motile flagellated organisms, pH 5.8. Treatment?',o:[['Metronidazole + treat the partner','b'],['Fluconazole','w'],['Clindamycin cream','w'],['No treatment','h']],why:'Trich is sexually transmitted: treat partners.'}},
+    {stem:'A 26-year-old just finished a course of antibiotics and has thick white discharge with intense itching. No odor.',res:{wu:'pH 4.2, pseudohyphae on KOH, negative whiff test.'},add:{plan:['!Candidiasis: fluconazole 150 mg PO once or a topical azole']},sb:{after:'wu',q:'Pseudohyphae on KOH, pH 4.2. Treatment?',o:[['Fluconazole 150 mg once','b'],['Metronidazole','w'],['Ceftriaxone','w'],['Treat the partner','w']],why:'Candida: normal pH, hyphae.'}}],
+ sb:{after:'wu',q:'Clue cells, pH 5.2, positive whiff. Treatment?',o:[['Metronidazole 500 mg BID ×7 days','b'],['Fluconazole','w'],['Treat the partner too','w'],['Azithromycin','w']],why:'BV: metronidazole or clindamycin.'}},
+contra:{tr:{plan:[['Combined oral contraceptive','Migraine with aura + smoker ≥35: no estrogen'],['Contraceptive patch or ring','Still estrogen']]},
+ sb:{after:'ddx',q:'Most effective emergency contraception?',o:[['Copper IUD','b'],['Ulipristal','a'],['Levonorgestrel','w'],['Combined OCP (Yuzpe)','w']],why:'Copper IUD works up to 5 days and is most effective.'}},
+infert:{tr:{plan:[['IVF first for everyone','Treat the cause'],['Skip the semen analysis','Male factor in ~40–50%']]},
+ sb:{after:'wu',q:'Cycles every 45–60 days, low midluteal progesterone. Most likely factor?',o:[['Ovulatory dysfunction','b'],['Tubal factor','w'],['Male factor','w'],['Uterine factor','w']],why:'Oligo-ovulation.'}},
+meno:{tr:{plan:[['Estrogen alone (she has a uterus)','Unopposed estrogen: endometrial cancer'],['Start HRT to prevent heart disease','Not indicated for prevention']]},
+ v:[{s:' She had breast cancer 3 years ago.',del:{plan:['Hormone therapy is most','Has a uterus','Lowest effective','Best candidates']},add:{plan:['!Breast cancer history: no systemic hormones; use SSRIs/SNRIs, gabapentin or fezolinetant']},harm:{plan:[['Combined estrogen + progestin therapy','Contraindicated after breast cancer']]}}],
+ sb:{after:'hx',q:'Best candidate for systemic hormone therapy?',o:[['Under 60 or within 10 years of menopause, no contraindications','b'],['Age 72 with coronary disease','h'],['Prior DVT','h'],['Unexplained vaginal bleeding','h']],why:'Timing hypothesis: benefits outweigh risks early.'}},
+prenatal:{tr:{plan:[['Continue lisinopril','Teratogenic: switch to labetalol or nifedipine'],['Start aspirin at 30 weeks','Start at 12–16 weeks'],['Give RhoGAM only if she bleeds','Routine at 28 weeks if Rh negative']]},
+ sb:{after:'wu',q:'Which vaccine is given every pregnancy at 27–36 weeks?',o:[['Tdap','b'],['MMR','h'],['Varicella','h'],['HPV','w']],why:'Live vaccines are contraindicated in pregnancy.'}},
+csec:{tr:{plan:[['Give cefazolin only after cord clamping','Give within 60 minutes before incision'],['Vancomycin alone for routine prophylaxis','Cefazolin is standard'],['No antibiotics for a scheduled cesarean','All cesareans get prophylaxis']]},
+ v:[{s:' She weighs 130 kg.',del:{plan:['Cefazolin 2 g']},add:{plan:['!Cefazolin 3 g IV (≥120 kg) within 60 min before incision']}},
+    {s:' She has penicillin anaphylaxis.',del:{plan:['Cefazolin']},add:{plan:['!Clindamycin 900 mg + gentamicin 5 mg/kg IV before incision']},harm:{plan:[['Cefazolin 2 g IV','Anaphylaxis history: clindamycin + gentamicin']]}}],
+ sb:{after:'hx',q:'Arrest of dilation (≥6 cm, ruptured membranes) means no change for…',o:[['≥4 h with adequate or ≥6 h with inadequate contractions','b'],['2 hours','w'],['12 hours','w'],['1 hour','w']],why:'ACOG/SMFM labor arrest criteria.'},
+ ord:{after:'plan',q:'Order the cesarean steps.',items:['Consent + type and screen','Cefazolin (± azithromycin) within 60 min','Skin incision','Deliver the baby','Oxytocin']}}
+};
+
+/* ---- Exclusive loot ---- */
+const OB_OUT=[
+ // common
+ ['ceil','Ceil-blue scrubs',0,{I:1,P:1},{body:'#7fb3d5',pants:'#7fb3d5',trim:'#5f93b5',sleeve:'short',vneck:true}],
+ ['wine','Wine scrubs',0,{C:1,I:1},{body:'#7a2a3a',pants:'#7a2a3a',trim:'#5a1a2a',sleeve:'short',vneck:true}],
+ ['hunter','Hunter-green scrubs',0,{P:1,A:1},{body:'#2f6b52',pants:'#2f6b52',trim:'#1f4b3a',sleeve:'short',vneck:true}],
+ ['slicker','Yellow rain slicker',0,{E:2},{body:'#e8c33a',pants:'#3a4a6a',trim:'#c9a42a',sleeve:'long',boot:'#2a2a2e',g:{hat:{t:'travel',c:'#e8c33a'},coat:{c:'#e8c33a',len:.7,open:false},buttons:'#2a2a2e'}}],
+ ['hoodie','Cozy hoodie',0,{L:1,E:1},{body:'#6a6f7a',pants:'#3a4a6a',trim:'#5a5f6a',sleeve:'long',kerchief:'#5a5f6a',cuffs:true}],
+ ['sundress','Summer sundress',0,{C:1,A:1},{body:'#f2a65a',pants:'#f2a65a',trim:'#d9864a',sleeve:'short',g:{skirt:{c:'#f2a65a',len:1.6}}},1],
+ ['hijabnavy','Navy hijab & long dress',0,{C:1,P:1},{body:'#2c3e6b',pants:'#2c3e6b',trim:'#1f2c4e',sleeve:'long',g:{hat:{t:'hijab',c:'#8fa6c9'},skirt:{c:'#2c3e6b',len:2}}},1],
+ ['hijabplum','Plum hijab & long dress',0,{C:1,L:1},{body:'#5a2a4a',pants:'#5a2a4a',trim:'#3a1a2a',sleeve:'long',g:{hat:{t:'hijab',c:'#c9a0b8'},skirt:{c:'#5a2a4a',len:2}}},1],
+ ['hijabsage','Sage hijab & long dress',0,{C:1,E:1},{body:'#6a7a5a',pants:'#6a7a5a',trim:'#4a5a3a',sleeve:'long',g:{hat:{t:'hijab',c:'#e8e2cf'},skirt:{c:'#6a7a5a',len:2}}},1],
+ // uncommon
+ ['shortcoat','Short white coat',1,{I:2,C:1},{body:'#9ab8d9',pants:'#3e4450',trim:'#e9e5dc',sleeve:'long',coat:'#f4f1ea',shirt:'#9ab8d9',tie:'#2f4f6f'}],
+ ['bomber','Leather bomber',1,{E:1,A:1,C:1},{body:'#5a3a24',pants:'#2f3440',trim:'#3a2414',sleeve:'long',shirt:'#d9d2c4',collar:true,cuffs:true,g:{collar:'#d9c9a8'}}],
+ ['tracksuit','Retro tracksuit',1,{A:2,E:1},{stripe:true,body:'#2a4a8a',pants:'#2a4a8a',trim:'#f2efe6',sleeve:'long',zip:true,cuffs:true,collar:true}],
+ ['flannel','Flannel & jeans',1,{S:2,E:1},{body:'#a83a2a',pants:'#3a4a6a',trim:'#6a1a1a',sleeve:'rolled',collar:true,belt:'#3a2a1a',g:{buttons:'#2a1a10'}}],
+ ['hawaii','Hawaiian shirt',1,{L:2,C:1},{body:'#2ab0a0',pants:'#d9c9a8',trim:'#f2d24a',sleeve:'short',collar:true,g:{buttons:'#f2efe6',emblem:{shape:'star',c:'#f27a8a'}}}],
+ ['hijabfloral','Floral hijab & dress',1,{C:2,P:1},{body:'#f2d6dc',pants:'#f2d6dc',trim:'#e88aa0',sleeve:'long',g:{hat:{t:'hijab',c:'#e88aa0'},skirt:{c:'#f2d6dc',len:2},emblem:{shape:'star',c:'#e88aa0'}}},1],
+ // rare
+ ['attcoat','Long attending’s coat',2,{I:3,C:1},{body:'#c9d6e6',pants:'#3a3f4a',trim:'#e6e2d8',sleeve:'long',shirt:'#c9d6e6',tie:'#7a1a24',g:{coat:{c:'#f6f4ee',len:.85,open:true,lining:'#e6e2d8'}}}],
+ ['gown','Surgeon’s gown & cap',2,{A:2,P:2},{body:'#3f7f9a',pants:'#3f7f9a',trim:'#2f6f8a',sleeve:'long',gloves:'#e8dcc0',g:{hat:{t:'surgcap',c:'#3f7f9a'},coat:{c:'#4f8fa8',len:.72,open:false}}}],
+ ['letterman','Letterman jacket',2,{S:1,L:1,C:2},{body:'#7a1a24',pants:'#3a4a6a',trim:'#f2efe6',sleeve:'long',cuffs:true,collar:true,g:{emblem:{shape:'diamond',c:'#f2efe6',bg:'#7a1a24'},buttons:'#f2efe6'}}],
+ ['peacoat','Wool peacoat',2,{E:3,C:1},{body:'#1f2a44',pants:'#2a2a30',trim:'#151c30',sleeve:'long',g:{coat:{c:'#1f2a44',len:.62,double:true,btn:'#c9a24a',open:false},collar:'#151c30'}}],
+ ['cowboy','Cowboy outfit',2,{P:2,A:2},{body:'#b8742e',pants:'#3a4a6a',trim:'#8a5420',sleeve:'long',kerchief:'#b8282a',boot:'#5a3a22',g:{hat:{t:'western',c:'#7a4a22'},belt:{c:'#4a2f1d',buckle:'#d9b14a'},vest:{t:'vest',c:'#5a3a22',pockets:0}}}],
+ ['evening','Evening dress',2,{C:4},{body:'#1a1a2a',pants:'#1a1a2a',trim:'#3a3a5a',sleeve:'short',g:{skirt:{c:'#1a1a2a',len:2.05},pendant:'#e8e2f2'}},1],
+ ['pilgrim','Pilgrim’s habit',2,{E:2,L:1,C:1},{body:'#5a4632',pants:'#4a3826',trim:'#3a2a1a',sleeve:'long',boot:'#2a1f16',g:{hat:{t:'pilgrim',c:'#4a3a2a'},coat:{c:'#5a4632',len:.95,open:false},cape:{c:'#6a5440',len:.36,lining:'#3a2a1a'},belt:{c:'#2a2018'},pendant:'#f2ead8'}}],
+ // epic
+ ['chief','Chief Resident jacket',3,{I:3,C:2,P:1},{body:'#1f2a4a',pants:'#2a2f3a',trim:'#d9b14a',sleeve:'long',shirt:'#1f2a4a',tie:'#d9b14a',g:{coat:{c:'#f6f4ee',len:.8,open:true,lining:'#1f2a4a',trim:'#1f2a4a'},emblem:{shape:'star',c:'#d9b14a',bg:'#1f2a4a'}}}],
+ ['tux','Tuxedo',3,{C:4,L:1},{body:'#1a1a1e',pants:'#1a1a1e',trim:'#0e0e10',sleeve:'long',shirt:'#f6f4ee',tie:'#1a1a1e',g:{coat:{c:'#1a1a1e',len:.5,open:true,lining:'#2a2a30'},collar:'#2a2a30',buttons:'#f6f4ee'}}],
+ ['duster','Leather duster & hat',3,{A:2,P:2,E:1},{body:'#3a2a20',pants:'#2a2a2e',trim:'#2a1a10',sleeve:'long',boot:'#2a1a10',g:{hat:{t:'western',c:'#2a1f18'},coat:{c:'#4a2f1d',len:.95,open:true,worn:true,lining:'#3a2010'},belt:{c:'#2a1a10',pouches:2}}}],
+ ['folkvest','Embroidered folk vest',3,{C:2,E:2,L:1},{body:'#f2efe6',pants:'#2a2a2e',trim:'#d9b14a',sleeve:'long',boot:'#2a1a10',g:{vest:{t:'vest',c:'#7a1a24',pockets:0},buttons:'#d9b14a',sash:'#1f3a2a',belt:{c:'#d9b14a'}}}],
+ ['silkhijab','Silk hijab & embroidered gown',3,{C:3,P:1,L:1},{body:'#5a2a5a',pants:'#5a2a5a',trim:'#d9b14a',sleeve:'long',g:{hat:{t:'hijab',c:'#e8d9b8'},skirt:{c:'#5a2a5a',len:2.05},belt:{c:'#d9b14a'},emblem:{shape:'diamond',c:'#d9b14a',bg:'#5a2a5a'}}},1],
+ // legendary
+ ['golden','“Golden Hour” surgeon',4,{I:3,A:3,P:2},{body:'#2a4a6a',pants:'#2a4a6a',trim:'#d9b14a',sleeve:'short',vneck:true,gloves:'#f2e8c8',g:{hat:{t:'surgcap',c:'#d9b14a',c2:'#a8823a'},coat:{c:'#2a4a6a',len:.72,open:false,trim:'#d9b14a'},buttons:'#d9b14a'}}],
+ ['nightfloat','“Night Float” coat',4,{P:4,E:3,I:1},{body:'#1a2030',pants:'#1a2030',trim:'#7fe0ff',sleeve:'long',g:{coat:{c:'#1a2030',len:.95,open:true,lining:'#2a3a5a',trim:'#7fe0ff'},arm:{wrist:'#7fe0ff'},pendant:'rgba(127,224,255,.9)'}}],
+ ['ballgown','Royal ball gown',4,{C:5,L:2,A:1},{body:'#3a4a9a',pants:'#3a4a9a',trim:'#d9b14a',sleeve:'short',g:{skirt:{c:'#3a4a9a',len:2.15},sash:'#d9b14a',pendant:'#e8f0ff'}},1],
+ ['samurai','Samurai-style armor',4,{S:4,E:4},{body:'#2a1a1a',pants:'#2a1a1a',trim:'#d9b14a',sleeve:'long',boot:'#1a1010',g:{hat:{t:'helmet',c:'#2a2226'},vest:{t:'plate',c:'#8a1f1f',segs:4},skirt:{c:'#6a1a1a',len:.75,strips:true},arm:{shoulder:{c:'#8a1f1f',s:1.3,ridges:2},bracer:'#2a2226'},emblem:{shape:'diamond',c:'#d9b14a',bg:'#8a1f1f'}}}],
+ // mythic
+ ['stork','The Stork',5,{I:4,C:4,L:3,P:2},{body:'#f6f4ee',pants:'#e8e4da',trim:'#d9b14a',sleeve:'long',shirt:'#f6f4ee',g:{coat:{c:'#fbfaf6',len:1,open:true,lining:'#e8e2d2',trim:'#d9b14a'},cape:{c:'#f6f4ee',len:.5,lining:'#e8e2d2'},pendant:'#d9b14a',emblem:{shape:'star',c:'#d9b14a',bg:'#f6f4ee'}}}]
+];
+const OB_MASKS=[
+ ['surg','Surgical mask',0,{P:1},{t:'surg',c:'#9cc8e0'}],
+ ['bandana','Bandana face mask',0,{A:1},{t:'scarf',c:'#a83a3a'}],
+ ['n95','N95 respirator',1,{E:1,P:1},{t:'n95',c:'#f2f0ea'}],
+ ['festival','Painted festival mask',1,{C:1,L:1},{t:'festival',c:'#e8a23a',c2:'#3aa0c9'}],
+ ['plague','Plague doctor mask',2,{I:2,E:1},{t:'plague',c:'#2a2620'}],
+ ['venetian','Venetian masquerade mask',2,{C:2,L:1},{t:'venetian',c:'#1a1a2a',c2:'#b8282a'}],
+ ['oni','Oni mask',3,{S:2,E:2},{t:'oni',c:'#b8282a'}],
+ ['brass','Brass gas mask',3,{E:3,P:1},{t:'brass',c:'#3a3326',c2:'#c9a24a'}],
+ ['filigree','Golden filigree mask',4,{C:3,L:2,P:1},{t:'filigree',c:'#d9b14a'}],
+ ['wolf','Silver wolf mask',4,{A:3,P:3},{t:'wolf',c:'#b8c0c8'}],
+ ['moon','Face of the Moon',5,{L:4,C:3,P:3},{t:'moon',c:'#f4f1e6'}]
+];
+const OB_WEAP=[
+ ['bonesaw','Bone saw',1,6],['saber','Field surgeon’s saber',2,9],['obsidian','Obsidian blade',3,11],['lifeline','“Lifeline” rifle',4,14]
+];
+for(const [k,name,tier,bon,look,fem] of OB_OUT){ ITEMS['ob_'+k]={t:'o',name,tier,bon,look:'ob_'+k,ob:1,fem:!!fem}; LOOKS['ob_'+k]=look; }
+for(const [k,name,tier,bon,mask] of OB_MASKS){ ITEMS['obm_'+k]={t:'a',name,tier,bon,mask,ob:1}; }
+for(const [k,name,tier,dmg] of OB_WEAP){ ITEMS['obw_'+k]={t:'w',name,tier,dmg,draw:'obw_'+k,ob:1,long:k==='lifeline'}; }
+WDRAW.obw_bonesaw=c=>{ wR(c,-3,-1.4,6,2.8,'#3a2a1a',1); wL(c,3,-5,20,-5,WC.steelD||'#555',1); wL(c,3,-5,3,-1.6,WC.steelD||'#555',1); wP(c,[[3,-1.8],[20,-2.6],[20,1],[3,1]],WC.steelL); for(let q=0;q<9;q++) wL(c,4+q*1.8,1,4.8+q*1.8,2,WC.steelL,.5); wL(c,20,-5,20,-2.6,WC.steelD||'#555',1); };
+WDRAW.obw_saber=c=>{ wR(c,-3,-1.2,5.4,2.4,'#2a1a10',1); wP(c,[[2,-3.4],[3.4,-3.4],[3.4,3],[2,3]],WC.brass); wP(c,[[3.4,-1.2],[14,-2.2],[22,-4.6],[25,-6],[24,-4.2],[16,-.4],[3.4,1.2]],'#e2e6ea'); wL(c,4,.2,20,-3,'rgba(255,255,255,.7)',.4); };
+WDRAW.obw_obsidian=c=>{ wR(c,-3,-1.3,6,2.6,'#3a2440',1); wDot(c,-.4,0,.6,'#c08cf0'); wP(c,[[3,-1.8],[10,-3],[19,-2.4],[23,0],[19,1.8],[10,2.2],[3,1.6]],'#16141c'); wL(c,5,-1,20,-.6,'rgba(192,140,240,.8)',.5); wL(c,6,1,18,.8,'rgba(255,255,255,.25)',.4); };
+WDRAW.obw_lifeline=c=>{ if(WDRAW.laserrifle) WDRAW.laserrifle(c); wL(c,0,-3.2,22,-3.2,'#7fffb0',.8); wR(c,8,-7,4,4,'#f2efe6',.6); wL(c,10,-6.4,10,-3.6,'#d23a3a',.8); wL(c,8.6,-5,11.4,-5,'#d23a3a',.8); };
+DISEASES.hcv={name:'Hepatitis C (needlestick)',prog:5,hz:2.5,m:[0,.3,.7,.85,.95],w:0};
+DISEASES.smoke={name:'Scarred lungs (smoke inhalation)',prog:4,hz:2.5,m:[0,.2,.5,.7,.85],w:0};
+DISEASES.aki={name:'Kidney damage after sepsis',prog:6,hz:3,m:[0,.1,.4,.6,.85],w:0};
+
+/* ---- head drawings for the new hats and masks ---- */
+const OBH_DRAW={
+ hijab(c,H,c1){ c.beginPath(); c.ellipse(-.6,-1,12.8,14.2,0,0,TAU); c.ellipse(4.8,1.2,6.2,8,0,0,TAU); c.fillStyle=c1; c.fill('evenodd'); c.strokeStyle=GO; c.lineWidth=.75; c.stroke();
+   gPoly(c,[[-12.2,3],[-13.4,15.6],[-4,19],[7.4,17.6],[10.2,9.2],[7,9.2],[2,10.4],[-4,9]],c1); gLine(c,[[-9,-8],[-11.4,5]],shade(c1,-.22),.6); gLine(c,[[-6,12],[6,13.6]],shade(c1,-.18),.5); },
+ pilgrim(c,H,c1,c2){ gEl(c,0,-9.6,16.6,3.2,c1); c.beginPath(); c.moveTo(-8,-10.4); c.quadraticCurveTo(-8.4,-20,0,-20); c.quadraticCurveTo(8.4,-20,8,-10.4); c.closePath(); gB(c,c1); gRR(c,-8.2,-12.8,16.4,2,.6,c2,.5);
+   gPoly(c,[[4,-10.6],[13,-16.4],[15.6,-13],[10,-9.6]],shade(c1,.08)); gPoly(c,[[10.6,-11],[8.4,-14.4],[9.2,-15.8],[10.6,-16.4],[12,-15.8],[12.8,-14.4]],'#f2ead8',.5); for(const [x,y] of [[8.8,-14.6],[10,-16],[11.2,-16],[12.4,-14.6]]) gLine(c,[[10.6,-11],[x,y]],'#b8a88a',.35); },
+ surgcap(c,H,c1,c2){ c.beginPath(); c.ellipse(-.6,-8.6,12.2,9.4,0,Math.PI,TAU); c.closePath(); gB(c,c1); gRR(c,-12.4,-10,24,3,1.2,c2||shade(c1,-.25),.5); gLine(c,[[-12,-8.6],[-15.4,-4]],c2||shade(c1,-.25),.9); c.fillStyle='rgba(255,255,255,.25)'; for(let q=0;q<6;q++) c.fillRect(-9+q*3.4,-15+(q%2)*2,1,1); }
+};
+const OBM_DRAW={
+ surg(c,M){ gPoly(c,[[1.6,2.6],[11.8,2.2],[11.6,9.4],[2,10.2]],M.c,.6); for(const y of [4.6,6.4,8.2]) gLine(c,[[2.4,y],[11.2,y-.3]],shade(M.c,-.18),.45); gLine(c,[[1.6,3.4],[-6,1]],'#e8eef2',.5); gLine(c,[[2,9.4],[-6,4.4]],'#e8eef2',.5); },
+ n95(c,M){ gEl(c,7.2,6.4,5,4.6,M.c,0,.6); gLine(c,[[3.4,4.2],[11.4,4.4]],'#9aa3ab',.5); gEl(c,9.2,7.2,1.3,1.3,'#c9d0d6',0,.3); gLine(c,[[2.6,4],[-8,-2]],'#4a7ab0',.6); gLine(c,[[2.6,8.6],[-8,4]],'#4a7ab0',.6); },
+ festival(c,M){ gPoly(c,[[-.8,-4.4],[12.2,-5],[12.6,1.8],[7.2,2.6],[5.8,.8],[4,2.6],[-.8,2]],M.c,.6); gEl(c,1.4,-1,1.7,1.2,'#1a1d1f',0,.3); gEl(c,7,-1,1.7,1.2,'#1a1d1f',0,.3); for(let q=0;q<6;q++){ c.fillStyle=q%2?M.c2:'#f2efe6'; c.beginPath(); c.arc(-.2+q*2.4,-3.8+(q%2),.55,0,TAU); c.fill(); } },
+ venetian(c,M){ c.beginPath(); c.moveTo(-1,-4); c.quadraticCurveTo(-6,-16,-12,-19); c.quadraticCurveTo(-5,-13,-3,-4); c.closePath(); gB(c,M.c2,.4); gPoly(c,[[-1.4,-4.8],[12.4,-5.4],[13,1.4],[7.4,2.4],[5.6,.4],[3.8,2.4],[-1.4,1.6]],M.c,.6); gLine(c,[[-1.4,-4.8],[12.4,-5.4],[13,1.4]],'#d9b14a',.6); gEl(c,1.4,-1.2,1.8,1.3,'#0d0d10',0,.3); gEl(c,7,-1.2,1.8,1.3,'#0d0d10',0,.3); },
+ oni(c,M){ gPoly(c,[[0,-6],[1,-15],[4,-7.6]],'#f2ead8',.5); gPoly(c,[[8,-7.8],[10.6,-16],[11.6,-7]],'#f2ead8',.5); gPoly(c,[[-1.2,-9],[11.8,-9.6],[13.4,2],[11.4,11.2],[3,12.8],[-1.2,9]],M.c,.7);
+   gPoly(c,[[-.2,-3.6],[3.8,-2.4],[3.6,-.6],[0,-1.4]],'#f2d24a',.4); gPoly(c,[[6,-2.4],[10.6,-3.8],[10.6,-1.6],[6.4,-.6]],'#f2d24a',.4); gLine(c,[[-.4,-5],[4,-3.6]],'#1a1010',1); gLine(c,[[6,-3.6],[11,-5.4]],'#1a1010',1);
+   gRR(c,2,6.4,9.6,3,1,'#2a0e0e',.4); gPoly(c,[[3,6.4],[4,9],[5,6.4]],'#fff',.3); gPoly(c,[[8.4,6.4],[9.4,9],[10.4,6.4]],'#fff',.3); },
+ brass(c,M){ gRR(c,2.4,3.2,8.6,6.6,2.4,M.c,.7); gEl(c,10.4,9,2.6,2.6,M.c2,0,.5); gEl(c,10.4,9,1.2,1.2,shade(M.c2,-.3),0,.3); for(const gx of [1,6.6]){ gEl(c,gx,-.8,2.9,2.9,M.c2,0,.6); gEl(c,gx,-.8,2,2,'#2a3a3a',0,.3); } gLine(c,[[2.4,5],[-7,3]],'#2a2622',.8); },
+ filigree(c,M){ gPoly(c,[[-1,-4.6],[12.6,-5.2],[13,1.6],[7.4,2.6],[5.8,.6],[4,2.6],[-1,1.8]],M.c,.6); gEl(c,1.4,-1.1,1.8,1.3,'#0d0d10',0,.3); gEl(c,7.1,-1.1,1.8,1.3,'#0d0d10',0,.3); c.strokeStyle='#fff2b0'; c.lineWidth=.4; for(const [x,y] of [[-.2,-3],[4.2,-3.6],[10.6,-3.4],[11.6,.4]]){ c.beginPath(); c.arc(x,y,1.1,0,4.4); c.stroke(); } },
+ wolf(c,M){ gPoly(c,[[0,-7.4],[1,-15.6],[5,-8.6]],M.c,.5); gPoly(c,[[-1.2,-8.4],[9,-8.8],[11.2,-2],[17.4,3],[16.4,6.6],[10,8],[3,12],[-1.2,9]],M.c,.7); gLine(c,[[11,-1.6],[16.6,3]],shade(M.c,.2),.5);
+   gPoly(c,[[0,-2.4],[4,-1.8],[3.6,-.6]],'#0d0d10',.3); gPoly(c,[[6.2,-2],[10.2,-2.6],[9.8,-1]],'#0d0d10',.3); gEl(c,16.6,4,1.3,1,'#2a2a2e',0,.3); gLine(c,[[10,7.6],[14.6,6.6]],'#5a6068',.5); },
+ moon(c,M){ gEl(c,5,1,8.8,10.8,M.c,0,.7); c.save(); c.globalAlpha=.3; gEl(c,8.4,1,6.6,9.6,'#b8c8e2',0,.01); c.restore(); gLine(c,[[0,-1],[3.4,-1.6]],'#1a1d2a',1); gLine(c,[[6.4,-1.6],[9.8,-1]],'#1a1d2a',1); gLine(c,[[3.6,6.6],[7.4,6.6]],'#9aa8c0',.6); c.fillStyle='#fff6c0'; for(const [x,y] of [[-1,-6],[11,-6],[12,5]]){ c.beginPath(); c.arc(x,y,.7,0,TAU); c.fill(); } }
+};
+/* ---- Engine ---- */
+const obStrip=t=>t[0]==='!'?t.slice(1):t;
+function obState(){ const S=G.ob=G.ob||{}; S.log=S.log||[]; S.best=S.best||{}; S.bestMC=S.bestMC||{}; S.bestMX=S.bestMX||{}; S.mcDone=S.mcDone||{}; S.trips=S.trips||[]; S.got=S.got||{}; S.badges=S.badges||{}; S.rf=S.rf||{n:0,c:0}; S.n=S.n||0; return S; }
 function obCase(id){ return OB_CASES.find(c=>c.id===id); }
-function obOpen(v){ UI.ob=UI.ob||{v:'list'}; if(v) UI.ob.v=v; if(v==='rf'&&UI.ob.rq==null) obRfNext(); UI.modal={t:'ob'}; }
-function obStart(id){ const c=obCase(id); if(!c) return; UI.ob={v:'case',cid:id,si:0,rev:false,chk:{},ans:{},t0:Date.now()}; UI.modal={t:'ob'}; }
-function obPickNext(kind){ const S=obState(); let pool=OB_CASES;
-  if(kind==='weak'){ const sc=c=>S.best[c.id]==null?-1:S.best[c.id]; const lo=Math.min(...pool.map(sc)); pool=pool.filter(c=>sc(c)===lo); }
-  const cur=UI.ob&&UI.ob.cid; const p2=pool.filter(c=>c.id!==cur); return pick(p2.length?p2:pool).id; }
-function obWeight(t){ return t[0]==='!'?2:1; }
-function obScore(){ const c=obCase(UI.ob.cid); let tot=0,got=0,crit=[];
-  c.st.forEach((s,si)=>s.pts.forEach((p,i)=>{ const w=obWeight(p), on=!!UI.ob.chk[si+'_'+i]; tot+=w; if(on) got+=w; else if(w===2) crit.push(p.slice(1)); }));
-  return {pct:tot?got/tot:0,crit}; }
-function obFinish(){ const S=obState(), c=obCase(UI.ob.cid), r=obScore(), pct=Math.round(r.pct*100), got=[], lost=[];
-  const mins=Math.min(20,Math.max(1,Math.round((Date.now()-UI.ob.t0)/60000)));
-  logStudy('other',mins,0,null,'OB/GYN oral case',true);
-  const caps=Math.round(r.pct*60), res=Math.round(r.pct*15); G.res.caps+=caps; G.res.research+=res; got.push(`+${caps} caps`,`+${res} research`,`${mins} min logged as study`);
-  if(pct>=80&&!r.crit.length){ S.buff=Math.max(S.buff,G.day+3); got.push('Obstetric drills: childbirth complications −30% for 3 days');
-    for(const s of G.settlers) if(s.room&&(roomById(s.room)||{}).type==='clinic') s.happy=Math.min(100,s.happy+4); }
-  if(r.crit.length){ const fine=Math.min(G.res.caps,Math.min(60,12*r.crit.length)); G.res.caps-=fine; lost.push(`−${fine} caps (missed ${r.crit.length} critical action${r.crit.length>1?'s':''})`);
-    for(const s of G.settlers) if(s.room&&(roomById(s.room)||{}).type==='clinic') s.happy=Math.max(0,s.happy-3*r.crit.length); }
-  if(r.crit.length>=2){ const w=G.settlers.filter(s=>s.preg&&s.health>30); const m=w.length?pick(w):null;
-    if(m){ m.health=Math.max(25,m.health-12); lost.push(`${m.first} had a pregnancy scare in the clinic (−12 health)`); FX.text&&FX.text(m.id,'Scare!','#ff7d72'); } }
-  if(pct<40){ const d=Math.min(G.boost,30); G.boost-=d; if(d) lost.push(`−${d} min reactor charge`); }
-  const prev=S.best[c.id]; S.best[c.id]=Math.max(prev||0,pct);
-  S.log.unshift({id:c.id,pct,crit:r.crit.length,day:G.day,ts:Date.now()}); if(S.log.length>300) S.log.length=300;
-  log(`OB/GYN oral · ${c.title}: ${pct}%${r.crit.length?`, ${r.crit.length} critical miss${r.crit.length>1?'es':''}`:''}. ${got.concat(lost).join(', ')}.`,'study');
-  UI.ob.v='done'; UI.ob.res={pct,crit:r.crit,got,lost,prev}; save(); }
+function obShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const OB_STOP=new Set(['before','after','other','signs','history','status','patient','within','unless','options']);
+const OB_GENERIC=/vital|\bcbc\b|type and|pregnan|hcg|\brh\b|rhogam|\bbmi\b|blood pressure|\bbp\b|fetal heart|ultrasound|exam|consent|counsel|follow-up|screen|coag|transfus|antibiotic|admit|fluid|bleed/i;
+function obWords(t){ return new Set(t.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(' ').filter(w=>w.length>=6&&!OB_STOP.has(w))); }
+const obSec=c=>c.id==='prenatal'?'OB':c.sec;
+function obDistract(c,k,correct,n){ const kk=k==='cb'?'plan':k, cw=new Set(); correct.forEach(t=>obWords(t).forEach(w=>cw.add(w)));
+  const pool=[]; for(const o of OB_CASES){ if(obSec(o)===obSec(c)) continue; for(const s of o.st){ if((s.k==='cb'?'plan':s.k)!==kk) continue; for(const p of s.pts){ const t=obStrip(p); if(OB_GENERIC.test(t)) continue; let ov=0; obWords(t).forEach(w=>{ if(cw.has(w)) ov++; }); if(!ov) pool.push(t); } } }
+  return obShuffle([...new Set(pool)]).slice(0,n); }
+const OB_STAGE_Q={hx:'What do you want to know?',pe:'What do you examine?',ddx:'Differential?',wu:'Workup?',plan:'Management plan?',cb:'Curveball'};
+function obBuild(c,mode,vi){ const X=OB_X[c.id]||{}, V=vi>=0&&X.v?X.v[vi]:{}, st=[];
+  const pre=(arr,ps)=>(ps||[]).some(p=>obStrip(arr).startsWith(p)||arr.startsWith(p));
+  const sbFor=k=>V.sb?(V.sb.after===k?V.sb:null):(X.sb&&X.sb.after===k?X.sb:null);
+  for(const s of c.st){ const k=s.k; let pts=s.pts.filter(p=>!pre(p,V.del&&V.del[k])).concat((V.add&&V.add[k])||[]);
+    const res=(V.res&&V.res[k])||s.res||null;
+    if(mode==='pr'||(mode==='mx'&&['hx','pe','ddx'].includes(k))) st.push({type:'free',k,q:s.q,pts,res,chk:{},ans:''});
+    else { const corr=pts.map(p=>({t:obStrip(p),g:p[0]==='!'?'c':'o'}));
+      const traps=((X.tr&&X.tr[k])||[]).concat((V.harm&&V.harm[k])||[]).filter(([t])=>!corr.some(o=>o.t===t)).map(([t,why])=>({t,g:'h',why}));
+      const wr=obDistract(c,k,corr.map(o=>o.t),mode==='mc'?4:3).map(t=>({t,g:'w'}));
+      st.push({type:'sel',k,q:s.q,opts:obShuffle(corr.concat(traps,wr)),pick:{},res}); }
+    const sb=sbFor(k); if(sb) st.push({type:'sb',k:'sb',q:sb.q,opts:obShuffle(sb.o.map(([t,g])=>({t,g}))),why:sb.why,pick:null});
+    if(X.ord&&X.ord.after===k&&mode!=='pr') st.push({type:'ord',k:'ord',q:X.ord.q,items:X.ord.items.slice(),shown:obShuffle(X.ord.items.map((t,i)=>i)),seq:[]}); }
+  return {stem:V.stem||(c.stem+(V.s||'')),st}; }
+/* scoring of one stage → {sc,mx,hz:[{k,t}]} */
+function obGrade(s){ const hz=[]; let sc=0,mx=0;
+  if(s.type==='sel'){ let pen=0; s.opts.forEach((o,i)=>{ const p=!!s.pick[i]; if(o.g==='c'||o.g==='o'){ const w=o.g==='c'?2:1; mx+=w; if(p) sc+=w; else if(o.g==='c') hz.push({k:'crit',t:o.t}); } else if(p){ if(o.g==='h'){ pen+=2; hz.push({k:'trap',t:o.t,why:o.why}); } else { pen+=1; hz.push({k:'wrong',t:o.t}); } } }); sc=Math.max(0,sc-pen); }
+  else if(s.type==='free'){ s.pts.forEach((p,i)=>{ const w=p[0]==='!'?2:1; mx+=w; if(s.chk[i]) sc+=w; else if(w===2) hz.push({k:'crit',t:obStrip(p)}); }); }
+  else if(s.type==='sb'){ mx=2; const o=s.opts[s.pick]; if(o){ sc=o.g==='b'?2:o.g==='a'?1:0; if(o.g==='h') hz.push({k:'trap',t:o.t}); else if(o.g==='w') hz.push({k:'wrong',t:o.t}); } }
+  else if(s.type==='ord'){ mx=s.items.length; s.seq.forEach((v,i)=>{ if(v===i) sc++; }); if(s.seq[0]!==0) hz.push({k:'crit',t:'First priority: '+s.items[0]}); }
+  if((s.type==='sel'||s.type==='free')&&mx&&sc/mx<.5) hz.push({k:'wrong',t:'Weak answer: '+s.q});
+  return {sc,mx,hz}; }
+/* ---- settlers and survival ---- */
+function obEligible(s){ return s&&!s.died&&isAdult(s)&&!s.exp&&!s.preg&&!s.detained&&!s.waiting&&s.id!==G.leader&&s.health>=50; }
+function obArmor(s){ const o=gearOf(s,'o'), m=gearOf(s,'a'), w=gearOf(s,'w'); const arm=Math.min(.32,(o?o.tier*.06:0)+(m?m.tier*.02:0)), eb=clamp((effStat(s,'E')-5)*.025,-.1,.15); return {arm,eb,wd:w?w.dmg:0}; }
+function obSurvival(s,stims){ const A=obArmor(s); return Math.round(s.health*(1+A.arm+A.eb)+A.wd*1.5+stims*22); }
+const OB_HZ={crit:['A ceiling panel collapsed','Feral dogs cornered them','A raider ambush in the stairwell','An electrical fire broke out','A floor gave way'],wrong:['They tripped over debris','Broken glass cut them','A door jammed on them'],trap:['A raider gang caught them in the open','An oxygen tank exploded','The ward caught fire around them','They were trapped under rubble']};
+function obDanger(run,s){ const A=obArmor(s); let hp=s.health, stims=run.stims, used=0; const ev=[];
+  for(const h of run.hz){ let d=h.k==='crit'?ri(10,17):h.k==='trap'?ri(20,32):ri(4,8); const raider=rnd()<.4; d*=1-A.arm-A.eb; if(raider) d=Math.max(2,d-(A.wd?A.wd*.8:-3)); d=Math.round(d);
+    hp-=d; ev.push({m:`${pick(OB_HZ[h.k])}${raider?' (they fought back'+(A.wd?' with the weapon':' unarmed')+')':''}`,d,why:h.t,k:h.k});
+    if(hp<35&&stims>0&&hp>-15){ stims--; used++; hp=Math.min(100,hp+25); ev.push({m:'Used a stim',d:-25}); } }
+  const traps=run.hz.filter(h=>h.k==='trap').length; let fate='fine', dis=null;
+  if(hp<=0){ if(rnd()<.7) fate='dead'; else { fate='disabled'; hp=12; dis=pick(['hcv','smoke','aki']); } }
+  else if(hp<30){ fate='serious'; if(rnd()<.12) dis=pick(['hcv','smoke','aki']); }
+  else if(hp<s.health-12) fate='minor';
+  const lost=[]; if(fate==='dead') lost.push('o','w','a'); else if(traps||hp<40){ const b=traps*.1; if(rnd()<.25+b) lost.push('w'); if(rnd()<.15+b) lost.push('o'); if(rnd()<.15+b) lost.push('a'); }
+  return {hp:Math.max(0,Math.round(hp)),fate,dis:fate==='dead'?null:dis,used,ev,lost:lost.filter(k=>s.gear&&s.gear[k])}; }
+/* ---- loot ---- */
+const OB_TABLE={mc:[[.5,[85,15]],[.7,[55,35,10]],[.85,[20,45,30,5]],[.95,[0,35,45,20]]],mx:[[.5,[60,40]],[.7,[0,50,40,10]],[.85,[0,15,45,32,8]],[.95,[0,0,30,45,25]]]};
+function obRollTier(pct,mode,crits,s){ const T=OB_TABLE[mode]; let row=null; for(const [min,r] of T) if(pct>=min) row=r; if(!row) return -1;
+  let x=rnd()*100, t=0; for(let i=0;i<row.length;i++){ x-=row[i]; if(x<=0){ t=i; break; } t=i; }
+  for(let i=0;i<crits;i++) if(rnd()<.5) t--; if(s&&rnd()<Math.max(0,(effStat(s,'L')-5)*.03)) t++;
+  return clamp(t,0,mode==='mx'?4:3); }
+function obPickItem(t,S){ const cats=obShuffle(['o','o','o','a','a','w']); for(const cat of cats){ const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].ob&&ITEMS[k].t===cat&&ITEMS[k].tier===t&&k!=='ob_stork'); if(!ks.length) continue; const nw=ks.filter(k=>!S.got[k]); return nw.length?pick(nw):pick(ks); } return null; }
+function obLoot(run,pct,crits,s){ const S=obState(), out=[]; const t=obRollTier(pct,run.mode,crits,s);
+  if(t>=0){ const k=obPickItem(t,S); if(k) out.push(k); }
+  if(run.mode==='mx'&&pct>=.99&&!run.hz.length&&rnd()<.04) out.push('obm_moon');
+  return out; }
+function obGive(k,S,why){ if(S.got[k]){ const c=SCRAP[ITEMS[k].tier]*2; G.res.caps+=c; return `duplicate ${ITEMS[k].name} → ${c} caps`; } S.got[k]=G.day; addItem(k); return `${TIERS[ITEMS[k].tier]} ${ITEMS[k].name}${why?' ('+why+')':''}`; }
+/* ---- run lifecycle ---- */
+function obBegin(cid,mode,sid,stims){ const S=obState(), c=obCase(cid); if(!c) return;
+  if(S.run){ toast('Finish or abandon the current case first.'); return; }
+  let s=null; if(mode!=='pr'){ s=byId(sid); if(!obEligible(s)){ toast('Pick a healthy adult who is free to go.'); return; }
+    stims=Math.max(0,Math.min(3,stims|0,Math.floor(G.res.stims))); G.res.stims-=stims; unassign(s); s.exp='ob';
+    log(`${fullName(s)} set out for the ruined hospital: “${c.title}”${stims?` with ${stims} stim${stims>1?'s':''}`:''}.`,'study'); }
+  const X=OB_X[cid]; const vi=X&&X.v&&rnd()<.6?Math.floor(rnd()*X.v.length):-1, B=obBuild(c,mode,vi);
+  S.run={cid,mode,sid:s?s.id:null,stims:mode==='pr'?0:stims,vi,stem:B.stem,st:B.st,si:0,rev:false,t0:Date.now(),hz:[],sc:0,mx:0};
+  UI.ob={v:'run'}; UI.modal={t:'ob'}; save(); }
+function obAbandon(){ const S=obState(), R=S.run; if(!R) return; const s=R.sid&&byId(R.sid);
+  if(s){ S.trips.push({sid:s.id,cid:R.cid,back:Date.now()+120000,out:{fate:'retreat',hp:s.health,ev:[],lost:[],loot:[],stims:R.stims,pct:0}}); log(`${s.first} turned back from the ruined hospital empty-handed.`,'study'); }
+  S.run=null; UI.ob={v:'list'}; save(); }
+function obSubmit(){ const R=obState().run; if(!R) return; const s=R.st[R.si];
+  if(s.type==='free'&&!R.rev){ const t=document.getElementById('obAns'); if(t){ s.ans=t.value; t.blur(); } R.rev=true; return; }
+  if(s.type==='ord'&&s.seq.length<s.items.length){ toast('Place every step first.'); return; }
+  if(s.type==='sb'&&s.pick==null){ toast('Pick one answer.'); return; }
+  if(s.type==='free'){ /* ticks already in */ }
+  const g=obGrade(s); s.g=g; R.rev=true; }
+function obNext(){ const R=obState().run; if(!R||!R.rev) return; const s=R.st[R.si]; if(!s.g) s.g=obGrade(s); R.sc+=s.g.sc; R.mx+=s.g.mx; R.hz.push(...s.g.hz);
+  if(R.si<R.st.length-1){ R.si++; R.rev=false; const d=document.querySelector('#modal .dlg'); if(d) d.scrollTop=0; save(); } else obFinish(); }
+function obFinish(){ const S=obState(), R=S.run, c=obCase(R.cid), pct=R.mx?R.sc/R.mx:0, P=Math.round(pct*100), crits=R.hz.filter(h=>h.k==='crit').length;
+  const mins=Math.min(20,Math.max(1,Math.round((Date.now()-R.t0)/60000))); logStudy('other',mins,0,null,'OB/GYN oral case',true);
+  const caps=Math.round(pct*(R.mode==='pr'?30:50)), res=Math.round(pct*12); G.res.caps+=caps; G.res.research+=res;
+  const summ={cid:R.cid,mode:R.mode,pct:P,crits,hz:R.hz,caps,res,mins,day:G.day,ts:Date.now()};
+  if(R.mode==='pr'){ S.best[R.cid]=Math.max(S.best[R.cid]||0,P); }
+  else { const bk=R.mode==='mc'?'bestMC':'bestMX'; S[bk][R.cid]=Math.max(S[bk][R.cid]||0,P); S.mcDone[R.cid]=1;
+    const s=byId(R.sid); if(s){ const D=obDanger(R,s), loot=obLoot(R,pct,crits,s); S.n++; S.trips.push({id:S.n,sid:s.id,cid:R.cid,back:Date.now()+120000,out:Object.assign(D,{loot,stims:R.stims,pct:P,mode:R.mode})}); summ.trip=S.n; summ.sid=s.id; } }
+  S.log.unshift(summ); if(S.log.length>300) S.log.length=300;
+  log(`OB/GYN ${R.mode==='pr'?'practice':R.mode==='mc'?'expedition (MC)':'expedition (mixed)'} · ${c.title}: ${P}%${crits?`, ${crits} critical miss${crits>1?'es':''}`:''}. +${caps} caps, +${res} research, ${mins} min logged.`,'study');
+  S.run=null; UI.ob={v:'done',sum:summ}; save(); }
+function obReturn(T){ const S=obState(); S.trips=S.trips.filter(x=>x!==T); const s=byId(T.sid), O=T.out, c=obCase(T.cid); if(!s){ return; }
+  const got=[];
+  if(O.fate==='dead'){ for(const k of ['o','w','a']) if(s.gear&&s.gear[k]){ const id=s.gear[k]; G.items=G.items.filter(i=>i.id!==id); s.gear[k]=null; }
+    opRecord(s,{id:'obx'+(T.id||Date.now()),name:`Hospital run: ${c?c.title:'case'}`,src:'OB/GYN'},{died:true,pct:O.pct});
+    removeSettler(s,'Died in the ruined hospital'); log(`${fullName(s)} never made it back from the ruined hospital. Everything they carried was lost.`,'death'); T.done={fate:'dead'}; S.lastBack=T; return; }
+  const lostN=[]; for(const k of O.lost||[]){ const id=s.gear&&s.gear[k]; if(id){ const it=itemById(id); if(it) lostN.push(ITEMS[it.k].name); G.items=G.items.filter(i=>i.id!==id); s.gear[k]=null; } }
+  s.health=clamp(O.hp,5,100); if(O.fate==='serious'||O.fate==='disabled') s.recoverUntil=Date.now()+(O.fate==='disabled'?40:20)*60000; else if(O.fate==='minor') s.recoverUntil=Date.now()+6*60000;
+  if(O.dis&&!s.chronic){ s.chronic={t:O.dis,sev:O.fate==='disabled'?40:20,dx:true}; }
+  for(const k of O.loot||[]) got.push(obGive(k,S));
+  /* milestones */
+  const tops=[...new Set(OB_CASES.map(x=>x.topic))]; for(const tp of tops){ if(S.badges[tp]) continue; const cs=OB_CASES.filter(x=>x.topic===tp); if(cs.every(x=>(S.bestMX[x.id]||0)>=90)){ S.badges[tp]=G.day; const k=obPickItem(3,S); if(k) got.push(obGive(k,S,`${tp} mastery`)); } }
+  if(!S.got.ob_stork&&OB_CASES.every(x=>(S.bestMX[x.id]||0)>=80)) got.push(obGive('ob_stork',S,'every case at 80%+ in mixed mode'));
+  s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true;
+  if(T.out.fate!=='retreat') opRecord(s,{id:'obx'+(T.id||Date.now()),name:`Hospital run: ${c?c.title:'case'}`,src:'OB/GYN'},{pct:O.pct});
+  const fateTxt={fine:'unhurt',minor:'with minor injuries',serious:'seriously injured',disabled:'barely alive',retreat:'empty-handed'}[O.fate]||'';
+  log(`${s.first} is back from the ruined hospital ${fateTxt}.${got.length?' Brought back: '+got.join(', ')+'.':''}${lostN.length?' Lost in the ruins: '+lostN.join(', ')+'.':''}${O.dis&&s.chronic&&s.chronic.t===O.dis?` Caught ${DISEASES[O.dis].name}.`:''}`,O.fate==='fine'||O.fate==='retreat'?'study':'health');
+  if(O.fate!=='retreat') toast(`${s.first} is back${got.length?' with '+got[0]:''}.`);
+  T.done={fate:O.fate,got,lostN}; S.lastBack=T; }
+function obTick(){ if(!G||!G.ob||!G.ob.trips||!G.ob.trips.length) return; const now=Date.now(); for(const T of G.ob.trips.slice()) if(now>=T.back) obReturn(T); }
+setInterval(()=>{ try{ obTick(); }catch(e){ console.error(e); } },3000);
+/* ---- rapid fire ---- */
 function obRf(i){ const S=obState(), q=OB_RF[UI.ob.rq]; if(!q||UI.ob.ra!=null) return; UI.ob.ra=i; S.rf.n++;
   if(i===q[2]){ S.rf.c++; G.res.caps+=5; UI.ob.rs=(UI.ob.rs||0)+1; } else { G.res.caps=Math.max(0,G.res.caps-3); }
   UI.ob.rn=(UI.ob.rn||0)+1; if(UI.ob.rn%10===0){ logStudy('other',5,0,null,'OB/GYN rapid fire',true); } save(); }
 function obRfNext(){ let k; do{ k=Math.floor(rnd()*OB_RF.length); }while(OB_RF.length>1&&k===UI.ob.rq); UI.ob.rq=k; UI.ob.ra=null; }
-function obBox(){ const S=obState(), n=Object.keys(S.best).length, avg=n?Math.round(Object.values(S.best).reduce((a,b)=>a+b,0)/n):0;
-  return `<div class="box" style="border-color:#c86b9a"><h4>🩺 OB/GYN oral boards</h4><p class="lede" style="font-size:12px">${OB_CASES.length} oral-exam cases (history → exam → differential → workup → plan → curveball) plus rapid-fire drills and the full study table. ${n?`Done ${n}/${OB_CASES.length} cases, average best ${avg}%.`:''}${S.buff>G.day?' <b>Obstetric drills active</b>: fewer birth complications.':''}</p><div class="row"><button class="btn sm pri" data-a="obGo" data-v="weak">Next case</button><button class="btn sm" data-a="obOpen" data-v="list">All cases</button><button class="btn sm" data-a="obOpen" data-v="rf">Rapid fire</button><button class="btn sm" data-a="obOpen" data-v="guide">Study table</button></div></div>`; }
-function obTabs(){ const v=UI.ob.v; const b=(k,t)=>`<button class="${v===k||(k==='list'&&(v==='case'||v==='done'))?'on':''}" data-a="obOpen" data-v="${k}">${t}</button>`;
-  return `<div class="seg" style="margin-bottom:10px">${b('list','Cases')}${b('rf','Rapid fire')}${b('guide','Study table')}</div>`; }
-function obList(){ const S=obState(); let h=`<div class="row"><button class="btn sm pri" data-a="obGo" data-v="weak">Weakest / unseen case</button><button class="btn sm" data-a="obGo" data-v="rand">Random case</button></div>
-  <p class="lede" style="font-size:12px">Each case runs like the oral exam: say or type your answer to each step, reveal the key, then tick only what you actually said. <b style="color:#ff7d72">Critical</b> items count double and missing them costs the vault. ≥80% with no critical misses gives the clinic 3 days of obstetric drills (fewer childbirth complications).</p>`;
-  for(const sec of ['OB','GYN']){ h+=`<div class="box"><h4>${sec==='OB'?'Obstetrics':'Gynecology'}</h4>${OB_CASES.filter(c=>c.sec===sec).map(c=>{ const b=S.best[c.id]; return `<div class="row" style="justify-content:space-between"><span style="font-size:13px"><b>${esc(c.title)}</b> <span class="muted" style="font-size:11px">${esc(c.topic)}</span></span><span>${b!=null?`<span class="tag ${b>=80?'g':b>=60?'':'r'}">${b}%</span> `:''}<button class="btn sm" data-a="obGo" data-v="${c.id}">${b!=null?'Redo':'Start'}</button></span></div>`; }).join('')}</div>`; }
+/* ---- UI ---- */
+const OB_MODE={pr:'Practice',mc:'Expedition · MC',mx:'Expedition · Mixed'};
+function obBox(){ const S=obState(), R=S.run, n=Object.keys(S.bestMX).length, got=Object.keys(S.got).length, tot=Object.keys(ITEMS).filter(k=>ITEMS[k].ob).length;
+  const out=S.trips.map(T=>{ const s=byId(T.sid); return s?`${s.first} returns in ${Math.max(0,Math.ceil((T.back-Date.now())/1000))}s`:''; }).filter(Boolean).join(' · ');
+  return `<div class="box" style="border-color:#c86b9a"><h4>🩺 OB/GYN orals · Operation Delivery Room</h4><p class="lede" style="font-size:12px">Send a settler into the ruined hospital: each oral case is one expedition. Good answers bring back exclusive outfits, masks and weapons; missed critical actions and harmful orders hurt the settler. ${got}/${tot} exclusive items collected · ${n}/${OB_CASES.length} cases cleared in mixed mode.${out?' <b>'+out+'</b>':''}</p><div class="row">${R?`<button class="btn sm pri" data-a="obOpen" data-v="run">Resume: ${esc(obCase(R.cid).title)}</button>`:`<button class="btn sm pri" data-a="obGo" data-v="weak">Next case</button>`}<button class="btn sm" data-a="obOpen" data-v="list">All cases</button><button class="btn sm" data-a="obOpen" data-v="loot">Collection</button><button class="btn sm" data-a="obOpen" data-v="rf">Rapid fire</button><button class="btn sm" data-a="obOpen" data-v="guide">Study table</button></div></div>`; }
+function obTabs(){ const v=UI.ob.v; const on=k=>v===k||(k==='list'&&['pick','run','done'].includes(v)); const b=(k,t)=>`<button class="${on(k)?'on':''}" data-a="obOpen" data-v="${k}">${t}</button>`;
+  return `<div class="seg" style="margin-bottom:10px">${b('list','Cases')}${b('loot','Collection')}${b('rf','Rapid fire')}${b('guide','Study table')}</div>`; }
+const obPctTag=(p,l)=>p==null?`<span class="tag" style="opacity:.55">${l} –</span>`:`<span class="tag ${p>=80?'g':p>=60?'':'r'}">${l} ${p}%</span>`;
+function obList(){ const S=obState(); let h=`${S.run?`<div class="alertline" style="border-color:#c86b9a"><b>Case in progress: ${esc(obCase(S.run.cid).title)}</b>&nbsp;<button class="btn sm pri" data-a="obOpen" data-v="run">Resume</button></div>`:''}
+  <p class="lede" style="font-size:12px"><b>Practice</b>: free response, no risk, no loot. <b>MC expedition</b>: multiple choice with trap answers; loot is harder to earn. <b>Mixed expedition</b> unlocks after one MC run of that case: free response for history/exam/differential, MC for workup and plan, better loot (Legendary drops only here). Patients vary between runs, so read the stem.</p>`;
+  for(const sec of ['OB','GYN']){ h+=`<div class="box"><h4>${sec==='OB'?'Obstetrics':'Gynecology'}</h4>${OB_CASES.filter(c=>c.sec===sec).map(c=>`<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:4px;margin:3px 0"><span style="font-size:13px"><b>${esc(c.title)}</b> <span class="muted" style="font-size:11px">${esc(c.topic)}</span></span><span>${obPctTag(S.bestMC[c.id],'MC')} ${obPctTag(S.bestMX[c.id],'Mixed')} <button class="btn sm" data-a="obPr" data-v="${c.id}">Practice</button><button class="btn sm pri" data-a="obPick" data-v="${c.id}">Expedition</button></span></div>`).join('')}</div>`; }
   return h; }
-function obCaseView(){ const O=UI.ob, c=obCase(O.cid), st=c.st[O.si];
-  let h=`<div class="box" style="border-color:#c86b9a"><h4>${esc(c.topic)} · step ${O.si+1} of ${c.st.length}</h4><p style="font-size:14px;line-height:1.45">${esc(c.stem)}</p></div>`;
-  for(let i=0;i<O.si;i++){ const s=c.st[i]; if(s.res) h+=`<div class="alertline" style="font-size:12px"><b>Results:</b>&nbsp;${esc(s.res)}</div>`; }
-  h+=`<div class="box"><h4>${esc(st.q)}</h4>`;
-  if(!O.rev){ h+=`<textarea id="obAns" rows="5" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px;border-radius:8px;background:var(--bg2,#1b1814);color:inherit;border:1px solid var(--line,#444)" placeholder="Say it out loud or type it here (optional), as you would to the examiner…">${esc(O.ans[O.si]||'')}</textarea><div class="row" style="margin-top:8px"><button class="btn pri" data-a="obRev">Reveal the key</button><button class="btn sm" data-a="obOpen" data-v="list">Leave case</button></div>`; }
-  else{ if(O.ans[O.si]) h+=`<div class="lede" style="font-size:12px;white-space:pre-wrap;border-left:3px solid #c86b9a;padding-left:8px;margin-bottom:8px">${esc(O.ans[O.si])}</div>`;
-    h+=`<p class="lede" style="font-size:12px">Tick what you covered:</p>`+st.pts.map((p,i)=>{ const k=O.si+'_'+i, on=!!O.chk[k], cr=p[0]==='!'; return `<button class="btn sm" data-a="obChk" data-v="${k}" style="display:flex;width:100%;text-align:left;gap:8px;margin:3px 0;white-space:normal;${on?'background:rgba(90,180,110,.25);border-color:#5ab46e':''}"><span style="flex:none">${on?'☑':'☐'}</span><span>${cr?'<b style="color:#ff7d72">CRITICAL</b> ':''}${esc(cr?p.slice(1):p)}</span></button>`; }).join('');
-    if(st.res) h+=`<div class="alertline" style="margin-top:8px;font-size:13px"><b>Results:</b>&nbsp;${esc(st.res)}</div>`;
-    const last=O.si===c.st.length-1; h+=`<div class="row" style="margin-top:8px"><button class="btn sm" data-a="obAll">Tick all</button><button class="btn pri" data-a="${last?'obEnd':'obNext'}">${last?'Finish case':'Next step →'}</button></div>`; }
+function obPickView(){ const S=obState(), c=obCase(UI.ob.cid), mxOk=!!S.mcDone[c.id]; UI.ob.mode=UI.ob.mode==='mx'&&mxOk?'mx':'mc'; const st=UI.ob.stims|0;
+  const el=G.settlers.filter(obEligible).sort((a,b)=>obSurvival(b,0)-obSurvival(a,0));
+  let h=`<div class="box" style="border-color:#c86b9a"><h4>Expedition · ${esc(c.title)}</h4><p class="lede" style="font-size:12px">${esc(c.topic)}. The settler goes into the ruined hospital while you work the case and comes home 2 minutes after you finish. Each missed critical action, wrong order or harmful choice becomes a hazard in the ruins. Outfit tier, mask, Endurance, weapon and stims decide how much they can take.</p>
+  <div class="seg" style="margin:6px 0"><button class="${UI.ob.mode==='mc'?'on':''}" data-a="obMode" data-v="mc">Multiple choice</button><button class="${UI.ob.mode==='mx'?'on':''}" data-a="obMode" data-v="mx" ${mxOk?'':'disabled title="Do one MC run of this case first"'}>Mixed ${mxOk?'':'🔒'}</button></div>
+  <div class="row" style="gap:6px">Stims to bring: ${[0,1,2,3].map(n=>`<button class="btn sm ${st===n?'pri':''}" data-a="obStims" data-v="${n}" ${n>Math.floor(G.res.stims)?'disabled':''}>${n}</button>`).join('')} <span class="muted" style="font-size:12px">${Math.floor(G.res.stims)} in storage</span></div></div>`;
+  if(!el.length) return h+'<p class="lede">Nobody is free: settlers need to be healthy adults (health 50+), not pregnant, not the leader, and not already away.</p>';
+  h+=`<div class="box"><h4>Choose who goes</h4>${el.slice(0,40).map(s=>{ const o=gearOf(s,'o'), w=gearOf(s,'w'), m=gearOf(s,'a'), sv=obSurvival(s,st), col=sv>=150?'#5ab46e':sv>=115?'#e2c46a':'#ff7d72';
+    return `<div class="row" style="justify-content:space-between;margin:3px 0;gap:6px"><span style="font-size:12px"><b style="font-size:13px">${esc(fullName(s))}</b> · health ${Math.round(s.health)} · E ${Math.round(effStat(s,'E'))} · L ${Math.round(effStat(s,'L'))}<br><span class="muted">${o?`<span class="tier${o.tier}">${esc(o.name)}</span>`:'Jumpsuit'} · ${w?`<span class="tier${w.tier}">${esc(w.name)}</span>`:'unarmed'} · ${m?`<span class="tier${m.tier}">${esc(m.name)}</span>`:'no mask'}</span></span><span><b style="color:${col};font-size:12px">toughness ${sv}</b> <button class="btn sm pri" data-a="obSend" data-id="${s.id}">Send</button></span></div>`; }).join('')}</div>`;
+  return h; }
+function obOpt(o,i,s,R){ const p=s.type==='sel'?!!s.pick[i]:s.pick===i; let st='', tag='';
+  if(R.rev){ const good=o.g==='c'||o.g==='o'||o.g==='b'||o.g==='a';
+    if(good&&p) st='background:rgba(90,180,110,.25);border-color:#5ab46e', tag=o.g==='a'?'✓ acceptable':'✓';
+    else if(good) st=o.g==='c'?'border-color:#ff7d72;border-style:dashed':'border-color:#e2c46a;border-style:dashed', tag=o.g==='c'?'<b style="color:#ff7d72">MISSED · CRITICAL</b>':s.type==='sb'?'best answer':'missed';
+    else if(p) st=o.g==='h'?'background:rgba(180,30,30,.35);border-color:#ff4a3a':'background:rgba(255,125,114,.18);border-color:#ff7d72', tag=o.g==='h'?`<b style="color:#ff6a5a">HARMFUL</b>${o.why?' · '+esc(o.why):''}`:'✗ not indicated';
+    else if(o.g==='h') st='opacity:.75', tag=`<span style="color:#ff9d92">trap avoided${o.why?' · '+esc(o.why):''}</span>`;
+    else st='opacity:.5'; }
+  else if(p) st='background:rgba(200,107,154,.28);border-color:#c86b9a';
+  return `<button class="btn sm" data-a="obPickOpt" data-v="${i}" ${R.rev?'disabled':''} style="display:flex;width:100%;text-align:left;gap:8px;margin:3px 0;white-space:normal;${st}"><span style="flex:none">${s.type==='sel'?(p?'☑':'☐'):(p?'◉':'○')}</span><span>${esc(o.t)}${tag?`<br><small>${tag}</small>`:''}</span></button>`; }
+function obRunView(){ const S=obState(), R=S.run; if(!R) return obList(); const c=obCase(R.cid), s=R.st[R.si], who=R.sid&&byId(R.sid);
+  let h=`<div class="box" style="border-color:#c86b9a"><h4>${OB_MODE[R.mode]} · ${esc(c.topic)} · step ${R.si+1} of ${R.st.length}${who?` · ${esc(who.first)} in the ruins`:''}</h4><p style="font-size:14px;line-height:1.45">${esc(R.stem)}</p>${R.hz.length&&R.mode!=='pr'?`<p class="lede" style="font-size:11px;color:#ff9d92">Hazards so far: ${R.hz.length}</p>`:''}</div>`;
+  for(let i=0;i<R.si;i++){ const p=R.st[i]; if(p.res) h+=`<div class="alertline" style="font-size:12px"><b>Results:</b>&nbsp;${esc(p.res)}</div>`; }
+  h+=`<div class="box"><h4>${esc(s.q)}</h4>`;
+  if(s.type==='sel') h+=`<p class="lede" style="font-size:12px">Select everything that belongs. Leaving out a critical step or choosing a harmful one costs ${R.mode==='pr'?'points':'your settler'}.</p>`+s.opts.map((o,i)=>obOpt(o,i,s,R)).join('');
+  else if(s.type==='sb') h+=`<p class="lede" style="font-size:12px">Pick the single best answer.</p>`+s.opts.map((o,i)=>obOpt(o,i,s,R)).join('')+(R.rev&&s.why?`<p style="font-size:13px;margin-top:6px"><b>Why:</b> ${esc(s.why)}</p>`:'');
+  else if(s.type==='ord'){ h+=`<p class="lede" style="font-size:12px">Tap the steps in the order you would do them.</p><ol style="font-size:13px;margin:4px 0 8px 18px">${s.seq.map((v,i)=>`<li style="${R.rev?(v===i?'color:#5ab46e':'color:#ff7d72'):''}">${esc(s.items[v])}${R.rev&&v!==i?` <small class="muted">(should be: ${esc(s.items[i])})</small>`:''}</li>`).join('')}</ol>`;
+    if(!R.rev) h+=s.shown.filter(v=>!s.seq.includes(v)).map(v=>`<button class="btn sm" data-a="obOrd" data-v="${v}" style="display:block;width:100%;text-align:left;margin:3px 0;white-space:normal">${esc(s.items[v])}</button>`).join('')+(s.seq.length?`<button class="btn sm" data-a="obOrdReset">Reset order</button>`:''); }
+  else if(s.type==='free'){ if(!R.rev) h+=`<textarea id="obAns" rows="5" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px;border-radius:8px;background:var(--bg2,#1b1814);color:inherit;border:1px solid var(--line,#444)" placeholder="Say it out loud or type it (optional), as you would to the examiner…">${esc(s.ans||'')}</textarea>`;
+    else { if(s.ans) h+=`<div class="lede" style="font-size:12px;white-space:pre-wrap;border-left:3px solid #c86b9a;padding-left:8px;margin-bottom:8px">${esc(s.ans)}</div>`;
+      h+=`<p class="lede" style="font-size:12px">Tick only what you actually said:</p>`+s.pts.map((p,i)=>{ const on=!!s.chk[i], cr=p[0]==='!'; return `<button class="btn sm" data-a="obChk" data-v="${i}" ${s.g?'disabled':''} style="display:flex;width:100%;text-align:left;gap:8px;margin:3px 0;white-space:normal;${on?'background:rgba(90,180,110,.25);border-color:#5ab46e':''}"><span style="flex:none">${on?'☑':'☐'}</span><span>${cr?'<b style="color:#ff7d72">CRITICAL</b> ':''}${esc(obStrip(p))}</span></button>`; }).join(''); } }
+  if(R.rev&&s.res) h+=`<div class="alertline" style="margin-top:8px;font-size:13px"><b>Results:</b>&nbsp;${esc(s.res)}</div>`;
+  const last=R.si===R.st.length-1;
+  if(!R.rev) h+=`<div class="row" style="margin-top:8px"><button class="btn pri" data-a="obSubmit">${s.type==='free'?'Reveal the key':'Lock in'}</button><button class="btn sm" data-a="obQuit">${R.mode==='pr'?'Stop':'Retreat (settler comes back empty-handed)'}</button></div>`;
+  else if(s.type==='free'&&!s.g) h+=`<div class="row" style="margin-top:8px"><button class="btn pri" data-a="obSubmit">Done ticking</button></div>`;
+  else { const g=s.g; h+=`<p class="lede" style="font-size:12px;margin-top:6px">Step score ${g.sc}/${g.mx}${g.hz.length&&R.mode!=='pr'?` · <span style="color:#ff9d92">${g.hz.length} hazard${g.hz.length>1?'s':''} in the ruins</span>`:''}</p><div class="row"><button class="btn pri" data-a="obNext">${last?'Finish case':'Next step →'}</button></div>`; }
   return h+'</div>'; }
-function obDone(){ const O=UI.ob, c=obCase(O.cid), R=O.res;
-  return `<div class="box" style="border-color:${R.pct>=80&&!R.crit.length?'#5ab46e':R.pct<40?'#ff7d72':'#c86b9a'}"><h4>${esc(c.title)} · ${R.pct}%${R.prev!=null?` <span class="muted">(best before: ${R.prev}%)</span>`:''}</h4>
-  ${R.crit.length?`<p style="color:#ff7d72;font-size:13px"><b>Critical actions missed:</b></p><ul class="facts">${R.crit.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="lede">No critical actions missed.</p>'}
-  <ul class="facts" style="font-size:12px">${R.got.map(x=>`<li>${esc(x)}</li>`).join('')}${R.lost.map(x=>`<li style="color:#ff9d92">${esc(x)}</li>`).join('')}</ul></div>
-  <div class="box"><h4>Pearl</h4><p style="font-size:13px">${esc(c.pearl)}</p></div>
-  <div class="row"><button class="btn pri" data-a="obGo" data-v="weak">Next case</button><button class="btn" data-a="obGo" data-v="${c.id}">Redo this one</button><button class="btn" data-a="obOpen" data-v="list">All cases</button></div>`; }
+function obDoneView(){ const S=obState(), M=UI.ob.sum; if(!M) return obList(); const c=obCase(M.cid), T=M.trip?S.trips.find(x=>x.id===M.trip)||(S.lastBack&&S.lastBack.id===M.trip?S.lastBack:null):null, s=M.sid&&anyById(M.sid);
+  let h=`<div class="box" style="border-color:${M.pct>=80&&!M.crits?'#5ab46e':M.pct<50?'#ff7d72':'#c86b9a'}"><h4>${esc(c.title)} · ${OB_MODE[M.mode]} · ${M.pct}%</h4><ul class="facts" style="font-size:12px"><li>+${M.caps} caps, +${M.res} research, ${M.mins} min logged as study</li>${M.crits?`<li style="color:#ff9d92">${M.crits} critical action${M.crits>1?'s':''} missed</li>`:''}</ul>`;
+  const miss=M.hz.filter(z=>z.k!=='wrong'); if(miss.length) h+=`<p style="font-size:12px;margin:6px 0 2px"><b>Review these:</b></p><ul class="facts" style="font-size:12px">${miss.map(z=>`<li>${z.k==='trap'?'<b style="color:#ff6a5a">Harmful:</b> ':'<b style="color:#ff9d92">Missed:</b> '}${esc(z.t)}${z.why?' — '+esc(z.why):''}</li>`).join('')}</ul>`;
+  h+='</div>';
+  if(T&&s){ const O=T.out;
+    if(!T.done){ const sec=Math.max(0,Math.ceil((T.back-Date.now())/1000)); h+=`<div class="box"><h4>${esc(s.first)} is making their way back · ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}</h4><p class="lede" style="font-size:12px">What happened in the ruins:</p><ul class="facts" style="font-size:12px">${O.ev.length?O.ev.map(e=>`<li>${esc(e.m)}${e.d>0?` <span style="color:#ff9d92">−${e.d} health</span>`:e.d<0?` <span style="color:#5ab46e">+${-e.d}</span>`:''}${e.why?` <small class="muted">(${esc(e.why)})</small>`:''}</li>`).join(''):'<li>A clean run. Nothing touched them.</li>'}</ul></div>`; }
+    else { const D=T.done; h+=`<div class="box" style="border-color:${D.fate==='dead'?'#ff4a3a':D.fate==='fine'?'#5ab46e':'#e2c46a'}"><h4>${D.fate==='dead'?`${esc(s.first)} did not come back`:`${esc(s.first)} is home · ${({fine:'unhurt',minor:'minor injuries',serious:'seriously injured',disabled:'barely alive'})[D.fate]||''}`}</h4>${D.fate==='dead'?'<p class="lede">Everything they carried was lost in the ruins.</p>':`<ul class="facts" style="font-size:13px">${(D.got||[]).map(g=>`<li><b>${esc(g)}</b></li>`).join('')||'<li>No loot this time.</li>'}${(D.lostN||[]).map(n=>`<li style="color:#ff9d92">Lost: ${esc(n)}</li>`).join('')}${s.chronic&&O.dis===s.chronic.t?`<li style="color:#ff9d92">Caught ${esc(DISEASES[O.dis].name)}</li>`:''}</ul>`}</div>`; } }
+  h+=`<div class="box"><h4>Pearl</h4><p style="font-size:13px">${esc(c.pearl)}</p></div><div class="row"><button class="btn pri" data-a="obGo" data-v="weak">Next case</button><button class="btn" data-a="obPick" data-v="${c.id}">Run it again</button><button class="btn" data-a="obOpen" data-v="list">All cases</button></div>`;
+  return h; }
+function obLootView(){ const S=obState(); let h=`<p class="lede" style="font-size:12px">These can only be found in the ruined hospital. Topic mastery (every case in a topic at 90%+ in mixed mode) guarantees an Epic drop. The Stork is awarded for 80%+ on all ${OB_CASES.length} cases in mixed mode.</p>`;
+  for(let t=0;t<6;t++){ const ks=Object.keys(ITEMS).filter(k=>ITEMS[k].ob&&ITEMS[k].tier===t); if(!ks.length) continue;
+    h+=`<div class="box"><h4 style="color:${TIERC[t]}">${TIERS[t]} · ${ks.filter(k=>S.got[k]).length}/${ks.length}</h4>${ks.map(k=>{ const d=ITEMS[k], g=S.got[k]; return `<div style="font-size:12px;margin:2px 0;${g?'':'opacity:.45'}">${g?'✅':'⬜'} ${d.t==='w'?'⚔':d.t==='a'?'🎭':'👕'} <b class="tier${t}">${esc(d.name)}</b>${d.fem?' <span class="muted">(women)</span>':''} <span class="muted">${d.t==='w'?'Damage '+d.dmg:Object.entries(d.bon).map(([a,b])=>a+' +'+b).join(' ')}</span></div>`; }).join('')}</div>`; }
+  const bs=Object.keys(S.badges); if(bs.length) h+=`<div class="box"><h4>Topic mastery</h4><p style="font-size:12px">${bs.map(b=>'🏅 '+esc(b)).join('<br>')}</p></div>`;
+  return h; }
 function obRfView(){ const O=UI.ob, S=obState(); if(O.rq==null) obRfNext(); const q=OB_RF[O.rq];
   let h=`<p class="lede" style="font-size:12px">Pick one. Right +5 caps, wrong −3 caps. Every 10 answers logs 5 study minutes. Session: ${O.rs||0}/${O.rn||0} · all-time ${S.rf.c}/${S.rf.n}.</p><div class="box"><h4>${esc(q[0])}</h4>`;
   h+=q[1].map((t,i)=>{ let st=''; if(O.ra!=null){ if(i===q[2]) st='background:rgba(90,180,110,.3);border-color:#5ab46e'; else if(i===O.ra) st='background:rgba(255,125,114,.25);border-color:#ff7d72'; }
     return `<button class="btn" data-a="obRf" data-v="${i}" style="display:block;width:100%;text-align:left;margin:4px 0;white-space:normal;${st}">${String.fromCharCode(65+i)}. ${esc(t)}</button>`; }).join('');
   if(O.ra!=null) h+=`<p style="font-size:13px;margin-top:8px"><b style="color:${O.ra===q[2]?'#5ab46e':'#ff7d72'}">${O.ra===q[2]?'Correct.':'Not quite.'}</b> ${esc(q[3])}</p><div class="row"><button class="btn pri" data-a="obRfNext">Next question</button></div>`;
   return h+'</div>'; }
-function obGuide(){ const S=obState(); const cols=['Differential Diagnosis','Pertinent History','Key Physical Exam','Management','Risk Factors / High-Yield Facts'];
+function obGuide(){ const cols=['Differential Diagnosis','Pertinent History','Key Physical Exam','Management','Risk Factors / High-Yield Facts'];
   const sel=UI.ob.g; let h=`<div class="row" style="flex-wrap:wrap;gap:4px">${OB_GUIDE.map((r,i)=>`<button class="btn sm ${sel===i?'pri':''}" data-a="obG" data-v="${i}">${esc(r.Topic.replace(/\s*\(.*\)/,''))}</button>`).join('')}</div>`;
   if(sel==null) return h+'<p class="lede">Pick a topic to read its row from your study table, plus the plan from the matching cases.</p>';
   const r=OB_GUIDE[sel]; h+=`<div class="box" style="margin-top:8px"><h4>${esc(r.Topic)}</h4>${cols.map(k=>r[k]?`<p style="font-size:13px;line-height:1.45"><b>${k.replace(' / High-Yield Facts',' / high-yield')}:</b> ${esc(r[k])}</p>`:'').join('')}</div>`;
   const tk=x=>x.toLowerCase().split(/[\s/(–-]+/).filter(Boolean).slice(0,2).join(' '); const cs=OB_CASES.filter(c=>tk(c.topic)===tk(r.Topic));
-  for(const c of cs){ const pl=c.st.filter(s=>s.k==='plan'||s.k==='cb'); h+=`<div class="box"><h4>Plan · ${esc(c.title)}</h4>${pl.map(s=>`<p class="lede" style="font-size:12px;margin:4px 0"><b>${esc(s.q)}</b></p><ul class="facts" style="font-size:12px">${s.pts.map(p=>`<li>${p[0]==='!'?'<b style="color:#ff7d72">★</b> '+esc(p.slice(1)):esc(p)}</li>`).join('')}</ul>`).join('')}<p style="font-size:12px"><b>Pearl:</b> ${esc(c.pearl)}</p><div class="row"><button class="btn sm" data-a="obGo" data-v="${c.id}">Run this case</button></div></div>`; }
+  for(const c of cs){ const pl=c.st.filter(s=>s.k==='plan'||s.k==='cb'), X=OB_X[c.id]||{}; h+=`<div class="box"><h4>Plan · ${esc(c.title)}</h4>${pl.map(s=>`<p class="lede" style="font-size:12px;margin:4px 0"><b>${esc(s.q)}</b></p><ul class="facts" style="font-size:12px">${s.pts.map(p=>`<li>${p[0]==='!'?'<b style="color:#ff7d72">★</b> '+esc(p.slice(1)):esc(p)}</li>`).join('')}</ul>`).join('')}${X.tr&&X.tr.plan?`<p class="lede" style="font-size:12px;margin:4px 0"><b>Traps examiners love:</b></p><ul class="facts" style="font-size:12px">${X.tr.plan.map(([t,w])=>`<li><span style="color:#ff9d92">✗ ${esc(t)}</span> — ${esc(w)}</li>`).join('')}</ul>`:''}${X.v?`<p class="lede" style="font-size:12px;margin:4px 0"><b>What changes the answer:</b></p><ul class="facts" style="font-size:12px">${X.v.map(v=>`<li>${esc((v.stem||v.s||'').trim()||'Different result: '+(v.res?Object.values(v.res)[0]:''))}${v.add?' → '+esc(Object.values(v.add).flat().map(obStrip).join('; ')):''}${v.harm?` <span style="color:#ff9d92">(avoid: ${esc(Object.values(v.harm).flat().map(x=>x[0]).join('; '))})</span>`:''}</li>`).join('')}</ul>`:''}<p style="font-size:12px"><b>Pearl:</b> ${esc(c.pearl)}</p><div class="row"><button class="btn sm" data-a="obPr" data-v="${c.id}">Practice</button><button class="btn sm pri" data-a="obPick" data-v="${c.id}">Expedition</button></div></div>`; }
   return h; }
-function obModal(){ UI.ob=UI.ob||{v:'list'}; const v=UI.ob.v; if((v==='case'||v==='done')&&!obCase(UI.ob.cid)) UI.ob.v='list';
-  const body=UI.ob.v==='case'?obCaseView():UI.ob.v==='done'?obDone():UI.ob.v==='rf'?obRfView():UI.ob.v==='guide'?obGuide():obList();
-  return `<header><h2>🩺 OB/GYN oral boards</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">${obTabs()}${body}</div>`; }
-function obClick(a,v){ const O=UI.ob=UI.ob||{v:'list'};
-  if(a==='obOpen'){ obOpen(v); return; }
-  if(a==='obGo'){ obStart(v==='weak'||v==='rand'?obPickNext(v):v); return; }
-  if(a==='obRev'){ const t=document.getElementById('obAns'); if(t){ O.ans[O.si]=t.value; t.blur(); } O.rev=true; return; }
-  if(a==='obChk'){ O.chk[v]=!O.chk[v]; return; }
-  if(a==='obAll'){ obCase(O.cid).st[O.si].pts.forEach((p,i)=>O.chk[O.si+'_'+i]=true); return; }
-  if(a==='obNext'){ if(!O.rev||O.si>=obCase(O.cid).st.length-1) return; O.si++; O.rev=false; const d=document.querySelector('#modal .dlg'); if(d) d.scrollTop=0; return; }
-  if(a==='obEnd'){ obFinish(); return; }
-  if(a==='obRf'){ obRf(+v); return; }
-  if(a==='obRfNext'){ obRfNext(); return; }
-  if(a==='obG'){ O.g=+v; return; } }
+function obModal(){ UI.ob=UI.ob||{v:'list'}; const v=UI.ob.v;
+  const body=v==='run'?obRunView():v==='done'?obDoneView():v==='pick'?obPickView():v==='rf'?obRfView():v==='guide'?obGuide():v==='loot'?obLootView():obList();
+  return `<header><h2>🩺 OB/GYN orals · Operation Delivery Room</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">${obTabs()}${body}</div>`; }
+function obPickNext(){ const S=obState(); const sc=c=>Math.max(S.bestMX[c.id]??-1,S.mcDone[c.id]?(S.bestMC[c.id]||0)*.6:-1); const lo=Math.min(...OB_CASES.map(sc)); return pick(OB_CASES.filter(c=>sc(c)===lo)).id; }
+function obClick(a,v,id){ const O=UI.ob=UI.ob||{v:'list'}, S=obState(), R=S.run;
+  switch(a){
+    case 'obOpen': if(v==='run'&&!R) v='list'; O.v=v; if(v==='rf'&&O.rq==null) obRfNext(); UI.modal={t:'ob'}; break;
+    case 'obGo': { const cid=v==='weak'?obPickNext():v; if(R){ UI.ob={v:'run'}; UI.modal={t:'ob'}; toast('Finish or retreat from the current case first.'); break; } UI.ob={v:'pick',cid,stims:0,mode:S.mcDone[cid]?'mx':'mc'}; UI.modal={t:'ob'}; break; }
+    case 'obPick': if(R){ UI.ob={v:'run'}; toast('Finish or retreat from the current case first.'); break; } UI.ob={v:'pick',cid:v,stims:0,mode:S.mcDone[v]?'mx':'mc'}; UI.modal={t:'ob'}; break;
+    case 'obPr': obBegin(v,'pr'); break;
+    case 'obMode': O.mode=v; break;
+    case 'obStims': O.stims=+v; break;
+    case 'obSend': obBegin(O.cid,O.mode,id,O.stims|0); break;
+    case 'obPickOpt': { if(!R||R.rev) break; const s=R.st[R.si]; if(s.type==='sel') s.pick[v]=!s.pick[v]; else if(s.type==='sb') s.pick=+v; break; }
+    case 'obOrd': { if(!R||R.rev) break; const s=R.st[R.si]; if(!s.seq.includes(+v)) s.seq.push(+v); break; }
+    case 'obOrdReset': if(R&&!R.rev) R.st[R.si].seq=[]; break;
+    case 'obChk': { if(!R) break; const s=R.st[R.si]; if(!s.g) s.chk[v]=!s.chk[v]; break; }
+    case 'obSubmit': { if(!R) break; const s=R.st[R.si]; if(s.type==='free'&&R.rev&&!s.g){ s.g=obGrade(s); } else obSubmit(); save(); break; }
+    case 'obNext': obNext(); break;
+    case 'obQuit': obAbandon(); break;
+    case 'obRf': obRf(+v); break;
+    case 'obRfNext': obRfNext(); break;
+    case 'obG': O.g=+v; break; } }
 /* ===== END OB/GYN ORAL BOARDS ===== */
 
 function drawRoom(c,r,t,lit){
@@ -5659,6 +5974,9 @@ function drawMinis(t){
     } else if(kind==='witem'){
       if(!k){ c.fillStyle='#6f675d'; c.font='11px Archivo, sans-serif'; c.textAlign='center'; c.fillText('Unarmed',w/2,h/2+4); return; }
       const sc=(w-10)/42; c.save(); c.translate(w/2-5*sc,h/2+1); c.scale(sc,sc); drawWeapon(c,k); c.restore();
+    } else if(kind==='aitem'&&s){
+      const z=(h-8)/74/Math.max(.62,sizeK(s)), L=Object.assign({},lookOf(s)); const d=k&&ITEMS[k]; L.g=Object.assign({},L.g||{},{mask:d&&d.mask?d.mask:null});
+      c.save(); c.translate(w/2-3,h-5); c.scale(z,z); drawPerson(c,{x:0,y:0,dir:1,ph:0,pose:'stand',off:0},s,t,{noBadge:true,noShadow:true,L,W:null}); c.restore();
     } else if(kind==='oitem'&&s){
       const z=(h-8)/74/Math.max(.62,sizeK(s));
       c.save(); c.translate(w/2-3,h-5); c.scale(z,z);
@@ -5964,13 +6282,13 @@ function renderExp(){
 function renderStore(){
   const f=UI.storeF;
   const list=G.items.filter(it=>f==='all'||ITEMS[it.k].t===f).sort((a,b)=>ITEMS[b.k].tier-ITEMS[a.k].tier||ITEMS[a.k].name.localeCompare(ITEMS[b.k].name));
-  let h=`<h3 class="sec">Storage</h3><div class="filters">${[['all','All'],['w','Weapons'],['o','Outfits']].map(([v,l])=>`<button class="btn sm${f===v?' pri':''}" data-a="storeF" data-v="${v}">${l}</button>`).join('')}</div>`;
+  let h=`<h3 class="sec">Storage</h3><div class="filters">${[['all','All'],['w','Weapons'],['o','Outfits'],['a','Masks']].map(([v,l])=>`<button class="btn sm${f===v?' pri':''}" data-a="storeF" data-v="${v}">${l}</button>`).join('')}</div>`;
   h+=`<div class="items">${list.map(it=>{const d=ITEMS[it.k], hd=holderOf(it.id);
     return `<div class="item" style="--tc:${TIERC[d.tier]}">${itemLine(it,`<span style="font-size:12px;color:var(--muted)">${hd?`<button class="link" data-a="open" data-id="${hd.id}">${esc(hd.first)}</button>`:'In storage'}</span>`)}${hd?'<span></span>':`<button class="btn sm" data-a="scrap" data-id="${it.id}" title="Scrap for ${SCRAP[d.tier]} caps and ${matLine(scrapReturn(it.k))}">Scrap</button>`}</div>`;}).join('')||'<p class="lede">Nothing here yet. Expeditions bring back weapons and outfits.</p>'}</div>
   <h3 class="sec" style="margin-top:18px">Stims</h3><p class="lede" style="font-size:13px"><b>${Math.floor(G.res.stims)}</b> of ${stimCap()} in storage${G.rooms.some(r=>r.type==='medbay')?' · the Medbay keeps brewing more up to that limit':' · build a Medbay to make more'}. Out in the field: ${(G.wild||[]).reduce((a,w)=>a+w.stims,0)+G.exps.reduce((a,e)=>a+(e.meds||0),0)}.</p>
   <h3 class="sec" style="margin-top:18px">Scrap</h3><div class="items">${Object.keys(MATS).map(m=>`<div class="item" style="--tc:${MATC[MATS[m].r]}"><span><b style="color:${MATC[MATS[m].r]}">${MATS[m].n}</b> <span style="font-size:12px;color:var(--muted)">${MATR[MATS[m].r]}</span></span><b class="num">${G.mats[m]||0}</b></div>`).join('')}</div>
-  <h3 class="sec" style="margin-top:18px">Blueprints · ${(G.bps||[]).length} of ${Object.keys(ITEMS).length}</h3>
-  ${[0,1,2,3,4,5].map(t=>{ const all=Object.keys(ITEMS).filter(k=>ITEMS[k].tier===t), kn=all.filter(k=>(G.bps||[]).includes(k)); return `<div style="margin:6px 0"><b style="color:${TIERC[t]}">${TIERS[t]}</b> <span class="lede" style="font-size:12px">${kn.length}/${all.length} known</span>${kn.length?`<div style="font-size:12px;color:var(--muted)">${kn.map(k=>`${ITEMS[k].t==='w'?'⚔':'👕'} ${esc(ITEMS[k].name)}`).join(' · ')}</div>`:''}</div>`; }).join('')}
+  <h3 class="sec" style="margin-top:18px">Blueprints · ${(G.bps||[]).length} of ${lootKeys().length}</h3>
+  ${[0,1,2,3,4,5].map(t=>{ const all=lootKeys().filter(k=>ITEMS[k].tier===t), kn=all.filter(k=>(G.bps||[]).includes(k)); return `<div style="margin:6px 0"><b style="color:${TIERC[t]}">${TIERS[t]}</b> <span class="lede" style="font-size:12px">${kn.length}/${all.length} known</span>${kn.length?`<div style="font-size:12px;color:var(--muted)">${kn.map(k=>`${ITEMS[k].t==='w'?'⚔':'👕'} ${esc(ITEMS[k].name)}`).join(' · ')}</div>`:''}</div>`; }).join('')}
   <p class="lede" style="font-size:12px">Scrap and blueprints come from wasteland exploration, expeditions and, less often, defeated raiders. Scrapping gear in storage returns some materials and sometimes teaches its blueprint. Build from blueprints in the Weapon Factory and Outfit Factory.</p>
   <p class="lede" style="font-size:12px">Equip gear from a settler’s card. Outfits add to SPECIAL stats for work and expeditions. Weapons win expedition fights and strengthen armory guards. Gear carried by someone killed on an expedition is lost.</p>`;
   return h;
@@ -6003,16 +6321,16 @@ function careLine(s){
 }
 function slotTile(s,slot){
   const it=s.gear&&s.gear[slot]?itemById(s.gear[slot]):null, d=it?ITEMS[it.k]:null;
-  const name=d?d.name:(slot==='o'?'Shelter jumpsuit':'Unarmed');
-  const stat=d?(d.t==='w'?`Damage ${d.dmg}`:Object.entries(d.bon).map(([k,v])=>`${k} +${v}`).join(' · ')):(slot==='o'?'No bonus':'Damage 1');
+  const name=d?d.name:(slot==='o'?'Shelter jumpsuit':slot==='a'?'No mask':'Unarmed');
+  const stat=d?(d.t==='w'?`Damage ${d.dmg}`:Object.entries(d.bon).map(([k,v])=>`${k} +${v}`).join(' · ')):(slot==='o'?'No bonus':slot==='a'?'Masks come from the ruined hospital':'Damage 1');
   const can=!s.died&&isAdult(s)&&!s.exp;
-  const dk=d?(slot==='o'?d.look:d.draw):'';
-  return `<button class="gslot" style="--tc:${d?TIERC[d.tier]:'var(--line)'}" data-a="pickSlot" data-v="${slot}" data-id="${s.id}" ${can?'':'disabled'} title="${can?'Change '+(slot==='o'?'outfit':'weapon'):s.exp?'Can’t change gear while out':'Children can’t use gear'}"><canvas data-draw="${slot==='o'?'oitem':'witem'}" data-k="${dk}" data-id="${s.id}" data-w="72" data-h="72" width="72" height="72"></canvas><span><span class="k">${slot==='o'?'Outfit':'Weapon'}${d?' · '+TIERS[d.tier]:''}</span><b class="${d?'tier'+d.tier:''}">${esc(name)}</b><small>${stat}</small></span></button>`;
+  const dk=d?(slot==='o'?d.look:slot==='a'?it.k:d.draw):'';
+  return `<button class="gslot" style="--tc:${d?TIERC[d.tier]:'var(--line)'}" data-a="pickSlot" data-v="${slot}" data-id="${s.id}" ${can?'':'disabled'} title="${can?'Change '+(slot==='o'?'outfit':slot==='a'?'mask':'weapon'):s.exp?'Can’t change gear while out':'Children can’t use gear'}"><canvas data-draw="${slot==='o'?'oitem':slot==='a'?'aitem':'witem'}" data-k="${dk}" data-id="${s.id}" data-w="72" data-h="72" width="72" height="72"></canvas><span><span class="k">${slot==='o'?'Outfit':slot==='a'?'Mask':'Weapon'}${d?' · '+TIERS[d.tier]:''}</span><b class="${d?'tier'+d.tier:''}">${esc(name)}</b><small>${stat}</small></span></button>`;
 }
 function pickerHTML(s,slot){
-  const pool=G.items.filter(it=>ITEMS[it.k].t===slot&&!holderOf(it.id)).sort((a,b)=>ITEMS[b.k].tier-ITEMS[a.k].tier||ITEMS[a.k].name.localeCompare(ITEMS[b.k].name));
-  const tile=(id,d)=>`<button data-a="equipIt" data-id="${s.id}" data-v="${slot}" data-it="${id||''}" style="--tc:${d?TIERC[d.tier]:'var(--line)'}"><canvas data-draw="${slot==='o'?'oitem':'witem'}" data-k="${d?(slot==='o'?d.look:d.draw):''}" data-id="${s.id}" data-w="${slot==='o'?64:100}" data-h="64" width="64" height="64"></canvas><b class="${d?'tier'+d.tier:''}">${d?esc(d.name):(slot==='o'?'Shelter jumpsuit':'Unarmed')}</b><small>${d?(d.t==='w'?`Damage ${d.dmg}`:Object.entries(d.bon).map(([k,v])=>`${k} +${v}`).join(' ')):(slot==='o'?'No bonus':'Damage 1')}</small></button>`;
-  return `<div class="box"><div class="row" style="justify-content:space-between"><h4>Choose ${slot==='o'?'an outfit':'a weapon'} · ${pool.length} in storage</h4><button class="btn sm" data-a="pickSlot" data-v="" data-id="${s.id}">Cancel</button></div><div class="igrid">${tile(null,null)}${pool.map(it=>tile(it.id,ITEMS[it.k])).join('')}</div>${pool.length?'':'<p class="lede" style="font-size:12px">Nothing in storage. Expeditions bring back more.</p>'}</div>`;
+  const pool=G.items.filter(it=>ITEMS[it.k].t===slot&&!holderOf(it.id)&&(!ITEMS[it.k].fem||s.sex==='F')).sort((a,b)=>ITEMS[b.k].tier-ITEMS[a.k].tier||ITEMS[a.k].name.localeCompare(ITEMS[b.k].name));
+  const tile=(id,d)=>`<button data-a="equipIt" data-id="${s.id}" data-v="${slot}" data-it="${id||''}" style="--tc:${d?TIERC[d.tier]:'var(--line)'}"><canvas data-draw="${slot==='o'?'oitem':slot==='a'?'aitem':'witem'}" data-k="${d?(slot==='o'?d.look:slot==='a'?(id?itemById(id).k:''):d.draw):''}" data-id="${s.id}" data-w="${slot==='w'?100:64}" data-h="64" width="64" height="64"></canvas><b class="${d?'tier'+d.tier:''}">${d?esc(d.name):(slot==='o'?'Shelter jumpsuit':slot==='a'?'No mask':'Unarmed')}</b><small>${d?(d.t==='w'?`Damage ${d.dmg}`:Object.entries(d.bon).map(([k,v])=>`${k} +${v}`).join(' ')):(slot==='o'?'No bonus':slot==='a'?'—':'Damage 1')}</small></button>`;
+  return `<div class="box"><div class="row" style="justify-content:space-between"><h4>Choose ${slot==='o'?'an outfit':slot==='a'?'a mask':'a weapon'} · ${pool.length} in storage</h4><button class="btn sm" data-a="pickSlot" data-v="" data-id="${s.id}">Cancel</button></div><div class="igrid">${tile(null,null)}${pool.map(it=>tile(it.id,ITEMS[it.k])).join('')}</div>${pool.length?'':'<p class="lede" style="font-size:12px">Nothing in storage. Expeditions bring back more.</p>'}</div>`;
 }
 function lookEditor(s){
   const L=s.look, sw=(k,arr)=>`<div class="sw">${arr.map(v=>`<button style="--c:${v}" class="${L[k]===v?'on':''}" data-a="look" data-k="${k}" data-v="${v}" data-id="${s.id}" aria-label="${k==='skin'?'Skin tone':k==='hair'?'Hair color':'Clothes color'} ${v}"></button>`).join('')}</div>`;
@@ -6048,7 +6366,7 @@ function settlerModal(id){
   const sp=STATS.map(k=>{const e=effStat(s,k);const diff=s.blind&&!accommodated(s,k);const bn=alive?bonusOf(s,k):0;return `<div class="sp${k===best?' best':''}"><span class="k">${k}</span><span class="bar"><i style="height:${Math.min(100,s.s[k]*10)}%"></i></span><span class="v">${s.s[k]}</span>${bn?`<span class="bn">+${bn} gear</span>`:''}${diff?`<span class="e">eff ${Math.round(e)}</span>`:''}<span class="fit">${STAT_FIT[k]}</span></div>`;}).join('');
   let h=`<header><h2>${s.mvp?`<span style="color:${legendCol(s)}">★</span> `:''}${esc(fullName(s))}</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">`;
   if(alive) h+=`<div class="row"><input type="text" id="rnFirst" value="${esc(s.first)}" aria-label="First name" maxlength="20" size="12"><input type="text" id="rnLast" value="${esc(s.last)}" aria-label="Last name" maxlength="24" size="14"><button class="btn" data-a="rename" data-id="${s.id}">Rename</button></div>`;
-  h+=`<div class="hero"><canvas class="portrait" data-draw="portrait" data-id="${s.id}" data-w="170" data-h="214" width="170" height="214" aria-label="Portrait of ${esc(fullName(s))}"></canvas><div class="slots2">${slotTile(s,'o')}${slotTile(s,'w')}<div class="row">${alive?`<button class="btn sm" data-a="editLook" data-id="${s.id}">${UI.modal.edit?'Close editor':'Edit look'}</button>`:''}${alive&&!s.exp?`<button class="btn sm" data-a="follow" data-id="${s.id}">Find in shelter</button>`:''}${alive&&isAdult(s)?`<span class="lede" style="font-size:12px">Expedition power ${Math.round(memberPow(s))}</span>`:''}</div></div></div>`;
+  h+=`<div class="hero"><canvas class="portrait" data-draw="portrait" data-id="${s.id}" data-w="170" data-h="214" width="170" height="214" aria-label="Portrait of ${esc(fullName(s))}"></canvas><div class="slots2">${slotTile(s,'o')}${slotTile(s,'w')}${(s.gear&&s.gear.a)||G.items.some(i=>ITEMS[i.k].t==='a')?slotTile(s,'a'):''}<div class="row">${alive?`<button class="btn sm" data-a="editLook" data-id="${s.id}">${UI.modal.edit?'Close editor':'Edit look'}</button>`:''}${alive&&!s.exp?`<button class="btn sm" data-a="follow" data-id="${s.id}">Find in shelter</button>`:''}${alive&&isAdult(s)?`<span class="lede" style="font-size:12px">Expedition power ${Math.round(memberPow(s))}</span>`:''}</div></div></div>`;
   if(UI.modal.pick&&alive) h+=pickerHTML(s,UI.modal.pick);
   if(UI.modal.edit&&alive) h+=lookEditor(s);
   h+=`<div class="tags">${tags.join('')}</div><div class="special">${sp}</div>`+milBox(s)+polBoxS(s)+lifeBox(s);
@@ -6221,7 +6539,7 @@ document.addEventListener('click',e=>{
     case 'milRes': { const s=byId(id); if(s){ const r=s.room&&roomById(s.room); if(r&&MIL_POSTS.includes(r.type)) unassign(s); enlist(s,'reserve'); } break; }
     case 'milPromo': { const s=byId(id); if(s) promote(s); break; }
     case 'milOff': { const s=byId(id); if(s) discharge(s); break; }
-    case 'obOpen': case 'obGo': case 'obRev': case 'obChk': case 'obAll': case 'obNext': case 'obEnd': case 'obRf': case 'obRfNext': case 'obG': obClick(a,el.dataset.v); break;
+    case 'obOpen': case 'obGo': case 'obPick': case 'obPr': case 'obMode': case 'obStims': case 'obSend': case 'obPickOpt': case 'obOrd': case 'obOrdReset': case 'obChk': case 'obSubmit': case 'obNext': case 'obQuit': case 'obRf': case 'obRfNext': case 'obG': obClick(a,el.dataset.v,id); break;
     case 'cmsStart': cmsStart(); break;
     case 'cmsReport': UI.modal={t:'cms'}; break;
     case 'cmsCancel': if(G.cms){ G.cms=null; if(G.session) G.session.nextAtk=Date.now()+ri(9,18)*60000; log('CMS form cancelled. Raids can come again.','study'); toast('CMS form mode off.'); } if(UI.modal&&UI.modal.t==='cms') UI.modal=null; break;
@@ -6293,13 +6611,13 @@ document.addEventListener('click',e=>{
     case 'endExp': { const x=expById(id); if(x) endExpedition(x); break; }
     case 'storeF': UI.storeF=el.dataset.v; break;
     case 'pickSlot': if(UI.modal&&UI.modal.t==='settler'){ UI.modal.pick=el.dataset.v||null; UI.modal.edit=false; } break;
-    case 'equipIt': { const s=byId(id); if(s){ equip(s,el.dataset.v,el.dataset.it?+el.dataset.it:null); const d=el.dataset.it&&itemById(+el.dataset.it); toast(d?`${s.first} equipped the ${ITEMS[d.k].name}.`:`${s.first} ${el.dataset.v==='o'?'is back in the shelter jumpsuit':'is now unarmed'}.`); } if(UI.modal) UI.modal.pick=null; break; }
+    case 'equipIt': { const s=byId(id); if(s){ equip(s,el.dataset.v,el.dataset.it?+el.dataset.it:null); const d=el.dataset.it&&itemById(+el.dataset.it); toast(d?`${s.first} equipped the ${ITEMS[d.k].name}.`:`${s.first} ${el.dataset.v==='o'?'is back in the shelter jumpsuit':el.dataset.v==='a'?'took off the mask':'is now unarmed'}.`); } if(UI.modal) UI.modal.pick=null; break; }
     case 'editLook': if(UI.modal&&UI.modal.t==='settler'){ UI.modal.edit=!UI.modal.edit; UI.modal.pick=null; } break;
     case 'look': { const s=byId(id), k=el.dataset.k; if(s){ if(k==='beard'||k==='glasses'||k==='mustache'||k==='ghoul') s.look[k]=!s.look[k]; else s.look[k]=(k==='ht'||k==='fw')?+el.dataset.v:el.dataset.v; s.look.custom=true; } break; }
     case 'follow': UI.follow=id; if(UI.zoom<2) setZoom(2.2); closeModal(); { const st=document.querySelector('.stage'); if(st&&st.scrollIntoView) st.scrollIntoView({behavior:'smooth',block:'nearest'}); } break;
     case 'unfollow': UI.follow=null; break;
     case 'zoom': { const v=el.dataset.v; if(v==='+') setZoom(UI.zoom*1.25); else if(v==='-') setZoom(UI.zoom/1.25); else { UI.follow=null; setZoom(1); } break; }
-    case 'scrap': { const it=itemById(id); if(it&&!holderOf(id)){ const d=ITEMS[it.k]; G.items=G.items.filter(i=>i!==it); G.res.caps+=SCRAP[d.tier]; const back=scrapReturn(it.k); for(const m in back) G.mats[m]=(G.mats[m]||0)+back[m]; log(`Scrapped a ${d.name}: ${SCRAP[d.tier]} caps and ${matLine(back)}.`); if(!(G.bps||[]).includes(it.k)&&rnd()<.25) learnBp(it.k,'worked out by taking it apart'); toast(`Scrapped ${d.name} for ${SCRAP[d.tier]} caps.`);} break; }
+    case 'scrap': { const it=itemById(id); if(it&&!holderOf(id)){ const d=ITEMS[it.k]; G.items=G.items.filter(i=>i!==it); G.res.caps+=SCRAP[d.tier]; const back=scrapReturn(it.k); for(const m in back) G.mats[m]=(G.mats[m]||0)+back[m]; log(`Scrapped a ${d.name}: ${SCRAP[d.tier]} caps and ${matLine(back)}.`); if(!d.ob&&!(G.bps||[]).includes(it.k)&&rnd()<.25) learnBp(it.k,'worked out by taking it apart'); toast(`Scrapped ${d.name} for ${SCRAP[d.tier]} caps.`);} break; }
     case 'accept': { const i=+el.dataset.i, v=G.gate[i]; if(v&&popUsed()<housing()){ immigDecide(v.s,true,v); if(v.s.mvp){ v.s.cit='citizen'; v.s.citD=G.day; } else makeResident(v.s); G.gate.splice(i,1);G.settlers.push(v.s);v.s.intake=Date.now()+ENT_INTAKE;v.s.waiting=true;v.s.joinD=G.day;G.stats.arrivals++; const gg=v.gear||{}; v.s.gear=v.s.gear||{}; if(gg.w) v.s.gear.w=addItem(gg.w).id; if(gg.o) v.s.gear.o=addItem(gg.o).id;if(v.s.mvp) mvpJoined(v.s); else log(`${fullName(v.s)} joined the shelter.`,'family');UI.modal={t:'settler',id:v.s.id,edit:true};toast(`${v.s.first} is in. Review and edit them here.`);} break; }
     case 'reject': { const i=+el.dataset.i, v=G.gate[i]; if(v){ immigDecide(v.s,false,v); G.gate.splice(i,1);log(`You turned ${fullName(v.s)} away from the gate.`); if(UI.modal&&UI.modal.t==='visitor') closeModal();} break; }
     case 'rename': { const s=byId(id); const f=$('rnFirst').value.trim(), l=$('rnLast').value.trim(); if(s&&f){s.first=f.slice(0,20);s.last=(l||s.last).slice(0,24);toast(`Renamed to ${fullName(s)}.`);} if(document.activeElement) document.activeElement.blur(); break; }
@@ -6385,7 +6703,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},obFinish,obClick,obScore,OB_CASES,OB_RF,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
