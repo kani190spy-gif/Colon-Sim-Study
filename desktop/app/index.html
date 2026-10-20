@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.4</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.5</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -4593,8 +4593,8 @@ function protestChoice(c,byOverseer){ const P=G.protest; if(!P||P.choice) return
   P.choice=c; P.by=byOverseer?'the Overseer':(ldr?ldr.first:'the council');
   if(c==='meet'){ P.end=Math.min(P.end,nowD()+.06); for(const s of M) s.loy=Math.min(100,(s.loy||50)+12); G.apBoost=Math.max(0,(G.apBoost||0)-2); polNews(`${byOverseer?'On the Overseer’s order, ':''}${ldr?ldr.first:'The council'} met the protesters of ${F?F.name:'the faction'} and promised to listen. Tempers eased.`); }
   else if(c==='disperse'){ P.end=Math.min(P.end,nowD()+.04); P.troops=(usePol?cops:sol).slice(0,4).map(s=>s.id); for(const x of (usePol?cops:sol).slice(0,4)) if(x.pol) x.polXP=(x.polXP||0)+2; for(const s of M) s.loy=Math.max(0,(s.loy||50)-15); for(const s of polAdults()) if(s.lean==='hard') s.loy=Math.min(100,(s.loy||50)+5);
-    const pol=usePol; let hurt=''; if(rnd()<(pol?.05:.15)&&M.length){ const v=pick(M); v.health=Math.max(5,v.health-15); hurt=` ${v.first} was hurt in the scuffle.`; }
-    if(G.rooms.some(x=>x.type==='jail')&&M.length&&rnd()<.6){ const A=M.slice().sort(()=>rnd()-.5).slice(0,ri(1,Math.min(2,M.length))); for(const v of A){ const wrong=rnd()<(pol?.12:.35); detain(v,wrong?'Swept up during a protest':'Disorder during a protest',ri(3,6)); if(wrong) v.detained.innocent=true; } } polNews(`${byOverseer?'On the Overseer’s order, ':''}${pol?'the Vault Police':'soldiers'} broke up the ${F?F.name:''} protest.${escN}${hurt} ${pol?'It was handled with restraint, but resentment lingers.':'Resentment is growing.'}`); if(!pol) nudgeBlocs({reform:-1}); }
+    const pol=usePol; let hurt=''; if(rnd()<(pol?.05:.15)*(M.length>10?2:1)&&M.length){ const v=pick(M); v.health=Math.max(5,v.health-15); hurt=` ${v.first} was hurt in the scuffle.`; }
+    if(G.rooms.some(x=>x.type==='jail')&&M.length&&rnd()<.6){ const A=M.slice().sort(()=>rnd()-.5).slice(0,ri(1,Math.min(M.length>10?4:2,M.length))); for(const v of A){ const wrong=rnd()<(pol?.12:.35); detain(v,wrong?'Swept up during a protest':'Disorder during a protest',ri(3,6)); if(wrong) v.detained.innocent=true; } } polNews(`${byOverseer?'On the Overseer’s order, ':''}${pol?'the Vault Police':'soldiers'} broke up the ${F?F.name:''} protest.${escN}${hurt} ${pol?'It was handled with restraint, but resentment lingers.':'Resentment is growing.'}`); if(!pol) nudgeBlocs({reform:-1}); }
   else polNews(`${byOverseer?'The Overseer':ldr?ldr.first:'The council'} chose to ignore the ${F?F.name:''} protest.`); }
 function protestStep(){ const P=G.protest; if(!P) return; const nd=nowD();
   if(AWAY){ for(const s of P.ids.map(byId).filter(Boolean)) s.protest=false; const F=protFac(P); if(F) F.protCool=G.day+3; log(`The ${F?F.name:''} protest broke up on its own.`,'gov'); G.protest=null; return; }
@@ -4602,8 +4602,8 @@ function protestStep(){ const P=G.protest; if(!P) return; const nd=nowD();
   if(nd>=P.end){ const F=protFac(P), M=P.ids.map(byId).filter(Boolean); if(P.choice==='ignore'||!P.choice) for(const s of M) s.loy=Math.max(0,(s.loy||50)-5);
     for(const s of M) s.protest=false; if(F) F.protCool=G.day+3; polNews(`The ${F?F.name:''} protest has ended.`); G.protest=null; } }
 function protestTarget(s){ const P=G.protest; if(!P) return null; const r=roomById(P.site); if(!r) return null; const X=roomX(r.col);
-  if(P.ids.includes(s.id)&&s.protest){ const i=P.ids.indexOf(s.id); return {x:X+40+i*24,l:r.floor,pose:'cheer',face:i%2?-1:1}; }
-  if(P.troops&&P.troops.includes(s.id)){ const i=P.troops.indexOf(s.id); return {x:X+40+(P.ids.length*24)+20+i*16,l:r.floor,pose:'guard',face:-1}; }
+  if(P.ids.includes(s.id)&&s.protest){ const i=P.ids.indexOf(s.id), big=P.ids.length>12, sp=big?Math.max(12,Math.min(24,(roomW(r)-80)/P.ids.length*2)):24; return {x:X+40+(big?(i%Math.ceil(P.ids.length/2))*sp+(i%2)*8:i*24),l:r.floor,pose:'cheer',face:i%2?-1:1}; }
+  if(P.troops&&P.troops.includes(s.id)){ const i=P.troops.indexOf(s.id); return {x:Math.min(X+roomW(r)-20,X+40+(Math.min(P.ids.length,12)*24)+20+i*16),l:r.floor,pose:'guard',face:-1}; }
   if(P.choice==='meet'&&s.id===G.leader) return {x:X+20,l:r.floor,pose:'gesture',face:1};
   return null; }
 function drawProtest(c,t){ const P=G.protest; if(!P) return; for(const id of P.ids){ const a=AG.get(id), s=byId(id); if(!a||a.hidden||!s||!s.protest||a.path&&a.path.length) continue;
@@ -6283,9 +6283,9 @@ function endAssembly(A){ const k=A.party, P=PARTIES[k], M=A.ids.map(byId).filter
   else if(A.kind==='meeting'){ const ap=partyApproval(k)??50; for(const s of M) s.loy=clamp((s.loy||50)+(ap>=55?3:ap<40?-4:0),0,100); if(G.day-((G.pChairD||{})[k]||0)>=YEAR-2) chairElect(k,'chosen at a strategy meeting'); else polNews(`The ${P.n} strategy meeting ended. Members came away ${ap>=55?'backing':ap<40?'more opposed to':'unsure about'} the leader.`); }
   else if(A.kind==='march'){ const L=G.leader&&byId(G.leader), d=L?docOf(L):null;
     if(L&&d.sec>.35&&L.party!==k&&rnd()<.4){ G.hallClosed=G.hallClosed||{}; G.hallClosed[k]=G.day+6; for(const s of partyMembers(k)) s.loy=Math.max(0,(s.loy||50)-8); polNews(`${L.first} ordered the ${P.n} hall CLOSED for 6 days before they could march. Members are furious. You can reopen it from the Council tab.`); return; }
-    const site=G.rooms.find(r=>r.type==='office')||G.rooms.find(r=>r.type==='diner')||entRoom(); const ids=M.filter(s=>!s.detained).map(s=>s.id).slice(0,8); if(ids.length<2||!site) return;
+    const site=G.rooms.find(r=>r.type==='office')||G.rooms.find(r=>r.type==='diner')||entRoom(); const ap=partyApproval(k)??30, frac=.5+.4*clamp((35-ap)/35,0,1), all=partyMembers(k).filter(s=>!s.exp&&!s.waiting&&!s.detained&&!s.preg), first=M.filter(s=>!s.detained&&all.includes(s)), rest=all.filter(s=>!first.includes(s)).sort((a,b)=>(a.loy||50)-(b.loy||50)), want=Math.max(2,Math.round(all.length*frac)); const ids=[...first,...rest].slice(0,want).map(s=>s.id); if(ids.length<2||!site) return;
     G.protest={fid:'party_'+k,party:k,ids,site:site.id,start:nowD(),end:nowD()+ri(3,6)/24,decideAt:nowD()+1/24,choice:null,cry:pick(PARTY_CRY[k])}; for(const id of ids){ const s=byId(id); if(s) s.protest=true; }
-    polNews(`⚠ ${ids.length} members of the ${P.n} marched from their hall to the ${ROOMS[site.type].name}: “${G.protest.cry}” The leader will respond within the hour unless you step in.`); } }
+    polNews(`⚠ ${ids.length} of ${all.length} ${P.n} members (${Math.round(ids.length/Math.max(1,all.length)*100)}%) marched from their hall to the ${ROOMS[site.type].name}, more leaving their jobs to join on the way: “${G.protest.cry}” The leader will respond within the hour unless you step in.`); } }
 const PARTY_CRY={com:['Bread for the workers, not caps for the few!','Share the stores!'],mkt:['Let us trade! Cut the levies!','Our caps, our choice!'],nat:['Vault first! Close the gate!','Order, not chaos!'],civ:['Equal rights for every resident!','One vault for all of us!']};
 function assemblyTarget(s){ const A=G.assembly; if(!A) return null; const i=A.ids.indexOf(s.id); if(i<0) return null; const r=roomById(A.hall); if(!r) return null; const X=roomX(r.col), w=roomW(r);
   if(i===0) return {x:X+w-60,l:r.floor,pose:'gesture',face:-1}; return {x:X+40+((i-1)%5)*34+(i>5?16:0),l:r.floor,pose:A.kind==='rally'?'cheer':A.kind==='march'?'stand':'sit',face:1}; }
