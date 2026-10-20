@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.3</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.4</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1098,13 +1098,14 @@ function build(type,floor,col){
   if(d.hidden) return false;
   if(d.pop&&G.settlers.length<d.pop){toast(`Needs ${d.pop} settlers`);return false;}
   if(d.unique&&G.rooms.some(r=>r.type===type)){toast(`You can only have one ${d.name}.`);return false;}
+  if(type==='phall'&&!hallFreeParty()){toast('Every party already has a hall.');return false;}
   let c0=col;
   if(need>1){ if(c0+1>=COLS||roomAt(floor,c0+1)) c0=col-1; if(c0<0||roomAt(floor,c0)||roomAt(floor,c0+1)){ toast(`The ${d.name} needs two empty slots side by side.`); return false; } }
   else if(roomAt(floor,col)) return false;
   if(!connected(floor,c0,need)){toast('Rooms must connect to an elevator or to another room on the same floor.');return false;}
   if(G.res.caps<d.cost){toast(`Needs ${d.cost} caps`);return false;}
   G.res.caps-=d.cost;
-  const r={id:G.nextId++,type,floor,col:c0,w:need,level:1,workers:[],train:'S',craft:0}; G.rooms.push(r);
+  const r={id:G.nextId++,type,floor,col:c0,w:need,level:1,workers:[],train:'S',craft:0}; G.rooms.push(r); if(type==='phall') hallsAssign();
   const m=tryMerge(r);
   log(m.w>need?`Built a ${d.name} on B${floor+1}. It joined the room next door and is now ${m.w} slots wide.`:`Built a ${d.name} on B${floor+1}.`);
   if(m.w>need) toast(`Rooms merged: ${d.name} is now ${m.w} wide.`);
@@ -1322,7 +1323,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection){ election(); G.nextElection=d+4*YEAR; }
@@ -1336,7 +1337,7 @@ function schoolSeats(){ return G.rooms.filter(TRAINS).reduce((a,r)=>a+kidSeats(r
 function checkEdu(s){ if(s.track&&!s.eduDone&&s.s[s.track]>=10){ s.eduDone=true; log(`${fullName(s)} completed a ${STAT_NAMES[s.track]} education: +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[s.track]} rooms.`,'family'); FX.text(s.id,'Educated!','#7fd38a'); } }
 function lifeStep(mins,frac){
   const nd=nowD();
-  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); plotStrike(); craftStep(mins); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
+  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); plotStrike(); craftStep(mins); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
   if(G.captives&&G.captives.length){ G.captives=G.captives.filter(q=>{ if(roomById(q.room)) return true; prisonEnd(q,'Escaped'); log(`${q.s.first} ${q.s.last} slipped away when the Holding Cells were torn down.`,'danger'); return false; }); }
   { const k=1-Math.exp(-mins/20); for(const s of G.settlers){ if(s.grief) s.grief=Math.max(0,s.grief-mins*.1); s.happy=clamp(s.happy+(happyTarget(s)-s.happy)*k,0,100); } }
   if(LIVE&&G.inst.health>=1&&ertTeam().length) for(const r of G.rooms) if(['generator','workshop','water','diner'].includes(r.type)&&r.workers.length&&rnd()<1-Math.exp(-mins*.0035)){ const v=byId(pick(r.workers)); if(v&&!v.preg&&!emOf(v.id)&&!ertOn(v)){ hurtSettler(v,ri(12,22),'Workplace accident'); if(G.settlers.includes(v)&&!callEmergency(v,'accident')) critAftermath([v]); } }
@@ -1800,7 +1801,7 @@ function wander(a,r,t,poses){
 }
 function targetFor(s,a,t){
   if(s.exp) return {x:worldW+40,l:-1,pose:'stand',exit:true};
-  { const bt=burialTarget(s); if(bt) return bt; const mt=mournTarget(s); if(mt) return mt; const tt=traderTarget(s); if(tt) return tt; const ut=escortTarget(s,a)||detainTarget(s)||protestTarget(s)||strikeTarget(s,a,t); if(ut) return ut; const lt=leaderTarget(s,a,t); if(lt) return lt; }
+  { const bt=burialTarget(s); if(bt) return bt; const mt=mournTarget(s); if(mt) return mt; const tt=traderTarget(s); if(tt) return tt; const ut=escortTarget(s,a)||detainTarget(s)||protestTarget(s)||assemblyTarget(s)||strikeTarget(s,a,t); if(ut) return ut; const lt=leaderTarget(s,a,t); if(lt) return lt; }
   { const et=emTarget(s); if(et) return et; }
   { const st=surgTarget(s); if(st) return st; }
   { const it=intakeTarget(s,a); if(it) return it; }
@@ -4583,7 +4584,7 @@ function startProtest(F){ const M0=factionMembers(F).filter(s=>!s.exp&&!s.waitin
   G.protest={fid:F.id,ids:M.map(s=>s.id),site:site.id,start:nowD(),end:nowD()+ri(3,6)/24,decideAt:nowD()+1/24,choice:null,cry:pick(PROTEST_CRY[F.b])};
   for(const s of M) s.protest=true;
   polNews(`⚠ ${M.length} members of ${F.name} are protesting in the ${ROOMS[site.type].name}: “${G.protest.cry}” The leader will respond within the hour unless you step in.`); }
-function protestChoice(c,byOverseer){ const P=G.protest; if(!P||P.choice) return; const F=(G.pfac||[]).find(f=>f.id===P.fid), M=P.ids.map(byId).filter(Boolean), ldr=G.leader&&byId(G.leader);
+function protestChoice(c,byOverseer){ const P=G.protest; if(!P||P.choice) return; const F=protFac(P), M=P.ids.map(byId).filter(Boolean), ldr=G.leader&&byId(G.leader);
   const sol=G.settlers.filter(s=>isSoldier(s)&&!s.milLeave&&!s.exp), cops=polForce().filter(s=>!M.includes(s));
   let usePol=cops.length>=2;
   if(c==='disperse'&&!usePol&&sol.length<2){ if(byOverseer) toast('You need at least 2 available police officers or soldiers.'); c='ignore'; }
@@ -4596,9 +4597,9 @@ function protestChoice(c,byOverseer){ const P=G.protest; if(!P||P.choice) return
     if(G.rooms.some(x=>x.type==='jail')&&M.length&&rnd()<.6){ const A=M.slice().sort(()=>rnd()-.5).slice(0,ri(1,Math.min(2,M.length))); for(const v of A){ const wrong=rnd()<(pol?.12:.35); detain(v,wrong?'Swept up during a protest':'Disorder during a protest',ri(3,6)); if(wrong) v.detained.innocent=true; } } polNews(`${byOverseer?'On the Overseer’s order, ':''}${pol?'the Vault Police':'soldiers'} broke up the ${F?F.name:''} protest.${escN}${hurt} ${pol?'It was handled with restraint, but resentment lingers.':'Resentment is growing.'}`); if(!pol) nudgeBlocs({reform:-1}); }
   else polNews(`${byOverseer?'The Overseer':ldr?ldr.first:'The council'} chose to ignore the ${F?F.name:''} protest.`); }
 function protestStep(){ const P=G.protest; if(!P) return; const nd=nowD();
-  if(AWAY){ for(const s of P.ids.map(byId).filter(Boolean)) s.protest=false; const F=(G.pfac||[]).find(f=>f.id===P.fid); if(F) F.protCool=G.day+3; log(`The ${F?F.name:''} protest broke up on its own.`,'gov'); G.protest=null; return; }
+  if(AWAY){ for(const s of P.ids.map(byId).filter(Boolean)) s.protest=false; const F=protFac(P); if(F) F.protCool=G.day+3; log(`The ${F?F.name:''} protest broke up on its own.`,'gov'); G.protest=null; return; }
   if(!P.choice&&nd>=P.decideAt){ const l=G.leader&&byId(G.leader); if(!l) protestChoice('ignore',false); else { const d=docOf(l), W=polStrength(), forces=polForce().length+G.settlers.filter(s=>isSoldier(s)&&!s.exp).length; const r=ldrChoose([{k:'disperse',fit:d.sec,pop:W.hard-W.reform,util:forces>=2?.1:-1},{k:'meet',fit:-d.sec*.6+.1,pop:W.reform+W.loyal*.5-W.hard*.5,util:0},{k:'ignore',fit:0,pop:-.3,util:.1}]); protestChoice(r.k,false); } }
-  if(nd>=P.end){ const F=(G.pfac||[]).find(f=>f.id===P.fid), M=P.ids.map(byId).filter(Boolean); if(P.choice==='ignore'||!P.choice) for(const s of M) s.loy=Math.max(0,(s.loy||50)-5);
+  if(nd>=P.end){ const F=protFac(P), M=P.ids.map(byId).filter(Boolean); if(P.choice==='ignore'||!P.choice) for(const s of M) s.loy=Math.max(0,(s.loy||50)-5);
     for(const s of M) s.protest=false; if(F) F.protCool=G.day+3; polNews(`The ${F?F.name:''} protest has ended.`); G.protest=null; } }
 function protestTarget(s){ const P=G.protest; if(!P) return null; const r=roomById(P.site); if(!r) return null; const X=roomX(r.col);
   if(P.ids.includes(s.id)&&s.protest){ const i=P.ids.indexOf(s.id); return {x:X+40+i*24,l:r.floor,pose:'cheer',face:i%2?-1:1}; }
@@ -4640,7 +4641,7 @@ function detainDay(){ for(const s of G.settlers){ const D=s.detained; if(!D) con
 function detainTarget(s){ if(!s.detained) return null; const j=G.rooms.find(r=>r.type==='jail')||entRoom(); if(!j) return null; return {x:roomX(j.col)+(j.type==='jail'?150+(s.id%3)*20:120),l:j.floor,pose:'sit',face:-1}; }
 function strikeTarget(s,a,t){ if(!s.strike) return null; const d=G.rooms.find(r=>r.type==='diner'); return d?wander(a,d,t,['sit','stand']):null; }
 function unrestBox(){ if(G.inst.gov<1) return ''; const P=G.protest, Q=G.plot, S=(G.pfac||[]).filter(f=>!f.gone&&f.strike), bg=bodyguards(); let h='';
-  if(P){ const F=(G.pfac||[]).find(f=>f.id===P.fid); h+=`<div class="alertline" style="margin-bottom:6px"><b>Protest: ${esc(F?F.name:'')}</b><span>“${esc(P.cry)}” · ${P.ids.length} protesters · ${P.choice?`response: ${P.choice} (${esc(P.by)})`:'waiting for a response'}</span>${P.choice?'':`<button class="btn sm" data-a="prot" data-v="meet">Leader meets them</button><button class="btn sm" data-a="prot" data-v="disperse">Disperse (soldiers)</button><button class="btn sm" data-a="prot" data-v="ignore">Ignore</button>`}</div>`; }
+  if(P){ const F=protFac(P); h+=`<div class="alertline" style="margin-bottom:6px"><b>Protest: ${esc(F?F.name:'')}</b><span>“${esc(P.cry)}” · ${P.ids.length} protesters · ${P.choice?`response: ${P.choice} (${esc(P.by)})`:'waiting for a response'}</span>${P.choice?'':`<button class="btn sm" data-a="prot" data-v="meet">Leader meets them</button><button class="btn sm" data-a="prot" data-v="disperse">Disperse (soldiers)</button><button class="btn sm" data-a="prot" data-v="ignore">Ignore</button>`}</div>`; }
   for(const F of S) h+=`<div class="alertline" style="margin-bottom:6px"><b>Strike: ${esc(F.name)}</b><span>Members are not working.</span><button class="btn sm" data-a="concede" data-id="${F.id}">Concede (${40*(F.n||2)} caps)</button></div>`;
   if(Q&&Q.stage>=1){ const F=(G.pfac||[]).find(f=>f.id===Q.fid); h+=`<div class="alertline" style="margin-bottom:6px;border-color:var(--danger)"><b>⚠ Plot against the leader</b><span>${Q.stage===1?'Rumors only so far.':Q.stage===2?'A weapon is missing. Suspects:':'The plotters are ready. Suspects:'}</span>${Q.stage>=2?Q.suspects.map(id=>byId(id)?`<button class="btn sm" data-a="arrest" data-id="${id}">Arrest ${esc(byId(id).first)}</button>`:'').join(''):''}</div>`; }
   return `<div class="box"><h4>Unrest & security</h4>${h||'<p class="lede" style="font-size:12px">All quiet.</p>'}<p class="lede" style="font-size:12px">Bodyguards: ${bg.length?bg.map(s=>esc(s.first)).join(', '):'none'}. Post soldiers in the Overseer’s Office to guard the leader (they are half as effective during walkabouts). Angry factions protest and strike; hostile ones may plot. Arresting the wrong person costs loyalty across the vault.</p></div>`; }
@@ -6247,15 +6248,54 @@ function partyElection(){ const C=polAdults().filter(s=>isCitizen(s)&&s.party&&!
   if(K.length<2||C.length<6) return false; const L=G.leader&&byId(G.leader);
   const cands=K.map(k=>chairOf(k)); if(L&&isCitizen(L)&&L.party&&!cands.includes(L)){ const i=K.indexOf(L.party); if(i>=0) cands[i]=L; }
   const votes=cands.map(()=>0);
-  for(const v of C){ let best=0,bu=-1e9; cands.forEach((c,i)=>{ const u=-Math.hypot(v.ec-PARTIES[c.party].ec,v.idn-PARTIES[c.party].idn)*3+effStat(c,'C')*.15+(c.id===G.leader?(v.loy-50)/25:0)+(v.party===c.party?.8:0)+rnd()*.8; if(u>bu){ bu=u; best=i; } }); votes[best]+=1; }
+  for(const v of C){ let best=0,bu=-1e9; cands.forEach((c,i)=>{ const u=-Math.hypot(v.ec-PARTIES[c.party].ec,v.idn-PARTIES[c.party].idn)*3+(G.rally&&G.rally[c.party]!=null&&G.day-G.rally[c.party]<=6?.5:0)+effStat(c,'C')*.15+(c.id===G.leader?(v.loy-50)/25:0)+(v.party===c.party?.8:0)+rnd()*.8; if(u>bu){ bu=u; best=i; } }); votes[best]+=1; }
   const tot=votes.reduce((a,b)=>a+b,0), sh=votes.map(x=>x/tot); let wi=0; sh.forEach((v,i)=>{ if(v>sh[wi]) wi=i; });
   const win=cands[wi], prev=G.leader; if(prev&&prev!==win.id) G.ldrEndWhy='Lost the election'; G.leader=win.id;
   G.lastElection={d:G.day,party:true,results:cands.map((x,i)=>({id:x.id,name:fullName(x),share:sh[i],party:x.party}))};
   const line=`Election: ${cands.map((x,i)=>`${x.first} (${PARTIES[x.party].s.replace(/s$/,'')}) ${Math.round(sh[i]*100)}%`).join(', ')}. ${fullName(win)} of the ${PARTIES[win.party].n} ${prev===win.id?'was re-elected':'takes office'}.`;
   log(line,'gov'); histAdd(line); if(councilMode()==='elected') councilElection(); return true; }
 function partyBox2(){ if(G.inst.gov<1) return ''; const L=G.leader&&byId(G.leader);
-  return `<div class="box"><h4>Party leadership & approval</h4>${PK.map(k=>{ const P=PARTIES[k], c=chairOf(k), ap=partyApproval(k), n=partyMembers(k).length; return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding:5px 0"><span><b style="color:${P.c}">${P.n}</b> <span class="lede" style="font-size:12px">${c?`chair <button class="link" data-a="open" data-id="${c.id}">${esc(fullName(c))}</button>`:n<3?'too small for a chair':'no chair'}</span></span><span style="white-space:nowrap">${ap==null?'—':`approves of ${L?esc(L.first):'the leader'}: <b style="color:${ap>=60?'var(--ok)':ap>=40?'var(--warn)':'var(--danger)'}">${ap}%</b>`}</span></div>`; }).join('')}
-  <p class="lede" style="font-size:12px">Each party with 3+ citizen members elects a chair every year. Party approval mixes members’ loyalty with how close the leader sits to the party on the compass. Settlers far from the leader on the compass now trust them a little less, and members of the leader’s own party a little more. ${G.inst.gov>=3?'Elections are fought between party chairs; citizens vote for the party closest to them.':'Once Elections (Governance 3) arrive, leadership elections are fought between party chairs.'}</p></div>`; }
+  return `<div class="box"><h4>Party leadership & approval</h4>${PK.map(k=>{ const P=PARTIES[k], c=chairOf(k), ap=partyApproval(k), n=partyMembers(k).length; return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding:5px 0"><span><b style="color:${P.c}">${P.n}</b> <span class="lede" style="font-size:12px">${c?`chair <button class="link" data-a="open" data-id="${c.id}">${esc(fullName(c))}</button>`:n<3?'too small for a chair':'no chair'}</span></span><span style="white-space:nowrap">${hallOf(k)?(hallClosed(k)?'<span class="tag r">hall closed</span> ':'<span class="tag">has a hall</span> '):''}${hallButtons(k)} ${ap==null?'—':`approves of ${L?esc(L.first):'the leader'}: <b style="color:${ap>=60?'var(--ok)':ap>=40?'var(--warn)':'var(--danger)'}">${ap}%</b>`}</span></div>`; }).join('')}
+  <p class="lede" style="font-size:12px">Each party with 3+ citizen members elects a chair every year. Party approval mixes members’ loyalty with how close the leader sits to the party on the compass. Settlers far from the leader on the compass now trust them a little less, and members of the leader’s own party a little more. ${G.inst.gov>=3?'Elections are fought between party chairs; citizens vote for the party closest to them. Build a Party Hall for each party so chairs can call rallies, strategy meetings and, when angry, protest marches. A rally in the last 6 days before an election gives that party a boost.':'Once Elections (Governance 3) arrive, leadership elections are fought between party chairs.'}</p></div>`; }
+
+/* ===== Party Halls & assemblies ===== */
+ROOMS.phall={name:'Party Hall',stat:'C',cost:500,col:'--r-office',hex:'#8a6a5a',req:{gov:3},wide:2,
+  desc:'Two slots wide. Home of one party (one hall per party, assigned to the largest party without one). The chair calls members here for rallies, strategy meetings, and, when they are angry, protest marches. A party secretary can staff it.'};
+const hallOf=k=>G.rooms.find(r=>r.type==='phall'&&r.party===k)||null;
+const hallClosed=k=>G.hallClosed&&G.hallClosed[k]>G.day;
+function hallFreeParty(){ const taken=new Set(G.rooms.filter(r=>r.type==='phall'&&r.party).map(r=>r.party)); return PK.filter(k=>!taken.has(k)).sort((a,b)=>partyMembers(b).length-partyMembers(a).length)[0]||null; }
+function hallsAssign(){ for(const r of G.rooms) if(r.type==='phall'&&!r.party){ const k=hallFreeParty(); if(k){ r.party=k; polNews(`The ${PARTIES[k].n} has taken over the new Party Hall.`); } } }
+function protFac(P){ if(P&&P.party){ const k=P.party; return {id:P.fid,name:PARTIES[k].n,b:k==='nat'?'hard':'reform',founder:(chairOf(k)||{}).id}; } return (G.pfac||[]).find(f=>f.id===P.fid); }
+function hallDay(){ if(G.inst.gov<3||AWAY) return; hallsAssign(); if(G.assembly||G.protest) return;
+  const L=G.leader&&byId(G.leader), elect=G.nextElection!=null&&G.nextElection-G.day<=5&&G.nextElection>=G.day;
+  for(const k of obShuffleSafe(PK)){ const h=hallOf(k), ch=chairOf(k); if(!h||!ch||hallClosed(k)) continue; const M=partyMembers(k).filter(s=>!s.exp&&!s.waiting&&!s.protest); if(M.length<3) continue;
+    if(rnd()>.22) continue; const ap=partyApproval(k)??50; let kind=ap<35&&(L&&L.party!==k)?'march':elect?'rally':G.day-((G.pChairD||{})[k]||0)>=YEAR-2?'meeting':rnd()<.55?'rally':'meeting';
+    startAssembly(k,kind,M); break; } }
+function obShuffleSafe(a){ return a.slice().sort(()=>rnd()-.5); }
+function startAssembly(k,kind,M){ const h=hallOf(k), ch=chairOf(k); if(!h||!ch) return; M=M||partyMembers(k).filter(s=>!s.exp&&!s.waiting);
+  const ids=[ch.id,...M.filter(s=>s!==ch).sort((a,b)=>pDist(a,k)-pDist(b,k)).map(s=>s.id)].slice(0,10);
+  G.assembly={party:k,hall:h.id,ids,kind,start:nowD(),end:nowD()+(kind==='march'?.03:ri(1,2)/24)};
+  const P=PARTIES[k]; polNews(kind==='march'?`⚠ ${fullName(ch)} called the ${P.n} to its hall. Members are angry and talking about marching on the leadership.`:kind==='rally'?`${fullName(ch)} is holding a ${P.n} rally in the party hall (${ids.length} attending).`:`${fullName(ch)} called a ${P.n} strategy meeting (${ids.length} attending).`); }
+function assemblyStep(){ const A=G.assembly; if(!A) return; if(AWAY){ G.assembly=null; return; } if(nowD()<A.end) return; G.assembly=null; endAssembly(A); }
+function endAssembly(A){ const k=A.party, P=PARTIES[k], M=A.ids.map(byId).filter(s=>s&&s.party===k); const ch=chairOf(k);
+  if(A.kind==='rally'){ for(const s of M){ s.ec+=(P.ec-s.ec)*.25; s.idn+=(P.idn-s.idn)*.25; } let rec=[]; for(const s of polAdults()){ if(!isCitizen(s)||s.party===k||rnd()>.35) continue; if(pDist(s,k)<pDist(s,s.party)+.12){ s.ec+=(P.ec-s.ec)*.3; s.idn+=(P.idn-s.idn)*.3; if(pDist(s,k)<pDist(s,s.party)){ const o=s.party; s.party=k; s.partyD=G.day; rec.push(s.first); } } if(rec.length>=2) break; }
+    G.rally=G.rally||{}; G.rally[k]=G.day; polNews(`The ${P.n} rally ended.${rec.length?` ${rec.join(' and ')} joined the party.`:''}`); }
+  else if(A.kind==='meeting'){ const ap=partyApproval(k)??50; for(const s of M) s.loy=clamp((s.loy||50)+(ap>=55?3:ap<40?-4:0),0,100); if(G.day-((G.pChairD||{})[k]||0)>=YEAR-2) chairElect(k,'chosen at a strategy meeting'); else polNews(`The ${P.n} strategy meeting ended. Members came away ${ap>=55?'backing':ap<40?'more opposed to':'unsure about'} the leader.`); }
+  else if(A.kind==='march'){ const L=G.leader&&byId(G.leader), d=L?docOf(L):null;
+    if(L&&d.sec>.35&&L.party!==k&&rnd()<.4){ G.hallClosed=G.hallClosed||{}; G.hallClosed[k]=G.day+6; for(const s of partyMembers(k)) s.loy=Math.max(0,(s.loy||50)-8); polNews(`${L.first} ordered the ${P.n} hall CLOSED for 6 days before they could march. Members are furious. You can reopen it from the Council tab.`); return; }
+    const site=G.rooms.find(r=>r.type==='office')||G.rooms.find(r=>r.type==='diner')||entRoom(); const ids=M.filter(s=>!s.detained).map(s=>s.id).slice(0,8); if(ids.length<2||!site) return;
+    G.protest={fid:'party_'+k,party:k,ids,site:site.id,start:nowD(),end:nowD()+ri(3,6)/24,decideAt:nowD()+1/24,choice:null,cry:pick(PARTY_CRY[k])}; for(const id of ids){ const s=byId(id); if(s) s.protest=true; }
+    polNews(`⚠ ${ids.length} members of the ${P.n} marched from their hall to the ${ROOMS[site.type].name}: “${G.protest.cry}” The leader will respond within the hour unless you step in.`); } }
+const PARTY_CRY={com:['Bread for the workers, not caps for the few!','Share the stores!'],mkt:['Let us trade! Cut the levies!','Our caps, our choice!'],nat:['Vault first! Close the gate!','Order, not chaos!'],civ:['Equal rights for every resident!','One vault for all of us!']};
+function assemblyTarget(s){ const A=G.assembly; if(!A) return null; const i=A.ids.indexOf(s.id); if(i<0) return null; const r=roomById(A.hall); if(!r) return null; const X=roomX(r.col), w=roomW(r);
+  if(i===0) return {x:X+w-60,l:r.floor,pose:'gesture',face:-1}; return {x:X+40+((i-1)%5)*34+(i>5?16:0),l:r.floor,pose:A.kind==='rally'?'cheer':A.kind==='march'?'stand':'sit',face:1}; }
+function drawHallDecor(c,r,t){ const k=r.party, P=k&&PARTIES[k], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), fl=top+WD.floorH-14; c.save();
+  const col=P?P.c:'#8a8076'; c.fillStyle=col; c.fillRect(x+w-150,top+12,60,40); c.fillStyle='rgba(255,255,255,.85)'; c.font='bold 9px Archivo, sans-serif'; c.textAlign='center'; c.fillText(P?P.s.toUpperCase().slice(0,14):'UNCLAIMED',x+w-120,top+36);
+  c.fillStyle='#4a3a2a'; c.fillRect(x+w-74,fl-26,26,26); c.fillStyle=shade(col,-.2); c.fillRect(x+w-72,fl-24,22,6);
+  c.fillStyle='rgba(40,30,22,.9)'; for(let i=0;i<5;i++){ c.fillRect(x+30+i*34,fl-12,26,4); c.fillRect(x+32+i*34,fl-8,3,8); c.fillRect(x+51+i*34,fl-8,3,8); }
+  if(hallClosed(k)){ c.strokeStyle='rgba(200,40,30,.9)'; c.lineWidth=4; c.beginPath(); c.moveTo(x+20,top+20); c.lineTo(x+w-20,fl-4); c.moveTo(x+w-20,top+20); c.lineTo(x+20,fl-4); c.stroke(); c.fillStyle='rgba(200,40,30,.95)'; c.fillRect(x+w/2-50,top+8,100,16); c.fillStyle='#fff'; c.fillText('CLOSED BY ORDER',x+w/2,top+19); }
+  c.restore(); }
+function hallButtons(k){ if(!hallOf(k)) return ''; return hallClosed(k)?`<button class="btn sm" data-a="hallOpen" data-v="${k}">Reopen hall</button>`:`<button class="btn sm" data-a="hallClose" data-v="${k}" title="Bans this party from assembling for 6 days">Close hall</button>`; }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -6370,7 +6410,7 @@ function drawScene(now){
   drawShaft(c);
   if(lift2()) drawShaft(c,shaft2X-WD.shaft/2,floorTop(0)-4);
   const lit=G.boost>0&&!G.flags.power;
-  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
+  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
   drawFrame(c);
   G.gate.forEach((v,i)=>{ const a={x:GATEX(i),y:lvlY(-1),dir:-1,ph:0,pose:'stand',off:i}, gg=v.gear||{}; drawPerson(c,a,v.s,t,{noBadge:true,ring:HOVER&&HOVER.gate===i,L:gg.o?Object.assign({},LOOKS[ITEMS[gg.o].look]):undefined,W:gg.w?ITEMS[gg.w]:null}); });
   const VW=(()=>{ const wr=document.getElementById('sceneWrap'); if(!wr) return null; return {x0:wr.scrollLeft/SC-90,x1:(wr.scrollLeft+wr.clientWidth)/SC+90,y0:wr.scrollTop/SC-140,y1:(wr.scrollTop+wr.clientHeight)/SC+60}; })();
@@ -7064,6 +7104,8 @@ document.addEventListener('click',e=>{
     case 'hostRescue': hostageRescue(id); break;
     case 'plQuar': if(G.plague){ G.plague.quar=!G.plague.quar; log(`🦠 Quarantine ${G.plague.quar?'ordered':'lifted'} by the Overseer.`,'gov'); if(G.inst.gov>=1){ nudgeBlocs(G.plague.quar?{hard:1}:{reform:1}); } save(); } break;
     case 'plTreat': if(G.plague){ G.plague.treat=!G.plague.treat; log(`🦠 Treatment with meds ${G.plague.treat?'started':'stopped'}.`,'gov'); save(); } break;
+    case 'hallClose': G.hallClosed=G.hallClosed||{}; G.hallClosed[el.dataset.v]=G.day+6; for(const s of partyMembers(el.dataset.v)) s.loy=Math.max(0,(s.loy||50)-6); if(G.assembly&&G.assembly.party===el.dataset.v) G.assembly=null; polNews(`On the Overseer’s order, the ${PARTIES[el.dataset.v].n} hall was closed for 6 days. Members are angry.`); save(); break;
+    case 'hallOpen': if(G.hallClosed) G.hallClosed[el.dataset.v]=0; polNews(`On the Overseer’s order, the ${PARTIES[el.dataset.v].n} hall was reopened.`); for(const s of partyMembers(el.dataset.v)) s.loy=Math.min(100,(s.loy||50)+3); save(); break;
     case 'citGrant': { const s=byId(id); if(s) grantCit(s,'granted by the Overseer'); save(); break; }
     case 'citDeny': { const s=byId(id); if(s) denyCit(s); save(); break; }
     case 'citArrest': { const s=byId(id); if(s) arrestNC(s,true); save(); break; }
@@ -7192,7 +7234,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
