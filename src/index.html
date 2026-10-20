@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.2</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.3</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -322,7 +322,7 @@ const hm=min=>{min=Math.max(0,Math.round(min));const h=Math.floor(min/60),m=min%
 
 const STATS=['S','P','E','C','I','A','L'];
 const STAT_NAMES={S:'Strength',P:'Perception',E:'Endurance',C:'Charisma',I:'Intelligence',A:'Agility',L:'Luck'};
-const STAT_FIT={S:'Generator · Armory',P:'Water Plant',E:'Armory · Expeditions',C:'Trade Post · Quarters',I:'Lab · Clinic',A:'Mess Hall',L:'Expeditions'};
+const STAT_FIT={S:'Generator · Armory',P:'Water Plant',E:'Armory · Farm · Cistern · Expeditions',C:'Trade Post · Quarters',I:'Lab · Clinic · Purifier',A:'Mess Hall · Cannery',L:'Expeditions'};
 const RES={food:'Food',water:'Water',power:'Power',meds:'Meds',stims:'Stims',caps:'Caps',research:'Research'};
 const RCOL={food:'--r-food',water:'--r-water',power:'--r-power',meds:'--r-meds',stims:'--r-stim',caps:'--r-caps',research:'--r-research'};
 const RHEX={food:'#f09a52',water:'#5fd0d6',power:'#ffd055',meds:'#ff7d72',stims:'#ff8fb0',caps:'#e2b57c',research:'#b9a5ff'};
@@ -880,7 +880,7 @@ function computeMods(frac){
   return {power:g,water:g*np,food:g*np,meds:g*np,stims:g*np,caps:g*np*(1+[0,.15,.35,.6][I.econ])*(1+secB('eco')*.03),
     research:g*np*(1+(I.edu>=3?.25:0)+(I.edu>=4?.25:0)+(pol('grants')?.2:0))};
 }
-function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return d.base*workers(r).reduce((a,s)=>a+effStat(s,d.stat),0)*lvlMult[r.level]*mods[d.res]*mergeBonus(r)*dmgMult(r); }
+function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return d.base*workers(r).reduce((a,s)=>a+effStat(s,d.stat),0)*lvlMult[r.level]*mods[d.res]*mergeBonus(r)*dmgMult(r)*(r.type==='diner'?1+farmBoost():1); }
 function armoryDef(r){ return workers(r).reduce((a,s)=>{const w=gearOf(s,'w');return a+(effStat(s,'S')+effStat(s,'E'))/2+(w?w.dmg*.6:0);},0)*lvlMult[r.level]*mergeBonus(r)*dmgMult(r); }
 function defense(){ let d=5; for(const r of G.rooms) if(r.type==='armory'||r.type==='entrance') d+=armoryDef(r); d+=milDef(); for(const s of G.settlers) if(s.mil&&!s.exp) d+=rankOf(s)*.6; d*=(1+cmdBonus())*defDmgMult()*(1+secB('def')*.03); d*=1+[0,.2,.45,.8,1.1][G.inst.def]; if(pol('curfew')) d*=1.25; if(pol('opengate')) d*=.9; return d; }
 const popUsed=()=>G.settlers.length+G.settlers.filter(x=>x.preg).length;
@@ -1183,7 +1183,7 @@ function produce(dt,frac){
   for(const r of G.rooms){ const d=ROOMS[r.type]; if(!d.res) continue; const o=roomOutput(r,mods)*dt; G.res[d.res]+=o; FX.acc(r,d.res,o); }
   const c=consumption();
   G.res.food-=c.eat*dt; G.res.water-=c.eat*dt; G.res.power-=c.power*dt; G.res.caps-=c.caps*dt;
-  G.flags.food=G.res.food<=0; G.flags.water=G.res.water<=0; G.flags.power=G.res.power<=0;
+  reservesDraw(); G.flags.food=G.res.food<=0; G.flags.water=G.res.water<=0; G.flags.power=G.res.power<=0;
   for(const k of Object.keys(G.res)) if(G.res[k]<0) G.res[k]=0;
   if(G.res.stims>stimCap()) G.res.stims=Math.max(s0,stimCap());
 }
@@ -1283,7 +1283,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -6075,7 +6075,7 @@ const SEV=['Mild','Serious','Severe'];
 function plaguePrep(){ return (G.care&&G.care.staffed?1:0)+(G.inst.health>=2?1:0)+(G.res.stims>=10?1:0)+(G.rooms.some(r=>r.type==='medbay')?1:0); }
 function plagueCheck(){ if(G.plague||AWAY) return; if(G.lastPlague!=null&&G.day-G.lastPlague<60) return; if(G.day<15||G.settlers.length<10) return;
   const crowd=popUsed()/Math.max(1,housing()), p=.004+(crowd>.9?.004:0)+Math.min(.006,(G.bodies||[]).length*.002);
-  if(rnd()<p) startPlague(); }
+  if(rnd()<p*(1-purifyQ())) startPlague(); }
 function startPlague(sev){ const pool=G.settlers.filter(s=>!s.exp); if(!pool.length) return; sev=sev??(rnd()<.55?0:rnd()<.7?1:2);
   const prep=plaguePrep(), name=pick(PLAGUES), maxDead=clamp(sev*3+1-prep+ri(0,1),1,7);
   const P=G.plague={name,sev,day0:G.day,end:G.day+ri(6,10)+sev*2,maxDead,dead:0,total:0,quar:false,treat:false};
@@ -6085,7 +6085,7 @@ function startPlague(sev){ const pool=G.settlers.filter(s=>!s.exp); if(!pool.len
   polNews(`🦠 Outbreak: ${name} (${SEV[sev].toLowerCase()}). ${n} settler${n>1?'s are':' is'} sick.${by} Preparedness ${prep}/4.`); toast(`Outbreak: ${name}!`); }
 function plagueDay(){ const P=G.plague; if(!P){ plagueCheck(); return; }
   const sick=G.settlers.filter(s=>s.sick), well=G.settlers.filter(s=>!s.sick&&!s.exp&&s.plImm!==P.day0), crowd=popUsed()/Math.max(1,housing());
-  const R=(.35+.25*P.sev)*(.7+crowd*.5)*(P.quar?.4:1)*(1-clamp(secB('hea')*.04,-.2,.3))*(G.care&&G.care.staffed?.75:1)*(1-.08*G.inst.health)*(G.day>P.end?.3:1);
+  const R=(.35+.25*P.sev)*(.7+crowd*.5)*(P.quar?.4:1)*(1-clamp(secB('hea')*.04,-.2,.3))*(1-purifyQ()*.6)*(G.care&&G.care.staffed?.75:1)*(1-.08*G.inst.health)*(G.day>P.end?.3:1);
   let newC=0; for(const s of sick){ if(rnd()<R&&well.length){ const t=well.splice(Math.floor(rnd()*well.length),1)[0]; t.sick=G.day; P.total++; newC++; } }
   let meds=P.treat; if(meds){ const need=Math.ceil(sick.length*.5); if(G.res.meds>=need) G.res.meds-=need; else meds=false; }
   let rec=0, died=[];
@@ -6493,6 +6493,67 @@ function drawExecDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=ro
   c.fillStyle='#1f2a4a'; c.fillRect(x+w/2-30,top+10,60,34); c.fillStyle='#f2efe6'; c.fillRect(x+w/2-30,top+21,60,12); c.fillStyle='#b8282a'; c.fillRect(x+w/2-30,top+33,60,11); c.fillStyle='#d9b14a'; c.beginPath(); c.arc(x+w/2,top+27,4,0,TAU); c.fill();
   for(let i=0;i<6;i++){ const dx=x+30+i*((w-80)/6); c.fillStyle='#4a3424'; c.fillRect(dx,fl-18,44,5); c.fillRect(dx+3,fl-13,3,13); c.fillRect(dx+38,fl-13,3,13); c.fillStyle='#d9c08a'; c.fillRect(dx+30,fl-26,3,8); c.fillStyle='#f2e6b0'; c.beginPath(); c.arc(dx+31,fl-27,4,Math.PI,TAU); c.fill(); c.fillStyle='#e8e2d2'; c.fillRect(dx+8,fl-21,14,3); }
   c.restore(); }
+
+/* ===== v9.3: food & water rooms + daily job belief pull ===== */
+ROOMS.farm={name:'Hydroponic Farm',stat:'E',res:'food',base:2.4,cost:150,col:'--r-food',hex:'#5f9a3a',desc:'Grow racks under lamps. Grows food on its own, and every farm slot makes the Mess Halls 5% more productive (up to +25%). Endurance for long shifts.'};
+ROOMS.cannery={name:'Cannery',stat:'A',cost:200,col:'--r-food',hex:'#b0703a',desc:'Konzervara. Cans spare food (when over 150) into rations that keep. Rations feed the shelter automatically if food runs out. When the shelves are full, the extra is sold for caps.'};
+ROOMS.purifier={name:'Water Purifier',stat:'I',cost:250,col:'--r-water',hex:'#3e8ab0',req:{health:1},desc:'Filters and chlorinates the water supply. Outbreaks start less often and spread more slowly. Intelligence runs the chemistry.'};
+ROOMS.cistern={name:'Cistern',stat:'E',cost:150,col:'--r-water',hex:'#3a7a9a',desc:'A reserve tank. Pumps spare water (when over 150) into storage, and the tank refills the supply automatically if water runs out.'};
+const roomsOf=t=>G.rooms.filter(r=>r.type===t);
+const roomPow=(r,k)=>workers(r).reduce((a,s)=>a+effStat(s,ROOMS[r.type].stat),0)*lvlMult[r.level]*mergeBonus(r)*dmgMult(r)*k;
+const farmBoost=()=>Math.min(.25,.05*roomsOf('farm').reduce((a,r)=>a+(workers(r).length?(r.w||1):0),0));
+const rationCap=()=>roomsOf('cannery').reduce((a,r)=>a+120*lvlMult[r.level]*(r.w||1),0);
+const tankCap=()=>roomsOf('cistern').reduce((a,r)=>a+150*lvlMult[r.level]*(r.w||1),0);
+function purifyQ(){ return clamp(roomsOf('purifier').reduce((a,r)=>a+roomPow(r,1),0)/40,0,.5); }
+function reservesDay(){ G.rations=Math.min(G.rations||0,rationCap()||0); G.tank=Math.min(G.tank||0,tankCap()||0);
+  for(const r of roomsOf('cannery')){ const rate=roomPow(r,4); if(!rate) continue; const can=Math.max(0,Math.min(rate,G.res.food-150)); if(!can) continue; const room=Math.max(0,rationCap()-G.rations), put=Math.min(can,room); G.rations+=put; G.res.food-=can; const sold=(can-put)*.3; if(sold>0){ G.res.caps+=sold; } r._last={canned:Math.round(put),sold:Math.round(sold)}; }
+  for(const r of roomsOf('cistern')){ const rate=roomPow(r,5); if(!rate) continue; const put=Math.max(0,Math.min(rate,G.res.water-150,tankCap()-G.tank)); G.tank+=put; G.res.water-=put; r._last={pumped:Math.round(put)}; } }
+function reservesDraw(){ let used=false;
+  if(G.res.food<0&&(G.rations||0)>0){ const d=Math.min(G.rations,-G.res.food); G.rations-=d; G.res.food+=d; used=true; }
+  if(G.res.water<0&&(G.tank||0)>0){ const d=Math.min(G.tank,-G.res.water); G.tank-=d; G.res.water+=d; used=true; }
+  if(used&&!G._resvNote){ G._resvNote=1; log('Supplies ran short, so the shelter is living off its reserves (rations and the cistern).','danger'); }
+  if(!used&&G._resvNote&&G.res.food>50&&G.res.water>50) G._resvNote=0; }
+function v93Panel(r){ if(r.type==='farm') return `<p class="lede">Mess Halls are running ${Math.round(farmBoost()*100)}% faster thanks to the farms.</p>`;
+  if(r.type==='cannery'){ const L=r._last; return `<p class="lede">Rations stored: <b>${Math.floor(G.rations||0)} / ${Math.round(rationCap())}</b>. Cans up to ${Math.round(roomPow(r,4))} food a day from any surplus over 150.${L?` Yesterday: ${L.canned} canned${L.sold?`, ${L.sold} caps of extra sold`:''}.`:''}</p>`; }
+  if(r.type==='cistern') return `<p class="lede">Reserve water: <b>${Math.floor(G.tank||0)} / ${Math.round(tankCap())}</b>. Pumps up to ${Math.round(roomPow(r,5))} water a day from any surplus over 150.</p>`;
+  if(r.type==='purifier'){ const q=purifyQ(); return `<p class="lede">Water quality: outbreaks ${Math.round(q*100)}% less likely to start and ${Math.round(q*60)}% slower to spread (maximum 50% / 30%).</p>`; }
+  return ''; }
+/* every job slowly pulls its workers' beliefs: [economic (−left / +market), identity (−civic / +nationalist)] */
+const JOBPULL={generator:[-.5,0],water:[-.5,0],diner:[-.4,0],farm:[-.5,.2],cistern:[-.5,0],cannery:[.25,0],purifier:[0,-.5],trade:[.5,0],office:[.4,0],lab:[.3,-.2],clinic:[0,-.4],medbay:[0,-.3],surgery:[0,-.3],school:[0,-.4],workshop:[-.3,.2],tailor:[-.3,0],armory:[0,.5],jail:[0,.3],intel:[0,.4],radio:[.1,.1]};
+function jobPull(s){ const r=s.room&&roomById(s.room); let e=0,i=0; const p=r&&JOBPULL[r.type]; if(p){ e+=p[0]; i+=p[1]; } if(isSoldier(s)) i+=.5; else if(isOfficer(s)) i+=.4; return [clamp(e,-1,1),clamp(i,-1,1)]; }
+function jobDriftDay(){ let told=0; const W=G.settlers.filter(s=>isAdult(s)&&!s.exp&&!s.detained&&s.ec0!=null&&s.room);
+  for(const s of W){ const [pe,pi]=jobPull(s); if(!pe&&!pi) continue; if(s.ecS==null){ s.ecS=s.ec0; s.idnS=s.idn0; }
+    s.ec0=clamp(s.ec0+pe*.006,Math.max(-1,s.ecS-.33),Math.min(1,s.ecS+.33)); s.idn0=clamp(s.idn0+pi*.006,Math.max(-1,s.idnS-.33),Math.min(1,s.idnS+.33));
+    const P=s.party&&PARTIES[s.party], mag=Math.hypot(pe,pi); if(!P||mag<.35) { s.jobFit=0; continue; }
+    const fit=(P.ec*pe+P.idn*pi)/mag; s.jobFit=fit<-.25?-1:fit>.25?1:0;
+    if(s.jobFit<0){ s.happy=Math.max(0,s.happy-.6); if(!told&&G.day-(s.grumbleD||-99)>=12&&G.day-(G.grumbleD||-99)>=6&&rnd()<.2){ s.grumbleD=G.day; G.grumbleD=G.day; told=1; const r=roomById(s.room); log(`${fullName(s)} (${PARTIES[s.party].s.replace(/s$/,'')}) dislikes working in the ${ROOMS[r.type].name} and would like a transfer.`); } }
+    else if(s.jobFit>0) s.happy=Math.min(100,s.happy+.3); } }
+function drawFarm(c,x,top,w,fl,t,on,r){ const W0=x+6, W1=x+w-6, OLc='#15110d';
+  const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#2c3a2a'); g.addColorStop(1,'#3a4a34'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  const glow=on||G.flags.power?1:.3; for(let k=0;k<3;k++){ const ry=top+18+k*((fl-top-30)/3); c.fillStyle=`rgba(230,110,200,${.55*glow})`; c.fillRect(W0+8,ry,W1-W0-16,2.5); c.fillStyle=`rgba(230,110,200,${.10*glow})`; c.fillRect(W0+8,ry+2,W1-W0-16,10);
+    c.fillStyle='#9aa0a4'; c.fillRect(W0+8,ry+20,W1-W0-16,3); c.strokeStyle=OLc; c.lineWidth=.6; c.strokeRect(W0+8,ry+20,W1-W0-16,3);
+    for(let px=W0+14;px<W1-12;px+=11){ const h=6+((px*7+k*13)%7)+Math.sin(t*1.5+px)*.6; c.fillStyle=k===1?'#7cc04a':'#5fa83a'; c.beginPath(); c.ellipse(px,ry+20-h/2,3.6,h/2,0,0,TAU); c.fill(); if(k===2&&px%3<1){ c.fillStyle='#d8433a'; c.beginPath(); c.arc(px+2,ry+16,1.6,0,TAU); c.fill(); } } }
+  c.fillStyle='#6a5a3a'; c.fillRect(W1-30,fl-16,20,16); c.fillStyle='#8a7a4a'; c.fillRect(W1-30,fl-16,20,3); }
+function drawCannery(c,x,top,w,fl,t,on,r){ const W0=x+6, W1=x+w-6, OLc='#15110d';
+  const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#4a4038'); g.addColorStop(1,'#5a4e44'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.fillStyle='#3a3029'; c.fillRect(W0+8,top+12,46,fl-top-30); const full=clamp((G.rations||0)/Math.max(1,rationCap()),0,1), nj=Math.round(full*15);
+  for(let sh=0;sh<3;sh++){ c.fillStyle='#2a221c'; c.fillRect(W0+8,top+28+sh*16,46,2); for(let j=0;j<5;j++) if(sh*5+j<nj){ c.fillStyle=['#c8a040','#c0503a','#8ab04a'][(j+sh)%3]; fillRR(c,W0+11+j*9,top+19+sh*16,6,9,1.5,c.fillStyle); c.fillStyle='#ddd'; c.fillRect(W0+11+j*9,top+19+sh*16,6,2); } }
+  const by=fl-26; c.fillStyle='#55595c'; c.fillRect(W0+60,by,W1-W0-70,6); c.strokeStyle=OLc; c.lineWidth=.7; c.strokeRect(W0+60,by,W1-W0-70,6);
+  const sp=G.flags.power?0:(t*18)%14; for(let cx=W0+64+sp;cx<W1-14;cx+=14){ c.fillStyle='#b8bec4'; fillRR(c,cx,by-8,7,8,1.5,'#b8bec4'); c.fillStyle='#c0503a'; c.fillRect(cx,by-6,7,3); }
+  c.fillStyle='#6a6e72'; c.fillRect(W0+90,top+16,26,by-top-24); c.fillStyle='#e2b13c'; c.fillRect(W0+94,top+22,18,4); c.fillStyle='#2a2e32'; c.fillRect(W0+98,by-10,10,4); }
+function drawPurifier(c,x,top,w,fl,t,on,r){ const W0=x+6, W1=x+w-6, OLc='#15110d';
+  const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#4f5a60'); g.addColorStop(1,'#606b70'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.strokeStyle='#3d86b8'; c.lineWidth=4; c.beginPath(); c.moveTo(W0,top+14); c.lineTo(W1,top+14); c.stroke();
+  for(const [tx,tw] of [[W0+12,30],[W0+52,30],[W0+92,30]]){ const th=fl-top-34; fillRR(c,tx,top+24,tw,th,8,'#a9b4ba'); c.strokeStyle=OLc; c.lineWidth=.8; c.beginPath(); rr(c,tx,top+24,tw,th,8); c.stroke();
+    c.fillStyle='rgba(80,170,220,.75)'; const lv=.55+.1*Math.sin(t*2+tx); c.fillRect(tx+5,top+24+th*(1-lv),tw-10,th*lv-6); c.fillStyle='rgba(255,255,255,.5)'; for(let b=0;b<3;b++){ const by=top+24+th-8-((t*20+b*9+tx)%(th*lv-10)); c.beginPath(); c.arc(tx+8+b*7,by,1.3,0,TAU); c.fill(); } }
+  c.fillStyle='#2a2e32'; fillRR(c,W1-34,top+28,24,16,2,'#2a2e32'); c.fillStyle=G.plague?'#e05a4a':'#5ad07a'; c.fillRect(W1-30,top+32,6,6); c.fillStyle='#e2e8ea'; c.fillRect(W1-22,top+33,9,2); c.fillRect(W1-22,top+37,7,2); }
+function drawCistern(c,x,top,w,fl,t,on,r){ const W0=x+6, W1=x+w-6, OLc='#15110d';
+  const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#3e4a50'); g.addColorStop(1,'#4c585e'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  const tx=W0+14, tw=W1-W0-28, ty=top+12, th=fl-top-20; fillRR(c,tx,ty,tw,th,14,'#7e8a90'); c.strokeStyle=OLc; c.lineWidth=1; c.beginPath(); rr(c,tx,ty,tw,th,14); c.stroke();
+  for(let rb=ty+16;rb<ty+th-6;rb+=18){ c.fillStyle='#66727a'; c.fillRect(tx,rb,tw,3); }
+  const lv=clamp((G.tank||0)/Math.max(1,tankCap()),0,1); c.fillStyle='#2a2e32'; c.fillRect(tx+tw-16,ty+10,8,th-20); c.fillStyle='#4aa8d8'; c.fillRect(tx+tw-15,ty+10+(th-20)*(1-lv),6,(th-20)*lv);
+  c.fillStyle='#e2e8ea'; c.font='bold 8px system-ui'; c.fillText(Math.round(lv*100)+'%',tx+10,ty+20); }
+PROPS.farm=drawFarm; PROPS.cannery=drawCannery; PROPS.purifier=drawPurifier; PROPS.cistern=drawCistern;
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -7156,6 +7217,7 @@ function assignModal(rid){
     ${tm.length<cap?`<p class="lede" style="font-size:12px;margin-top:8px">Appoint (best rescue rating first):</p><div class="pick">${cand.map(x=>`<button data-a="ert" data-id="${x.id}"><span>${esc(fullName(x))} ${settlerIcons(x)}</span><span class="jb">${jobName(x)}</span><span class="sv">A ${x.s.A} · I ${x.s.I}</span></button>`).join('')}</div>`:''}
     <div class="row"><button class="btn sm" data-a="ertDrill" ${tm.length?'':'disabled'}>Run a drill</button></div></div>`; }
   if(r.type==='surgery') ex+=surgPanel(r);
+  ex+=v93Panel(r);
   if(r.type==='office') ex+=renoBox(r);
   if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
@@ -7444,7 +7506,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
