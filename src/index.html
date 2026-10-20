@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.0</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.1</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1283,7 +1283,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -6292,7 +6292,7 @@ function startPartyPlot(k){ const ch=chairOf(k), M=partyMembers(k).filter(s=>!s.
 const partySusp=k=>G.pSusp&&G.pSusp[k]>G.day;
 function openInquiry(P,how){ if(!P||!P.party) return; const by=byId(P.by), ldrDead=!byId(P.target);
   const F=polForce(), best=F.slice().sort((a,b)=>effStat(b,'P')+1.5*polRankOf(b)-effStat(a,'P')-1.5*polRankOf(a))[0];
-  let e=.25+(best?(effStat(best,'P')-5)*.04+polRankOf(best)*.08:0)+(by&&by.detained?.25:-.15)+(how==='caught'?.1:0);
+  let e=.25+(best?(effStat(best,'P')-5)*.04+polRankOf(best)*.08:0)+(by&&by.detained?.25:-.15)+(how==='caught'?.1:0)+intelPower()*.06+(P.intelDirected?.25:0);
   G.inquiry={party:P.party,directed:P.directed,chair:P.chair,by:P.by,how,ldrDead,ev:clamp(e,.05,.95),due:G.day+ri(1,2),cop:best?best.id:null,start:G.day};
   polNews(`🔎 ${best?`${fullName(best)} of the Vault Police opened`:'The leadership opened'} an investigation into whether the ${PARTIES[P.party].n} was behind the ${how==='caught'?'foiled plot':'attack'}. Evidence so far: ${Math.round(G.inquiry.ev*100)}%. A finding is due in about ${G.inquiry.due-G.day} day${G.inquiry.due-G.day>1?'s':''}.`); }
 function inquiryDay(){ const Q=G.inquiry; if(!Q||G.day<Q.due) return; G.inquiry=null; const k=Q.party, P=PARTIES[k], ch=byId(Q.chair), L=G.leader&&byId(G.leader);
@@ -6402,6 +6402,43 @@ function coupBox(){ const C=G.coup, E=G.emergency; let h=''; const by=C&&byId(C.
   if(C&&by) h+=`<div class="box" style="border-color:var(--danger)"><h4>☢ ${C.stage==='strike'?'Coup under way':'Coup rumors'}</h4><p class="lede" style="font-size:13px">${esc(fullName(by))} (${C.kind==='mil'?'military':'police'})${C.party?` · ${PARTIES[C.party].n}`:''}. ${C.stage==='strike'?(C.choice?`You chose to ${C.choice==='back'?'back the coup':C.choice==='oppose'?'oppose it':'stay out'}.`:'Decide before the hour is up.'):'Nothing has happened yet. A hawkish leader may arrest them first.'}</p>${C.stage==='strike'&&!C.choice?`<div class="row"><button class="btn sm" data-a="coupBack">Back the coup</button><button class="btn sm pri" data-a="coupOppose">Oppose it</button><button class="btn sm" data-a="coupOut">Stay out of it</button></div>`:''}</div>`;
   if(E){ const r=byId(E.by); h+=`<div class="box" style="border-color:var(--warn)"><h4>Emergency government</h4><p class="lede" style="font-size:13px">${r?esc(fullName(r)):'The coup leader'} rules by decree. Elections are suspended for ${Math.max(0,E.until-G.day)} more days.</p><div class="row"><button class="btn sm" data-a="endEmerg">Restore elections now</button></div></div>`; }
   return h; }
+
+/* ===== Coup roadmap step 5: the Intelligence Bureau ===== */
+ROOMS.intel={name:'Intelligence Bureau',stat:'P',cost:650,col:'--r-def',hex:'#4a4f5a',req:{gov:2},unique:true,
+  desc:'A small corps of agents (2 at level 1, up to 4). Agents with high Perception and Intelligence watch party halls, expose plots and coups early, and add evidence to investigations. A leader may also turn the Bureau on rivals.'};
+const intelRoom=()=>G.rooms.find(r=>r.type==='intel');
+const agents=()=>{ const r=intelRoom(); return r?workers(r).filter(s=>!s.exp&&!s.detained):[]; };
+function intelPower(){ const r=intelRoom(); if(!r) return 0; return agents().reduce((a,s)=>a+(effStat(s,'P')+effStat(s,'I'))/10,0)*lvlMult[r.level]; }
+function intelDirector(){ return agents().slice().sort((a,b)=>(effStat(b,'P')+effStat(b,'I'))-(effStat(a,'P')+effStat(a,'I')))[0]||null; }
+function intelNote(m,kind){ G.intelLog=(G.intelLog||[]).concat({d:G.day,m,k:kind||'report'}).slice(-30); log('🕵 '+m,'gov'); }
+function intelDay(){ const ip=intelPower(); if(!ip||calm()) return; const L=G.leader&&byId(G.leader);
+  // watch party halls: early warning about anger and arms
+  for(const k of PK){ const h=hallOf(k); if(!h) continue; const rage=(G.pRage||{})[k]||0, low=(G.pLow||{})[k]||0; if((rage>=2||low>=2)&&rnd()<.25*ip){ const armed=partyMembers(k).filter(s=>gearOf(s,'w')).length; intelNote(`Agents watching the ${PARTIES[k].n} hall report growing anger${armed?` and ${armed} armed member${armed>1?'s':''}`:''}.`,'watch'); } }
+  // expose plots early
+  const P=G.plot; if(P&&!P.exposed&&rnd()<Math.min(.8,.22*ip)){ P.exposed=true; const by=byId(P.by); if(by){ P.suspects=[by.id]; intelNote(`The Bureau has identified ${fullName(by)} as the plotter${P.party?` (${PARTIES[P.party].n}${P.directed?', acting on the chair’s orders':''})`:''}. An arrest is now possible.`,'plot'); if(P.directed) P.intelDirected=true; } }
+  // counter-coup
+  const C=G.coup; if(C&&C.stage==='brew'&&!C.exposed&&rnd()<Math.min(.85,.25*ip)){ C.exposed=true; const by=byId(C.by); intelNote(`The Bureau has hard evidence that ${by?fullName(by):'a commander'} is organizing a coup.`,'coup');
+    if(L&&docOf(L).sec>-.2&&by){ detain(by,'Exposed by the Intelligence Bureau while plotting a coup',ri(20,35)); G.coup=null; polNews(`Acting on the Bureau’s evidence, ${L.first} had ${fullName(by)} arrested before the coup could begin.`); } }
+  // uprising: buy time
+  const U=G.uprising; if(U&&U.stage==='arm'&&!U.intel){ U.intel=true; U.goAt+=.03; U.decideAt=Math.min(U.decideAt,nowD()+.005); intelNote(`The Bureau saw the ${PARTIES[U.party].n} arming early, buying time to respond.`,'uprising'); }
+  // abuse: the leader turns the Bureau on rivals
+  if(L&&!G.intelOversight&&G.inst.gov>=1){ const d=docOf(L), rivals=PK.filter(k=>k!==L.party&&partyMembers(k).length>=3&&!partySusp(k)); const p=clamp(.01+Math.max(0,d.sec)*.045-Math.max(0,d.open)*.02+(G.approval<45?.015:0),0,.06);
+    if(rivals.length&&G.day-(G.lastAbuse??-99)>=8&&rnd()<p){ G.lastAbuse=G.day; const k=rivals.sort((a,b)=>partyMembers(b).length-partyMembers(a).length)[0], frame=d.sec>.3&&rnd()<.4, dir=intelDirector();
+      const caught=rnd()<.25+(dir&&(dir.loy||50)<45?.25:0)+(G.inst.law>=2?.1:0);
+      G.intelAbuse=(G.intelAbuse||[]).concat({d:G.day,k,frame,caught}).slice(-20);
+      if(frame){ const ch=chairOf(k); if(ch&&!ch.detained) detain(ch,'Accused of sedition on Bureau evidence',ri(10,20)); suspendParty(k,ri(8,12),'the Bureau produced evidence of sedition'); }
+      if(caught){ G.apHit=(G.apHit||0)+(frame?8:4); for(const s of polAdults()) if(s.party!==L.party) s.loy=Math.max(0,(s.loy||50)-(frame?8:4)); if(L.party) for(const s of partyMembers(L.party)) s.loy=Math.max(0,(s.loy||50)-3);
+        polNews(`📰 SCANDAL: ${dir?`${fullName(dir)}, head of the Intelligence Bureau,`:'A Bureau agent'} revealed that ${L.first} ordered the Bureau to ${frame?`FRAME the ${PARTIES[k].n}`:`spy on the ${PARTIES[k].n}`}. Every rival party is outraged.${frame?' You can lift the suspension from the Council tab.':''}`); }
+      else if(frame) intelNote(`(Hidden from the public) ${L.first} had the Bureau plant evidence against the ${PARTIES[k].n}.`,'abuse');
+      else intelNote(`(Hidden from the public) ${L.first} had the Bureau spy on the ${PARTIES[k].n}.`,'abuse'); } } }
+function intelBox(){ const r=intelRoom(); if(G.inst.gov<2) return ''; const A=agents(), dir=intelDirector(), N=(G.intelLog||[]).slice(-6).reverse();
+  return `<div class="box"><h4>🕵 Intelligence Bureau</h4>${r?`<p class="lede" style="font-size:12px">${A.length} agent${A.length===1?'':'s'}${dir?` · director ${esc(fullName(dir))}`:''} · strength ${intelPower().toFixed(1)}. Agents watch party halls, expose plots and coups early, buy time against uprisings, and add evidence to investigations.</p>
+  <div class="row"><button class="btn sm ${G.intelOversight?'pri':''}" data-a="intelOv">${G.intelOversight?'✓ Overseer oversight on: no political use':'Oversight off: the leader may use the Bureau on rivals'}</button></div>
+  ${N.length?`<ul class="facts" style="font-size:12px">${N.map(n=>`<li>${fdate(n.d)} · ${esc(n.m)}</li>`).join('')}</ul>`:'<p class="lede" style="font-size:12px">No reports yet.</p>'}`:'<p class="lede" style="font-size:12px">Build an Intelligence Bureau (Governance 2) and staff it with perceptive, intelligent settlers.</p>'}</div>`; }
+function drawIntelDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), fl=top+WD.floorH-14; c.save();
+  c.fillStyle='#2a2e36'; c.fillRect(x+w-110,top+14,90,48); c.fillStyle='#4a6a5a'; c.fillRect(x+w-106,top+18,82,40); c.strokeStyle='rgba(200,60,50,.8)'; c.lineWidth=1; c.beginPath(); c.moveTo(x+w-100,top+30); c.lineTo(x+w-70,top+44); c.lineTo(x+w-40,top+26); c.stroke(); for(const [px,py] of [[x+w-100,top+30],[x+w-70,top+44],[x+w-40,top+26]]){ c.fillStyle='#f2efe6'; c.fillRect(px-3,py-3,6,6); }
+  for(let i=0;i<2;i++){ const dx=x+30+i*70; c.fillStyle='#3a2e24'; c.fillRect(dx,fl-18,50,5); c.fillRect(dx+4,fl-13,3,13); c.fillRect(dx+43,fl-13,3,13); c.fillStyle='#1a1d22'; c.fillRect(dx+14,fl-34,22,15); c.fillStyle=(Math.floor(t*2+i)%2)?'#6af0a0':'#3ac080'; c.fillRect(dx+16,fl-32,18,11); }
+  c.fillStyle='#5a5f66'; c.fillRect(x+w-150,fl-44,28,44); c.fillStyle='#4a4f56'; for(let q=0;q<3;q++) c.fillRect(x+w-148,fl-42+q*14,24,12); c.restore(); }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -6517,7 +6554,7 @@ function drawScene(now){
   drawShaft(c);
   if(lift2()) drawShaft(c,shaft2X-WD.shaft/2,floorTop(0)-4);
   const lit=G.boost>0&&!G.flags.power;
-  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
+  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); else if(r.type==='intel') drawIntelDecor(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
   drawFrame(c);
   G.gate.forEach((v,i)=>{ const a={x:GATEX(i),y:lvlY(-1),dir:-1,ph:0,pose:'stand',off:i}, gg=v.gear||{}; drawPerson(c,a,v.s,t,{noBadge:true,ring:HOVER&&HOVER.gate===i,L:gg.o?Object.assign({},LOOKS[ITEMS[gg.o].look]):undefined,W:gg.w?ITEMS[gg.w]:null}); });
   const VW=(()=>{ const wr=document.getElementById('sceneWrap'); if(!wr) return null; return {x0:wr.scrollLeft/SC-90,x1:(wr.scrollLeft+wr.clientWidth)/SC+90,y0:wr.scrollTop/SC-140,y1:(wr.scrollTop+wr.clientHeight)/SC+60}; })();
@@ -6840,7 +6877,7 @@ function renderCouncil(){
   const ap=G.approval, col=ap<20?'--danger':ap<35?'--warn':'--ok';
   h+=`<div class="box"><h4>Approval ${Math.round(ap)}%</h4><div class="meter"><i style="width:${ap}%;background:var(${col})"></i><span class="mk" style="left:35%"></span><span class="mk" style="left:20%"></span></div>
     <p class="lede">${ap<20?(gv>=4?'Deep unrest. Production is down 20%.':'Deep unrest. Production is down 20% and settlers may leave.'):ap<35?'Workers are striking. Production is down 20%.':'The shelter is broadly content.'} Approval follows average mood, the leader’s Charisma and recent deeds. It is checked twice each game day.${G.leader&&tenureYrs()>0?` ${byId(G.leader)?esc(byId(G.leader).first):'The leader'} has been in office ${tenureYrs().toFixed(1)} year${tenureYrs()>=1&&tenureYrs()<1.05?'':'s'}${tenurePen()>0?`; people are tiring of them (−${tenurePen().toFixed(1)})`:'; after a year, people start to tire of a long-serving leader'}.`:''}</p>${apSpark()}</div>`;
-  h+=polBox()+partyBox()+partyBox2();
+  h+=polBox()+partyBox()+partyBox2()+intelBox();
   const ldr=G.leader?byId(G.leader):null;
   h+=`<div class="box"><h4>Leader</h4>`;
   h+=ldr?`<div class="row"><button class="link" data-a="open" data-id="${ldr.id}">${esc(fullName(ldr))}</button><span class="num" style="color:var(--muted)">C ${ldr.s.C} · I ${ldr.s.I}</span></div><p class="lede" style="font-size:12px">Style: <b>${docLabel(docOf(ldr))}</b>. The leader makes calls that fit this style; populists follow the mood, principled leaders stick to their line, technocrats go by results.</p>`:`<p class="lede">The seat is empty.</p>`;
@@ -7222,6 +7259,7 @@ document.addEventListener('click',e=>{
     case 'coupOppose': if(G.coup) G.coup.choice='oppose'; break;
     case 'coupOut': if(G.coup) G.coup.choice='out'; break;
     case 'endEmerg': if(G.emergency){ G.emergency.until=G.day; emergencyDay(); const r=G.leader&&byId(G.leader); if(r) r.loy=Math.max(0,(r.loy||50)-15); save(); } break;
+    case 'intelOv': G.intelOversight=!G.intelOversight; { const L=G.leader&&byId(G.leader); if(L&&G.intelOversight&&docOf(L).sec>.3) L.loy=Math.max(0,(L.loy||50)-5); } polNews(G.intelOversight?'The Overseer placed the Intelligence Bureau under oversight: no political use.':'The Overseer lifted oversight of the Intelligence Bureau.'); save(); break;
     case 'citGrant': { const s=byId(id); if(s) grantCit(s,'granted by the Overseer'); save(); break; }
     case 'citDeny': { const s=byId(id); if(s) denyCit(s); save(); break; }
     case 'citArrest': { const s=byId(id); if(s) arrestNC(s,true); save(); break; }
@@ -7350,7 +7388,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
