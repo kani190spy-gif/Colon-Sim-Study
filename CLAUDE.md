@@ -14,7 +14,7 @@
 
 # Roadmap (agreed with the player; one step per update)
 - DONE v7.9 Phase 1: rarer MVPs, timed Anki sprints (sprintBox, G.sprint/G.sprintPB), career health (s.wear, addWear/wearDay/wearCap/wearBox), citizenship path chosen at entry (s.citTrack 'auto'|'review'; ex-inmates/detained non-citizens forced to review).
-- Phase 2: boss raids (named warlord assaults, heavy defense/room damage, hostages, big loot) → plagues (severity tiers, spread by crowding/clinic/medbay/stims, 1–7 deaths, leader picks quarantine/treatment).
+- DONE v8.0 Phase 2: boss raids (fictional BOSSES, bossReady 30-day cooldown; live fight via startFight boss branch + offline bossRaidOffline; room damage r.dmgUntil → dmgMult half output + repair; G.defDmg; hostages G.hostages with ransom/rescue/hostageDay) and plagues (G.plague, plagueDay/plagueCheck, s.sick ×0.6 work, s.plImm immunity, maxDead 1–7 by severity−preparedness, leader sets quar/treat, plagueBox/hostageBox atop every tab).
 - Phase 3 politics: parties step 1 (compass economy×identity, 4 parties, membership/drift/switching, display only) → parties step 2 (chairs, party elections, party approval) → faith effects (M/C/O/X mild voting tendencies) → intelligence agency (agents, surveillance, plot detection, abuse) → party-driven coups/assassinations/rebellions (death caps).
 - Anytime: remove OB/GYN mode after the exam (keep loot defs); performance check at parties step 1.
 

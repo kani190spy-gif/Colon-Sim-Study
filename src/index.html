@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.9</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.0</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -866,6 +866,7 @@ function effStat(s,stat){
   if(stat==='S'||stat==='A'){ const ad=ageDecline(s); if(ad) v=Math.max(1,v-ad); }
   let m=1;
   if(s.health<30) m*=.6; else if(s.health<60) m*=.85;
+  if(s.sick) m*=.6;
   if(s.chronic) m*=1-(s.chronic.sev/250)*(1-(s._mg||0));
   if(s.eduDone&&s.track===stat) m*=1+EDU_BONUS;
   return v*m;
@@ -878,9 +879,9 @@ function computeMods(frac){
   return {power:g,water:g*np,food:g*np,meds:g*np,stims:g*np,caps:g*np*(1+[0,.15,.35,.6][I.econ]),
     research:g*np*(1+(I.edu>=3?.25:0)+(I.edu>=4?.25:0)+(pol('grants')?.2:0))};
 }
-function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return d.base*workers(r).reduce((a,s)=>a+effStat(s,d.stat),0)*lvlMult[r.level]*mods[d.res]*mergeBonus(r); }
-function armoryDef(r){ return workers(r).reduce((a,s)=>{const w=gearOf(s,'w');return a+(effStat(s,'S')+effStat(s,'E'))/2+(w?w.dmg*.6:0);},0)*lvlMult[r.level]*mergeBonus(r); }
-function defense(){ let d=5; for(const r of G.rooms) if(r.type==='armory'||r.type==='entrance') d+=armoryDef(r); d+=milDef(); for(const s of G.settlers) if(s.mil&&!s.exp) d+=rankOf(s)*.6; d*=1+cmdBonus(); d*=1+[0,.2,.45,.8,1.1][G.inst.def]; if(pol('curfew')) d*=1.25; if(pol('opengate')) d*=.9; return d; }
+function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return d.base*workers(r).reduce((a,s)=>a+effStat(s,d.stat),0)*lvlMult[r.level]*mods[d.res]*mergeBonus(r)*dmgMult(r); }
+function armoryDef(r){ return workers(r).reduce((a,s)=>{const w=gearOf(s,'w');return a+(effStat(s,'S')+effStat(s,'E'))/2+(w?w.dmg*.6:0);},0)*lvlMult[r.level]*mergeBonus(r)*dmgMult(r); }
+function defense(){ let d=5; for(const r of G.rooms) if(r.type==='armory'||r.type==='entrance') d+=armoryDef(r); d+=milDef(); for(const s of G.settlers) if(s.mil&&!s.exp) d+=rankOf(s)*.6; d*=(1+cmdBonus())*defDmgMult(); d*=1+[0,.2,.45,.8,1.1][G.inst.def]; if(pol('curfew')) d*=1.25; if(pol('opengate')) d*=.9; return d; }
 const popUsed=()=>G.settlers.length+G.settlers.filter(x=>x.preg).length;
 const POP_CAP=450;
 function housing(){ return Math.min(POP_CAP,4+G.rooms.filter(r=>r.type==='quarters').reduce((a,r)=>a+HOUSE[r.level]*(r.w||1),0)); }
@@ -1280,7 +1281,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection){ election(); G.nextElection=d+4*YEAR; }
@@ -1410,6 +1411,7 @@ function moodStep(){
   G.approval=clamp(ap,0,100);
 }
 function raid(){
+  if(bossReady()&&rnd()<.15){ bossRaidOffline(); return; }
   const fac=pickFaction(); fac.raids++;
   const str=(6+G.day/40+G.settlers.length*.7)*(.75+rnd()*.55)*(1-.4*vaultStress())*(AWAY?.6:1), def=defense();
   const home=G.settlers.filter(s=>!s.exp&&!s.preg&&isAdult(s));
@@ -1427,6 +1429,14 @@ function raid(){
     log(`${fac.name} (strength ${Math.round(str)}) broke through a defense of ${Math.round(def)}. Lost ${lc} caps, ${lf} food, ${lw} water. Injured: ${[...new Set(hurt)].join(', ')}.`,'danger');
   }
 }
+function bossRaidOffline(){ const b=pick(BOSSES), bn=bossName(b); const str=(6+G.day/40+G.settlers.length*.7)*2.2*(.85+rnd()*.3), def=defense(); FX.raid();
+  const home=G.settlers.filter(s=>!s.exp&&!s.preg&&isAdult(s));
+  if(def>=str){ const hurt=[]; for(const r of G.rooms) if(r.type==='armory'||r.type==='entrance') for(const s of workers(r)) if(rnd()<.6){ hurtSettler(s,ri(10,30),'Raid injuries'); hurt.push(s.first); }
+    log(`☠ BOSS RAID: ${bn}’s horde (strength ${Math.round(str)}) stormed the door and was beaten back by a defense of ${Math.round(def)}. Spoils: ${bossLoot()}.${hurt.length?' Wounded: '+[...new Set(hurt)].join(', ')+'.':''}`,'danger'); bossAftermath(bn,true); }
+  else { const f=.3; const lc=Math.round(G.res.caps*f), lf=Math.round(G.res.food*f), lw=Math.round(G.res.water*f); G.res.caps-=lc; G.res.food-=lf; G.res.water-=lw; const hurt=[];
+    for(let i=0;i<Math.min(home.length,ri(2,4));i++){ const s=pick(home); if(!G.settlers.includes(s)) continue; hurtSettler(s,ri(20,50),'Raid injuries'); hurt.push(s.first); }
+    log(`☠ BOSS RAID: ${bn}’s horde (strength ${Math.round(str)}) broke through a defense of ${Math.round(def)}. Lost ${lc} caps, ${lf} food, ${lw} water. Injured: ${[...new Set(hurt)].join(', ')}.`,'danger'); bossAftermath(bn,false); }
+  critAftermath(home); }
 function election(){
   const sc=s=>s.s.C*2+s.s.I+s.happy/20;
   const c=G.settlers.filter(s=>isAdult(s)&&!s.exp&&isCitizen(s)).sort((a,b)=>sc(b)-sc(a)).slice(0,3);
@@ -1460,13 +1470,16 @@ function startFight(){
   const p=colonyPower(), r=rnd(), vs=vaultStress(); let tier=r<clamp((p-50)/90,0,.3)?2:r<clamp((p-14)/40,0,.65)?1:0; if(vs>=.5&&tier>0) tier--;
   const n=clamp(1+Math.floor(adults.length/6)+(rnd()<.4?1:0)-(vs>=.66?2:vs>=.33?1:0),1,5);
   const foes=[]; for(let j=0;j<n;j++){ const hp=[20,32,48][tier]*(.85+rnd()*.3)*(1-.2*vs); foes.push({s:mkRaider(tier),a:{x:worldW+30+j*26,y:lvlY(-1),l:-1,dir:-1,ph:rnd()*6,pose:'walk',off:j},tx:doorX+260+j*24,hp,max:hp,dmg:[2.2,3.6,5.4][tier]*(1-.35*vs),tier,dead:false,fade:0,W:ITEMS[pick(RWEAP[tier])]}); }
+  let boss=null; if(bossReady()&&(rnd()<.07||window.__forceBoss)){ boss=pick(BOSSES); const bf=foes[0]; bf.boss=true; bf.tier=2; bf.s=mkRaider(2); bf.s.first=boss[0]; bf.s.last=boss[1]; bf.hp=bf.max=48*4.5; bf.dmg=5.4*1.9; bf.W=ITEMS[pick(RWEAP[2])];
+    for(let j=0;j<2;j++){ const hp=48*(.85+rnd()*.3); foes.push({s:mkRaider(2),a:{x:worldW+30+(foes.length)*26,y:lvlY(-1),l:-1,dir:-1,ph:rnd()*6,pose:'walk',off:foes.length},tx:doorX+260+foes.length*24,hp,max:hp,dmg:5.4,tier:2,dead:false,fade:0,W:ITEMS[pick(RWEAP[2])]}); } }
   const arm=[...G.rooms.filter(x=>x.type==='entrance'),...G.rooms.filter(x=>x.type==='armory')].flatMap(workers).filter(s=>!s.exp&&isAdult(s)&&!s.preg);
   const rest=adults.filter(s=>!arm.includes(s)&&s.health>30&&!s.waiting&&!s.milLeave&&s.id!==G.leader).sort((a,b)=>milRank(a)-milRank(b)||memberPow(b)-memberPow(a));
-  const def=[...arm,...rest].slice(0,clamp(n+1,2,5)).map(s=>s.id);
-  const fac=pickFaction(); fac.raids++; for(const f of foes){ f.fac=fac.id; f.s.L=`fx${fac.id}_${tier}`; } regFactionLooks();
+  const def=[...arm,...rest].slice(0,clamp(n+1+(boss?3:0),2,boss?8:5)).map(s=>s.id);
+  const fac=pickFaction(); fac.raids++; for(const f of foes){ f.fac=fac.id; f.s.L=`fx${fac.id}_${f.tier}`; } if(boss) foes[0].s.L='raider2'; regFactionLooks();
   let name=fac.name;
-  if(G.bos&&((tier>=1&&rnd()<.3)||window.__forceWar)){ const wl=warlordFree(); if(wl.length){ const [key,first,last,crime]=pick(wl), f=foes[0]; f.s.first=first; f.s.last=last; f.s.born=G.day-ri(50,62)*YEAR; f.s.look.style='part'; f.s.look.hair='#5a4a3a'; f.s.look.beard=false; f.war=key; f.crime=crime; f.s.L='raider2'; f.hp=f.max=f.hp*2.2; f.dmg*=1.4; f.W=ITEMS[pick(RWEAP[2])]; name=`${first} ${last}’s warband`; } }
-  FIGHT={tier,foes,def,clock:0,next:1,hurt:{},done:false,name,fac:fac.id};
+  if(boss) name=`${bossName(boss)}’s horde`;
+  else if(G.bos&&((tier>=1&&rnd()<.3)||window.__forceWar)){ const wl=warlordFree(); if(wl.length){ const [key,first,last,crime]=pick(wl), f=foes[0]; f.s.first=first; f.s.last=last; f.s.born=G.day-ri(50,62)*YEAR; f.s.look.style='part'; f.s.look.hair='#5a4a3a'; f.s.look.beard=false; f.war=key; f.crime=crime; f.s.L='raider2'; f.hp=f.max=f.hp*2.2; f.dmg*=1.4; f.W=ITEMS[pick(RWEAP[2])]; name=`${first} ${last}’s warband`; } }
+  FIGHT={tier:boss?2:tier,foes,def,clock:0,next:1,hurt:{},done:false,name,fac:fac.id,boss:boss?bossName(boss):null}; if(boss){ polNews(`☠ BOSS RAID: ${bossName(boss)} is leading a horde against the shelter!`); }
   log(`${name} (${n}) ${name.includes('’s')?'is':'are'} coming for the door. ${def.map(id=>byId(id).first).join(', ')} went up to meet them.${vs>=.33?' The shelter is battered, so it is a smaller group than usual.':''}`,'danger');
   toast(`${name} at the door!`);
 }
@@ -1488,8 +1501,9 @@ function updateFight(dt,t){
   F.def=F.def.filter(id=>{ const s=byId(id); return s&&!s.exp&&s.health>18; });
   const ready=F.def.filter(id=>{ const a=AG.get(id); return a&&!a.hidden&&a.l===-1&&!(a.path&&a.path.length); });
   F.clock+=dt;
+  if(F.boss&&arrived&&F.clock>=(F.nextSiege||5)&&(F.sieged||0)<2&&F.foes.some(f=>f.boss&&!f.dead)){ F.nextSiege=F.clock+9; F.sieged=(F.sieged||0)+1; damageRooms(1,F.boss); }
   if(arrived&&F.clock>=F.next){ F.next=F.clock+.8;
-    for(const id of ready){ const live=F.foes.filter(f=>!f.dead); if(!live.length) break; const s=byId(id); if(!s) continue; const tg=pick(live), d=memberPow(s)*.55*(.7+rnd()*.6)*milFight(s); tg.hp-=d; muzzle(AG.get(id),1,gearOf(s,'w'),tg.a); FXL.push({x:tg.a.x,y:tg.a.y-72,txt:'-'+Math.round(d),col:'#ffd76a',life:1.1,max:1.1,vy:-18}); if(tg.hp<=0){ tg.dead=true; tg.fade=2.6; } }
+    for(const id of ready){ const live=F.foes.filter(f=>!f.dead); if(!live.length) break; const s=byId(id); if(!s) continue; const tg=pick(live), d=memberPow(s)*.55*(.7+rnd()*.6)*milFight(s); tg.hp-=d*(tg.boss?.7:1); muzzle(AG.get(id),1,gearOf(s,'w'),tg.a); FXL.push({x:tg.a.x,y:tg.a.y-72,txt:'-'+Math.round(d),col:'#ffd76a',life:1.1,max:1.1,vy:-18}); if(tg.hp<=0){ tg.dead=true; tg.fade=2.6; } }
     if(ready.length) for(const f of F.foes){ if(f.dead) continue; const id=pick(ready), s=byId(id); if(!s||!G.settlers.includes(s)) continue; if(rnd()<.25) continue; const d=raidHit(s,f); hurtSettler(s,d,'Raid injuries'); if(!G.settlers.includes(s)){ F.def=F.def.filter(x=>x!==id); const ri_=ready.indexOf(id); if(ri_>=0) ready.splice(ri_,1); if(!ready.length) break; continue; } F.hurt[id]=1; FX.text(id,'-'+Math.round(d),'#ff7d72'); muzzle(f.a,-1,f.W,AG.get(id)); }
   }
   if(F.foes.every(f=>f.dead)){ if(!F.done){ F.done=true; winFight(); } if(F.foes.every(f=>f.fade<=0)) FIGHT=null; }
@@ -1505,9 +1519,10 @@ function winFight(){ CHEER=performance.now()+4500;
   const hurt=Object.keys(F.hurt).map(id=>byId(+id)).filter(Boolean).map(s=>s.first);
   log(`${F.name} driven off. ${capt===F.foes.length?`All ${capt} were captured and locked in the Holding Cells.`:capt?`${capt===1?'Their leader was':`${capt} were`} captured and locked up; the rest were killed.`:G.rooms.some(r=>r.type==='jail')?'The Holding Cells were full, so they fought to the end.':'With no Holding Cells to hold them, they fought to the end.'}${nb?` ${nb} bod${nb>1?'ies lie':'y lies'} outside the door. Tap ${nb>1?'them':'it'} to search for caps and loot.`:''}${hurt.length?` Hurt: ${hurt.join(', ')}.`:''}${warNote}`,'danger');
   toast(nb?`Raid repelled! Tap the ${nb>1?'bodies':'body'} outside to collect loot.`:'Raid repelled!');
+  if(F.boss){ log(`☠ ${F.boss} was defeated! Spoils: ${bossLoot()}.`,'study'); bossAftermath(F.boss,true); }
   if(G.session) G.session.fights=(G.session.fights||0)+1; raidCasualties(F); save();
 }
-function loseFight(){ const F=FIGHT, f=[.06,.1,.15][F.tier], lc=Math.round(G.res.caps*f), lf=Math.round(G.res.food*f*.6); G.res.caps-=lc; G.res.food-=lf; log(`${F.name} got past the defenders and ran off with ${lc} caps and ${lf} food.`,'danger'); if(F.foes.some(f=>f.war)) log('Their leader is still out there and may return.','danger'); toast('Raiders got through.'); { const nb2=raiderBodies(F); if(F.fac) factionLoss(F.fac,nb2,0); milFightXP(F,false); } raidCasualties(F); save(); }
+function loseFight(){ if(FIGHT&&FIGHT.boss) bossAftermath(FIGHT.boss,false); const F=FIGHT, f=[.06,.1,.15][F.tier], lc=Math.round(G.res.caps*f), lf=Math.round(G.res.food*f*.6); G.res.caps-=lc; G.res.food-=lf; log(`${F.name} got past the defenders and ran off with ${lc} caps and ${lf} food.`,'danger'); if(F.foes.some(f=>f.war)) log('Their leader is still out there and may return.','danger'); toast('Raiders got through.'); { const nb2=raiderBodies(F); if(F.fac) factionLoss(F.fac,nb2,0); milFightXP(F,false); } raidCasualties(F); save(); }
 function raiderBodies(F){ let n=0; for(const f of F.foes){ if(!f.dead||f.captured||f.war) continue; f.fade=0; addBody({kind:'raider',s:f.s,Lk:f.s.L,x:f.a.x,l:-1,dir:-1,loot:raiderLoot(f)}); n++; } return n; }
 // how hard a raider hits this defender: unarmed and unarmored settlers take far more, and tougher raids hit harder
 function raidHit(s,f){ const w=gearOf(s,'w'), o=gearOf(s,'o'); let d=f.dmg*(.6+rnd()*.7)*(G.inst.def>=2?.75:1);
@@ -6006,6 +6021,79 @@ function sprintDone(){ const S=G.sprint; if(!S) return; const sec=Math.max(1,(Da
   if(pb==null||sec<pb){ G.sprintPB[S.n]=sec; const c=S.n*3, r=Math.round(S.n/5); G.res.caps+=c; G.res.research+=r; got.push(pb==null?'first time at this size':`new best (was ${Math.floor(pb/60)}:${String(Math.round(pb%60)).padStart(2,'0')})`,`+${c} caps`,`+${r} research`); CHEER=performance.now()+3000; }
   log(`⏱ Anki sprint: ${S.n} cards in ${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')} (${per.toFixed(1)} s/card).${got.length?' '+got.join(', ')+'.':''}`,'study'); toast(`Sprint done: ${per.toFixed(1)} s/card${got.length?' · '+got[0]:''}`); save(); }
 
+/* ===== Phase 2: boss raids ===== */
+const BOSSES=[['Kostolom','the Bonebreaker'],['Mother','Rust'],['Gvozdeni','Vuk'],['the Butcher','of the Dam'],['Sister','Cinder'],['Old','Grmalj'],['Baba','Smrt'],['the Scrap','King']];
+const bossName=b=>`${b[0]} ${b[1]}`;
+function bossReady(){ return G.bos!==false&&G.day>=20&&(G.lastBoss==null||G.day-G.lastBoss>=30)&&G.settlers.filter(isAdult).length>=8; }
+const roomDmg=r=>r&&r.dmgUntil&&r.dmgUntil>G.day;
+const dmgMult=r=>roomDmg(r)?.5:1;
+function defDmgMult(){ return G.defDmg&&G.defDmg.until>G.day?1-G.defDmg.m:1; }
+function damageRooms(n,bossN){ const pool=G.rooms.filter(r=>!roomDmg(r)&&r.type!=='entrance'), hit=[]; pool.sort((a,b)=>a.floor-b.floor||rnd()-.5);
+  for(const r of pool.slice(0,Math.max(n*2,3))){ if(hit.length>=n) break; if(rnd()<.6||pool.length<=n){ r.dmgUntil=G.day+ri(3,7); hit.push(r); } }
+  if(hit.length) log(`${bossN} wrecked ${hit.map(r=>`the ${ROOMS[r.type].name}`).join(', ')}. ${hit.length>1?'They run':'It runs'} at half output until repaired.`,'danger'); return hit; }
+function repairCost(r){ const d=Math.max(1,r.dmgUntil-G.day); return {caps:40*d*r.level,iron:Math.ceil(d/2)}; }
+function repairBox(r){ const c=repairCost(r), ok=G.res.caps>=c.caps&&(G.mats.iron||0)>=c.iron;
+  return `<div class="box" style="border-color:var(--danger)"><h4>Damaged</h4><p class="lede" style="font-size:12px">Wrecked in a boss raid. Runs at half output for ${r.dmgUntil-G.day} more day${r.dmgUntil-G.day>1?'s':''}.</p><div class="row"><button class="btn sm pri" data-a="repairRoom" data-id="${r.id}" ${ok?'':'disabled'}>Repair now · ${c.caps} caps, ${c.iron} iron</button></div></div>`; }
+function drawRoomDamage(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH; c.save();
+  c.fillStyle='rgba(25,12,6,.38)'; c.fillRect(x,top,w,h);
+  c.strokeStyle='rgba(0,0,0,.55)'; c.lineWidth=1.6; for(let q=0;q<3;q++){ const sx=x+30+((r.id*37+q*71)%Math.max(40,w-60)); c.beginPath(); c.moveTo(sx,top+4); c.lineTo(sx+8,top+22); c.lineTo(sx-4,top+36); c.lineTo(sx+6,top+52); c.stroke(); }
+  for(let q=0;q<4;q++){ const ph=(t*.25+q*.27+r.id*.13)%1, px=x+40+((r.id*53+q*97)%Math.max(40,w-80)); c.fillStyle=`rgba(80,74,70,${.35*(1-ph)})`; c.beginPath(); c.arc(px+Math.sin(t+q)*6,top+h-20-ph*60,8+ph*14,0,TAU); c.fill(); }
+  c.fillStyle='rgba(180,40,30,.9)'; c.fillRect(x+w-112,top+6,104,16); c.fillStyle='#fff'; c.font='bold 10px Archivo, sans-serif'; c.textAlign='center'; c.fillText(`DAMAGED · ${r.dmgUntil-G.day}d`,x+w-60,top+17); c.restore(); }
+function bossLoot(){ const c=ri(150,320); G.res.caps+=c; const t=rnd()<.25?4:3; const ks=lootKeys().filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); const k=ks.length?pick(ks):null; if(k) addItem(k); G.res.stims=Math.min(stimCap(),G.res.stims+2); return `${c} caps, 2 stims${k?`, a ${TIERS[t].toLowerCase()} ${ITEMS[k].name}`:''}`; }
+function takeHostage(bn){ const pool=G.settlers.filter(s=>isAdult(s)&&!s.exp&&!s.preg&&s.id!==G.leader&&!s.detained); if(!pool.length) return null; const s=pick(pool);
+  unassign(s); s.exp='hostage'; const ransom=Math.max(150,Math.round(G.res.caps*.3)); G.hostages=G.hostages||[]; G.hostages.push({sid:s.id,boss:bn,since:G.day,until:G.day+8,ransom});
+  const L=G.leader&&byId(G.leader); let sug=''; if(L&&G.inst.gov>=1){ const d=docOf(L); sug=d.sec>.25?`${L.first} wants a rescue mission.`:d.open>.25||d.sec<-.25?`${L.first} wants to pay the ransom.`:`${L.first} is weighing ransom against a rescue.`; }
+  polNews(`${bn} dragged ${fullName(s)} out of the shelter as a hostage. Ransom: ${ransom} caps within 8 days. ${sug}`); return s; }
+function hostageBox(){ const H=G.hostages||[]; if(!H.length) return ''; return `<div class="box" style="border-color:var(--danger)"><h4>⛓ Hostages</h4>${H.map(h=>{ const s=byId(h.sid); if(!s) return ''; const ok=G.res.caps>=h.ransom;
+  return `<div style="margin:6px 0"><p class="lede" style="font-size:13px"><b>${esc(fullName(s))}</b> held by ${esc(h.boss)} · ${Math.max(0,h.until-G.day)} days left · ransom ${h.ransom} caps · rescue odds about ${Math.round(rescueOdds()*100)}%</p><div class="row"><button class="btn sm pri" data-a="hostPay" data-id="${s.id}" ${ok?'':'disabled'}>Pay ransom</button><button class="btn sm" data-a="hostRescue" data-id="${s.id}">Send a rescue team</button></div></div>`; }).join('')}</div>`; }
+function rescueOdds(){ return clamp(.3+defense()/120,.3,.85); }
+function hostageEnd(h,how){ G.hostages=(G.hostages||[]).filter(x=>x!==h); const s=byId(h.sid); if(!s) return;
+  if(how==='dead'){ s.exp=null; removeSettler(s,`Killed as a hostage by ${h.boss}`); log(`${fullName(s)} was killed by ${h.boss}.`,'death'); if(G.inst.gov>=1) G.apHit=(G.apHit||0)+3; return; }
+  s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; s.happy=Math.max(0,s.happy-15); addWear(s,6,'raid'); s.health=Math.max(20,s.health-ri(10,25));
+  log(how==='paid'?`${fullName(s)} came home after the ransom was paid.`:how==='rescued'?`A rescue team brought ${fullName(s)} home from ${h.boss}.`:`${fullName(s)} escaped from ${h.boss} and made it home.`,'family'); }
+function hostagePay(sid){ const h=(G.hostages||[]).find(x=>x.sid===sid); if(!h||G.res.caps<h.ransom) return; G.res.caps-=h.ransom; if(G.inst.gov>=1) nudgeBlocs({hard:-1}); hostageEnd(h,'paid'); save(); }
+function hostageRescue(sid){ const h=(G.hostages||[]).find(x=>x.sid===sid); if(!h) return; const team=G.settlers.filter(s=>isAdult(s)&&!s.exp&&!s.preg&&s.health>50).sort((a,b)=>memberPow(b)-memberPow(a)).slice(0,3);
+  if(!team.length){ toast('Nobody is fit to go.'); return; } const ok=rnd()<rescueOdds();
+  for(const s of team) hurtSettler(s,ri(ok?5:15,ok?20:40),'Raid injuries');
+  if(ok){ hostageEnd(h,'rescued'); if(G.inst.gov>=1) G.apBoost=(G.apBoost||0)+2; }
+  else { log(`The rescue team (${team.map(s=>s.first).join(', ')}) was driven back.`,'danger'); if(rnd()<.35) hostageEnd(h,'dead'); }
+  critAftermath(team); save(); }
+function hostageDay(){ for(const h of (G.hostages||[]).slice()){ if(rnd()<.04){ hostageEnd(h,'escaped'); continue; } if(G.day>=h.until){ if(rnd()<.6) hostageEnd(h,'dead'); else { const s=byId(h.sid); G.hostages=G.hostages.filter(x=>x!==h); if(s){ s.exp=null; removeSettler(s,`Taken away by ${h.boss}`,true); log(`Nobody came for ${fullName(s)}. ${h.boss} took them away for good.`,'death'); } } } } }
+function bossAftermath(bn,won){ G.lastBoss=G.day; G.defDmg={m:won?.25:.5,until:G.day+(won?4:8)}; damageRooms(won?1:ri(2,3),bn);
+  log(`Defenses were badly damaged by ${bn}: ${won?'−25%':'−50%'} for ${won?4:8} days.`,'danger'); if(!won) takeHostage(bn); }
+/* ===== Phase 2: plagues ===== */
+const PLAGUES=['Red cough','Dust fever','Vault flu','Rat fever','Grey pox','Sweating sickness'];
+const SEV=['Mild','Serious','Severe'];
+function plaguePrep(){ return (G.care&&G.care.staffed?1:0)+(G.inst.health>=2?1:0)+(G.res.stims>=10?1:0)+(G.rooms.some(r=>r.type==='medbay')?1:0); }
+function plagueCheck(){ if(G.plague||AWAY) return; if(G.lastPlague!=null&&G.day-G.lastPlague<60) return; if(G.day<15||G.settlers.length<10) return;
+  const crowd=popUsed()/Math.max(1,housing()), p=.004+(crowd>.9?.004:0)+Math.min(.006,(G.bodies||[]).length*.002);
+  if(rnd()<p) startPlague(); }
+function startPlague(sev){ const pool=G.settlers.filter(s=>!s.exp); if(!pool.length) return; sev=sev??(rnd()<.55?0:rnd()<.7?1:2);
+  const prep=plaguePrep(), name=pick(PLAGUES), maxDead=clamp(sev*3+1-prep+ri(0,1),1,7);
+  const P=G.plague={name,sev,day0:G.day,end:G.day+ri(6,10)+sev*2,maxDead,dead:0,total:0,quar:false,treat:false};
+  const n=Math.min(pool.length,1+sev); for(const s of pool.slice().sort(()=>rnd()-.5).slice(0,n)){ s.sick=G.day; P.total++; }
+  const L=G.leader&&byId(G.leader); let by='';
+  if(L&&G.inst.gov>=1){ const d=docOf(L); P.quar=d.sec>.1||d.open<-.2||sev>=2; P.treat=d.tech||d.prag>.5||d.sec<.1; by=` ${L.first} ordered ${[P.quar?'a quarantine':'',P.treat?'treatment with meds':''].filter(Boolean).join(' and ')||'no special measures'}.`; }
+  polNews(`🦠 Outbreak: ${name} (${SEV[sev].toLowerCase()}). ${n} settler${n>1?'s are':' is'} sick.${by} Preparedness ${prep}/4.`); toast(`Outbreak: ${name}!`); }
+function plagueDay(){ const P=G.plague; if(!P){ plagueCheck(); return; }
+  const sick=G.settlers.filter(s=>s.sick), well=G.settlers.filter(s=>!s.sick&&!s.exp&&s.plImm!==P.day0), crowd=popUsed()/Math.max(1,housing());
+  const R=(.35+.25*P.sev)*(.7+crowd*.5)*(P.quar?.4:1)*(G.care&&G.care.staffed?.75:1)*(1-.08*G.inst.health)*(G.day>P.end?.3:1);
+  let newC=0; for(const s of sick){ if(rnd()<R&&well.length){ const t=well.splice(Math.floor(rnd()*well.length),1)[0]; t.sick=G.day; P.total++; newC++; } }
+  let meds=P.treat; if(meds){ const need=Math.ceil(sick.length*.5); if(G.res.meds>=need) G.res.meds-=need; else meds=false; }
+  let rec=0, died=[];
+  for(const s of sick){ s.health-=ri(1,4)*(1+P.sev)*(meds?.6:1); s.lastHurt=P.name;
+    const vul=age(s)>=60||age(s)<3||!!s.chronic?2:1;
+    if(P.dead<P.maxDead&&((s.health<20&&rnd()<(.25+.1*P.sev)*(meds?.6:1)*vul)||rnd()<[.004,.012,.03][P.sev]*(meds?.6:1)*vul*(1-.1*plaguePrep()))){ P.dead++; died.push(fullName(s)); removeSettler(s,P.name); continue; }
+    if(s.health<10) s.health=10;
+    if(G.day-s.sick>=2&&rnd()<.25+(meds?.15:0)+(G.care&&G.care.staffed?.1:0)){ s.sick=null; s.plImm=P.day0; rec++; } }
+  if(P.quar) for(const s of G.settlers) s.happy=Math.max(0,s.happy-1.2);
+  if(died.length){ log(`🦠 ${P.name} claimed ${died.join(', ')}.`,'death'); if(G.inst.gov>=1) G.apHit=(G.apHit||0)+died.length*(P.quar||P.treat?.6:1.2); }
+  if(newC||rec) log(`🦠 ${P.name}: ${newC} new case${newC===1?'':'s'}, ${rec} recovered, ${G.settlers.filter(s=>s.sick).length} still sick.`,'health');
+  if(!G.settlers.some(s=>s.sick)){ G.lastPlague=G.day; G.plagueLog=G.plagueLog||[]; G.plagueLog.unshift({name:P.name,sev:P.sev,d0:P.day0,d1:G.day,total:P.total,dead:P.dead}); polNews(`🦠 The ${P.name} outbreak is over: ${P.total} fell ill, ${P.dead} died.`); histAdd(`${P.name} outbreak (${SEV[P.sev].toLowerCase()}): ${P.total} sick, ${P.dead} dead.`); G.plague=null; } }
+function plagueBox(){ const P=G.plague; if(!P) return ''; const sick=G.settlers.filter(s=>s.sick);
+  return `<div class="box" style="border-color:#7fc96a"><h4>🦠 Outbreak · ${esc(P.name)} · ${SEV[P.sev]}</h4><p class="lede" style="font-size:12px">${sick.length} sick now (${sick.slice(0,8).map(s=>s.first).join(', ')}${sick.length>8?'…':''}) · ${P.total} total · ${P.dead} dead · day ${G.day-P.day0+1}. Sick settlers work at 60%. Preparedness ${plaguePrep()}/4 (staffed clinic, Health level 2+, 10+ stims, a Medbay).</p>
+  <div class="row"><button class="btn sm ${P.quar?'pri':''}" data-a="plQuar">${P.quar?'✓ Quarantine on':'Quarantine'}</button><button class="btn sm ${P.treat?'pri':''}" data-a="plTreat">${P.treat?'✓ Treating with meds':'Treat with meds'}</button></div><p class="lede" style="font-size:11px">Quarantine cuts spread a lot but lowers everyone’s mood. Treatment uses meds each day and speeds recovery.</p></div>`; }
+
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
   c.fillStyle='#211d19'; c.fillRect(x,top,w,h);
@@ -6119,7 +6207,7 @@ function drawScene(now){
   drawShaft(c);
   if(lift2()) drawShaft(c,shaft2X-WD.shaft/2,floorTop(0)-4);
   const lit=G.boost>0&&!G.flags.power;
-  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
+  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
   drawFrame(c);
   G.gate.forEach((v,i)=>{ const a={x:GATEX(i),y:lvlY(-1),dir:-1,ph:0,pose:'stand',off:i}, gg=v.gear||{}; drawPerson(c,a,v.s,t,{noBadge:true,ring:HOVER&&HOVER.gate===i,L:gg.o?Object.assign({},LOOKS[ITEMS[gg.o].look]):undefined,W:gg.w?ITEMS[gg.w]:null}); });
   const VW=(()=>{ const wr=document.getElementById('sceneWrap'); if(!wr) return null; return {x0:wr.scrollLeft/SC-90,x1:(wr.scrollLeft+wr.clientWidth)/SC+90,y0:wr.scrollTop/SC-140,y1:(wr.scrollTop+wr.clientHeight)/SC+60}; })();
@@ -6531,7 +6619,7 @@ function renderPanel(){
   renderTabs();
   const el=$('tab'); if(busy(el)){ const p=$('spreview'); if(p) p.innerHTML=studyPreview(); return; }
   const st=el.scrollTop;
-  const html=UI.tab==='study'?sprintBox()+obBox()+cmsBox()+renderStudy():UI.tab==='store'?renderStore():UI.tab==='settlers'?renderSettlers():UI.tab==='inst'?renderInst():UI.tab==='council'?renderCouncil():UI.tab==='exp'?renderExp():renderLog();
+  const html=plagueBox()+hostageBox()+(UI.tab==='study'?sprintBox()+obBox()+cmsBox()+renderStudy():UI.tab==='store'?renderStore():UI.tab==='settlers'?renderSettlers():UI.tab==='inst'?renderInst():UI.tab==='council'?renderCouncil():UI.tab==='exp'?renderExp():renderLog());
   if(el._h===html&&el._tab===UI.tab) return; const same=el._tab===UI.tab; el._h=html; el._tab=UI.tab;
   const inner=same?keepScroll(el):null; el.innerHTML=html; el.scrollTop=st; if(inner) inner();
 }
@@ -6671,7 +6759,7 @@ function assignModal(rid){
   if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
   return `<header><h2>${d.name}${(r.w||1)>1&&!d.wide?` ×${r.w}`:''} · B${r.floor+1} · Level ${r.level}</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
-  <p class="lede">${d.desc} ${st?`Uses <b>${STAT_NAMES[st]}</b>.`:''} ${r.workers.length}/${roomCap(r)} slots filled.</p>${ex}
+  <p class="lede">${d.desc} ${st?`Uses <b>${STAT_NAMES[st]}</b>.`:''} ${r.workers.length}/${roomCap(r)} slots filled.</p>${r.dmgUntil&&r.dmgUntil>G.day?repairBox(r):''}${ex}
   ${r.workers.length?`<div class="slots">${workers(r).map(s=>`<button class="chip" data-a="unassign" data-id="${s.id}" title="Remove from room">${esc(s.first)}${st?` <span class="num" style="color:var(--accent)">${st} ${s.s[st]}</span>`:''} ×</button>`).join('')}</div>`:''}
   <div class="pick">${c.map((s,i)=>`<button class="${i<2&&r.type!=='quarters'?'top':''}" data-a="pickFor" data-id="${s.id}" data-r="${r.id}" ${r.workers.length>=roomCap(r)?'disabled':''}><span>${esc(fullName(s))} ${settlerIcons(s)}</span><span class="jb">${jobName(s)}</span><span class="sv">${st?`${st} ${Math.round(effStat(s,st)*10)/10}`:''}</span></button>`).join('')||'<p class="lede">No available adults.</p>'}</div>
   <div class="row" style="justify-content:space-between">${r.level<MAXLVL?`<button class="btn" data-a="upgrade" data-id="${r.id}" ${G.res.caps<upCost(r)?'disabled':''}>Upgrade to level ${r.level+1} · ${upCost(r)} caps</button>`:'<span class="lede">Max level</span>'}
@@ -6808,6 +6896,11 @@ document.addEventListener('click',e=>{
     case 'sprintGo': if(!G.sprint){ G.sprint={n:+el.dataset.v,t0:Date.now()}; save(); } break;
     case 'sprintDone': sprintDone(); break;
     case 'sprintCancel': G.sprint=null; save(); break;
+    case 'repairRoom': { const r=roomById(id); if(r&&roomDmg(r)){ const c=repairCost(r); if(G.res.caps>=c.caps&&(G.mats.iron||0)>=c.iron){ G.res.caps-=c.caps; G.mats.iron-=c.iron; r.dmgUntil=null; log(`The ${ROOMS[r.type].name} was repaired.`); save(); } } break; }
+    case 'hostPay': hostagePay(id); break;
+    case 'hostRescue': hostageRescue(id); break;
+    case 'plQuar': if(G.plague){ G.plague.quar=!G.plague.quar; log(`🦠 Quarantine ${G.plague.quar?'ordered':'lifted'} by the Overseer.`,'gov'); if(G.inst.gov>=1){ nudgeBlocs(G.plague.quar?{hard:1}:{reform:1}); } save(); } break;
+    case 'plTreat': if(G.plague){ G.plague.treat=!G.plague.treat; log(`🦠 Treatment with meds ${G.plague.treat?'started':'stopped'}.`,'gov'); save(); } break;
     case 'citGrant': { const s=byId(id); if(s) grantCit(s,'granted by the Overseer'); save(); break; }
     case 'citDeny': { const s=byId(id); if(s) denyCit(s); save(); break; }
     case 'citArrest': { const s=byId(id); if(s) arrestNC(s,true); save(); break; }
@@ -6936,7 +7029,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
