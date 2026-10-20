@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.6</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.7</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -4336,7 +4336,7 @@ const RANKS=[
 const cmdRoom=()=>G.rooms.find(r=>r.type==='command');
 const rankOf=s=>s&&s.mil&&cmdRoom()?(s.mil==='reserve'?Math.min(3,s.rank_m||0):(s.rank_m||0)):0;
 const armySize=()=>G.settlers.filter(s=>s.mil&&!s.died).length;
-function rankCap(r){ const n=armySize(); if(r<=2) return 999; if(r===3) return Math.max(1,Math.ceil(n/4)); if(r===4) return n>=5?Math.max(1,Math.floor(n/8)):0; if(r===5) return n>=8?1+Math.floor(n/16):0; if(r===6) return n>=12?1:0; return n>=6?1:0; }
+function rankCap(r){ const n=armySize(); if(r<=2) return 999; if(r===3) return Math.max(1,Math.ceil(n/4)); if(r===4) return n>=5?Math.max(1,Math.floor(n/8)):0; if(r===5) return n>=8?1+Math.floor(n/16):0; if(r===6) return n>=12?1+Math.floor((n-12)/24):0; return n>=6?1:0; }
 const rankCount=r=>G.settlers.filter(s=>isSoldier(s)&&s.id!==G.leader&&!s.milLeave&&(s.rank_m||0)===r).length;
 function uniformFor(s,r){ const k=RANKS[r].uni; if(!k) return {ok:true}; const wear=gearOf(s,'o'); if(wear&&('o_'+wear.look.replace(/^o_/,''))===k) return {ok:true,worn:true};
   const it=G.items.find(i=>i.k===k&&!holderOf(i.id)); return it?{ok:true,it}:{ok:false,k}; }
@@ -6650,13 +6650,15 @@ function milTreeData(){ const act=G.settlers.filter(onDuty).sort((a,b)=>(b.rank_
   return {act,roots,kids,acting:roots.length&&rankOf(roots[0])<RANKS.length-1&&cmdRoom()?roots[0]:null}; }
 function treeCard(s,acting){ const r=rankOf(s), R=RANKS[r], st=treeStatus(s), rm=s.room&&roomById(s.room);
   return `<button class="mtc" data-a="open" data-id="${s.id}" title="${esc(fullName(s))}">${faceHTML(s,44)}<span class="mtr" style="background:${r>=7?'#d9b14a':r>=4?'#c9a24a':r>=3?'#8aa060':'#5a6a4a'}">${R.a}</span><span class="mtn">${esc(s.first)} ${esc(s.last.slice(0,1))}.</span><span class="mts">${acting?`<b style="color:#e2c46a">Acting commander</b>`:cmdRoom()?R.n:'Soldier'}${st?` · <i style="color:var(--warn)">${st}</i>`:''}</span><span class="mts">${rm?esc(ROOMS[rm.type].name):'unposted'}</span></button>`; }
-function treeNode(s,D,acting){ const k=D.kids.get(s.id)||[]; return `<li>${treeCard(s,acting)}${k.length?`<ul>${k.map(x=>treeNode(x,D)).join('')}</ul>`:''}</li>`; }
+function sqCard(s){ const st=treeStatus(s); return `<button class="msc" data-a="open" data-id="${s.id}" title="${esc(fullName(s))}${st?' · '+st:''}">${faceHTML(s,28)}<span><span class="mtr" style="background:#5a6a4a">${RANKS[rankOf(s)].a}</span> ${esc(s.first)}${st?` <i style="color:var(--warn)">•</i>`:''}</span></button>`; }
+function treeNode(s,D,acting){ const k=D.kids.get(s.id)||[], sq=k.length&&k.every(x=>rankOf(x)<=2);
+  return `<li>${treeCard(s,acting)}${!k.length?'':sq?`<ul class="msqw"><li><div class="msq" style="grid-template-columns:repeat(${k.length>4?2:1},auto)">${k.map(sqCard).join('')}</div></li></ul>`:`<ul>${k.map(x=>treeNode(x,D)).join('')}</ul>`}</li>`; }
 const MT_CSS=`<style>.miltree{overflow-x:auto;padding:8px 0 4px}.miltree ul{display:flex;justify-content:center;gap:6px;padding:16px 0 0;margin:0;position:relative;list-style:none}.miltree li{display:flex;flex-direction:column;align-items:center;position:relative;padding:0 2px}
 .miltree li::before,.miltree li::after{content:'';position:absolute;top:-16px;height:16px;border-top:2px solid #6a7050;width:50%}.miltree li::before{right:50%}.miltree li::after{left:50%;border-left:2px solid #6a7050}.miltree li:only-child::before,.miltree li:only-child::after{border-top:none}.miltree li:only-child::after{width:0}
-.miltree li:first-child::before,.miltree li:last-child::after{border-top:none}.miltree li:last-child::before{border-right:2px solid #6a7050;width:0;right:auto;left:50%}.miltree ul ul::before{content:'';position:absolute;top:0;left:50%;height:16px;border-left:2px solid #6a7050}.miltree>ul{padding-top:0}.miltree>ul>li::before,.miltree>ul>li::after{display:none}
+.miltree li:first-child::before,.miltree li:last-child::after{border-top:none}.miltree li:last-child::before{border-right:2px solid #6a7050;width:0;right:auto;left:50%}.miltree ul ul::before{content:'';position:absolute;top:0;left:50%;height:16px;border-left:2px solid #6a7050}.miltree>ul{padding-top:0;width:max-content;margin:0 auto}.miltree>ul>li::before,.miltree>ul>li::after{display:none}
 .mtc{display:flex;flex-direction:column;align-items:center;gap:1px;background:#23271c;border:1px solid #4a5038;border-radius:8px;padding:6px 6px 5px;min-width:86px;max-width:104px;color:inherit;cursor:pointer;font:inherit}.mtc:hover{border-color:#c9a24a}.mtc .face{border-radius:50%;background:#2e3324}
 .mtr{font-size:10px;font-weight:700;color:#14170f;border-radius:4px;padding:0 5px;margin-top:2px;letter-spacing:.04em}.mtn{font-size:12px;font-weight:600;white-space:nowrap}.mts{font-size:10px;color:var(--muted);text-align:center;line-height:1.2}
-.mtrow{display:flex;flex-wrap:wrap;gap:6px}.mtrow .mtc{opacity:.8}#modal .dlg:has(.miltree){max-width:1100px;width:min(1100px,96vw)}</style>`;
+.mtrow{display:flex;flex-wrap:wrap;gap:6px}.msq{display:grid;grid-template-columns:repeat(2,auto);gap:3px;background:#1d2117;border:1px dashed #4a5038;border-radius:8px;padding:4px}.msc{display:flex;align-items:center;gap:4px;background:#23271c;border:1px solid #3a4030;border-radius:6px;padding:2px 6px 2px 2px;color:inherit;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}.msc:hover{border-color:#c9a24a}.msc .face{border-radius:50%}.mtrow .mtc{opacity:.8}#modal .dlg:has(.miltree){max-width:1100px;width:min(1100px,96vw)}</style>`;
 function milTreeModal(){ const D=milTreeData(), sec=typeof secOf==='function'?secOf('def'):null, L=G.leader&&byId(G.leader);
   const res=G.settlers.filter(isReserve).sort((a,b)=>(b.rank_m||0)-(a.rank_m||0)), detached=G.settlers.filter(s=>s.mil&&(s.id===G.leader||s.milLeave));
   let h=MT_CSS+`<header><h2>Military · chain of command</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
@@ -7426,7 +7428,7 @@ document.addEventListener('click',e=>{
     case 'tBuy': tBuy(+el.dataset.i); break;
     case 'tBye': if(G.trader){ log(`${G.trader.name} waved goodbye${G.trader.deals?' after a good bit of business':''}.`,'gov'); G.trader=null; G.nextTraderD=nowD()+2+rnd(); } UI.modal=null; break;
     case 'milOpen': UI.modal={t:'mil'}; break;
-    case 'milTree': UI.modal={t:'miltree'}; break;
+    case 'milTree': UI.modal={t:'miltree'}; setTimeout(()=>{ const t=document.querySelector('.miltree'); if(t) t.scrollLeft=(t.scrollWidth-t.clientWidth)/2; },60); break;
     case 'polOpen': UI.modal={t:'pol'}; break;
     case 'polPromo': { const s=byId(id); if(s) polPromote(s); break; }
     case 'polFull': { const s=byId(id); if(s) swearIn(s,'officer'); break; }

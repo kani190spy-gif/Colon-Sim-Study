@@ -10,11 +10,11 @@ async def main():
     print(await pg.evaluate("""()=>{const C=window.__colony,G=C.G; const sol=G.settlers.filter(s=>s.mil==='soldier'), res=G.settlers.filter(s=>s.mil==='reserve');
       return 'soldiers '+sol.length+' reserve '+res.length+' ranks '+sol.map(s=>s.first+':'+(s.rank_m||0)).join(',')+' | res '+res.map(s=>s.first+':'+(s.rank_m||0)).join(',')+' leader mil '+(G.settlers.find(s=>s.id===G.leader)||{}).mil}"""))
     print(await pg.evaluate('''()=>{const C=window.__colony,G=C.G; G.inst.def=Math.max(2,G.inst.def); G.res.caps+=9000; let ok=G.rooms.some(r=>r.type==='command'); for(let f=0;f<G.floors+2&&!ok;f++){ if(f>=G.floors) G.floors++; for(let c=0;c<5&&!ok;c++){ if(!C.roomAt(f,c)&&!C.roomAt(f,c+1)) ok=C.build('command',f,c); } }
-      const civ=G.settlers.filter(s=>!s.mil&&s.ec0!=null&&!s.pol&&s.id!==G.leader).slice(0,10); for(const s of civ){ s.mil='soldier'; }
-      const sol=G.settlers.filter(s=>s.mil==='soldier'&&s.id!==G.leader); const rk=[7,6,5,5,4,4,3,3,3,2,2,1,1,0,0]; sol.forEach((s,i)=>s.rank_m=rk[i]??0);
+      const civ=G.settlers.filter(s=>!s.mil&&s.ec0!=null&&!s.pol&&s.id!==G.leader).slice(0,34); for(const s of civ){ s.mil='soldier'; }
+      const sol=G.settlers.filter(s=>s.mil==='soldier'&&s.id!==G.leader); const rk=[7,6,5,5,4,4,4,3,3,3,3,3,3,3]; sol.forEach((s,i)=>s.rank_m=rk[i]??0);
       const L=G.settlers.find(s=>s.id===G.leader); L.rank_m=5; L.milLeave='office'; const r0=G.settlers.find(s=>s.mil==='reserve'); r0.rank_m=5;
       return 'built '+ok+' sol '+sol.length+' rankOf reserve '+C.rankOf?.(r0);}'''))
-    await pg.evaluate("()=>{const C=window.__colony; C.G.gate=[]; C.UI.modal={t:'miltree'}; C.renderUI();}"); await pg.wait_for_timeout(1200)
-    await pg.locator('#modal .dlg').screenshot(path='miltree.png')
+    await pg.evaluate("()=>{const C=window.__colony; C.G.gate=[]; C.UI.modal={t:'mil'}; C.renderUI();}"); await pg.wait_for_timeout(500); await pg.evaluate("()=>document.querySelector('[data-a=milTree]').click()"); await pg.wait_for_timeout(1200)
+    await pg.wait_for_timeout(3000); await pg.locator('#modal .dlg').screenshot(path='miltree.png'); print(await pg.evaluate("()=>{const t=document.querySelector('.miltree'); return t.scrollWidth+'/'+t.clientWidth}"))
     print(errs[:5]); await b.close()
 asyncio.run(main())
