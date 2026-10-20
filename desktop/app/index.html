@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.5</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.6</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -861,6 +861,7 @@ function newGame(opts){
 function starterBps(g){ const b=new Set(g.bps||[]); for(const it of g.items) b.add(it.k); for(const t of ['w','o']){ const ks=lootKeys().filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0&&!b.has(k)); for(let i=0;i<2&&ks.length;i++) b.add(ks.splice(Math.floor(rnd()*ks.length),1)[0]); } g.bps=[...b]; }
 function migrate(g){
   if(!g.citV){ g.citV=1; for(const p of g.settlers||[]) p.cit='citizen'; }
+  if(!g.elect2V){ g.elect2V=1; if(g.nextElection!=null&&g.nextElection-g.day>2*YEAR) g.nextElection=g.day+2*YEAR; }
   if(!g.citTrackV){ g.citTrackV=1; for(const p of g.settlers||[]) if(p.cit&&p.cit!=='citizen'&&!p.citTrack) p.citTrack=(p.cit==='probation'||p.everArrested||p.detained||p.exRaider)?'review':'auto'; }
   for(const r of g.rooms||[]) if(r.type==='precinct'&&(r.w||1)<2){ const occ=(f,c)=>(g.rooms||[]).some(q=>q!==r&&q.floor===f&&c>=q.col&&c<q.col+(q.w||1)); if(r.col+1<6&&!occ(r.floor,r.col+1)) r.w=2; else if(r.col>0&&!occ(r.floor,r.col-1)){ r.col--; r.w=2; } }
   if(g.inst&&g.inst.law==null) g.inst.law=0;
@@ -1326,7 +1327,7 @@ function dayStep(){
   moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
-  if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection){ election(); G.nextElection=d+4*YEAR; }
+  if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
   if(d%24===0&&G.approval<20&&G.inst.gov<4&&rnd()<.5){
     const c=G.settlers.filter(s=>isAdult(s)&&!s.exp&&s.id!==G.leader).sort((a,b)=>a.happy-b.happy)[0];
     if(c) removeSettler(c,'Left the shelter',true);
@@ -6269,7 +6270,7 @@ function protFac(P){ if(P&&P.party){ const k=P.party; return {id:P.fid,name:PART
 function hallDay(){ if(G.inst.gov<3||AWAY) return; hallsAssign(); if(G.assembly||G.protest) return;
   const L=G.leader&&byId(G.leader), elect=G.nextElection!=null&&G.nextElection-G.day<=5&&G.nextElection>=G.day;
   for(const k of obShuffleSafe(PK)){ const h=hallOf(k), ch=chairOf(k); if(!h||!ch||hallClosed(k)) continue; const M=partyMembers(k).filter(s=>!s.exp&&!s.waiting&&!s.protest); if(M.length<3) continue;
-    if(rnd()>.22) continue; const ap=partyApproval(k)??50; let kind=ap<35&&(L&&L.party!==k)?'march':elect?'rally':G.day-((G.pChairD||{})[k]||0)>=YEAR-2?'meeting':rnd()<.55?'rally':'meeting';
+    if(rnd()>.22) continue; const ap=(partyApproval(k)??50)-((G.pAnger||{})[k]||0)*6; let kind=ap<35&&(L&&L.party!==k)?'march':elect?'rally':G.day-((G.pChairD||{})[k]||0)>=YEAR-2?'meeting':rnd()<.55?'rally':'meeting';
     startAssembly(k,kind,M); break; } }
 function obShuffleSafe(a){ return a.slice().sort(()=>rnd()-.5); }
 function startAssembly(k,kind,M){ const h=hallOf(k), ch=chairOf(k); if(!h||!ch) return; M=M||partyMembers(k).filter(s=>!s.exp&&!s.waiting);
@@ -6296,6 +6297,21 @@ function drawHallDecor(c,r,t){ const k=r.party, P=k&&PARTIES[k], x=roomX(r.col),
   if(hallClosed(k)){ c.strokeStyle='rgba(200,40,30,.9)'; c.lineWidth=4; c.beginPath(); c.moveTo(x+20,top+20); c.lineTo(x+w-20,fl-4); c.moveTo(x+w-20,top+20); c.lineTo(x+20,fl-4); c.stroke(); c.fillStyle='rgba(200,40,30,.95)'; c.fillRect(x+w/2-50,top+8,100,16); c.fillStyle='#fff'; c.fillText('CLOSED BY ORDER',x+w/2,top+19); }
   c.restore(); }
 function hallButtons(k){ if(!hallOf(k)) return ''; return hallClosed(k)?`<button class="btn sm" data-a="hallOpen" data-v="${k}">Reopen hall</button>`:`<button class="btn sm" data-a="hallClose" data-v="${k}" title="Bans this party from assembling for 6 days">Close hall</button>`; }
+
+/* ===== Elections every 2 years; leaders may postpone ===== */
+const ELECT_GAP=2*YEAR;
+function postponeOdds(L){ if(!L) return 0; const d=docOf(L), crisis=!!(G.plague||(G.hostages||[]).length||vaultStress()>.5||(G.defDmg&&G.defDmg.until>G.day));
+  const pa=(()=>{ const C=polAdults().filter(isCitizen); if(!C.length) return .5; let me=0; for(const s of C){ const k=L.party; if(s.party===k) me++; } return me/C.length; })();
+  let p=.04+Math.max(0,d.sec)*.3-Math.max(0,d.open)*.12+(G.approval<45?.22:G.approval<55?.08:0)+(crisis?.2:0)+(pa<.3?.12:0)+Math.min(.15,(G.postponed||0)*.04)+(L.s.C<=4?.05:0);
+  return clamp(p,0,.85); }
+function electionDue(){ const L=G.leader&&byId(G.leader); if(!L||G.forceElect){ G.forceElect=false; holdElection(); return; }
+  if(rnd()<postponeOdds(L)){ const n=G.postponed=(G.postponed||0)+1, d=docOf(L), crisis=G.plague?'the outbreak':(G.hostages||[]).length?'the hostage crisis':vaultStress()>.5?'the state of the vault':null;
+    G.nextElection=G.day+ri(6,12); G.apHit=(G.apHit||0)+2+n;
+    for(const s of polAdults()) if(s.party&&s.party!==L.party) s.loy=Math.max(0,(s.loy||50)-(4+2*Math.min(n,5)));
+    for(const k of PK) if(k!==L.party&&hallOf(k)&&!hallClosed(k)) { /* angry parties more likely to rally or march */ G.pAnger=G.pAnger||{}; G.pAnger[k]=(G.pAnger[k]||0)+1; }
+    polNews(`⚠ ${fullName(L)} POSTPONED the election${crisis?`, citing ${crisis}`:d.sec>.25?', saying the vault needs a firm hand':''}${n>1?` (postponed ${n} times now)`:''}. Rival parties are outraged. It will be reconsidered in about ${G.nextElection-G.day} days. You can order the election held.`); return; }
+  holdElection(); }
+function holdElection(){ election(); G.nextElection=G.day+ELECT_GAP; if(G.postponed){ polNews(`The long-delayed election was finally held after ${G.postponed} postponement${G.postponed>1?'s':''}.`); } G.postponed=0; G.pAnger={}; }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -6739,7 +6755,7 @@ function renderCouncil(){
   h+=ldr?`<div class="row"><button class="link" data-a="open" data-id="${ldr.id}">${esc(fullName(ldr))}</button><span class="num" style="color:var(--muted)">C ${ldr.s.C} · I ${ldr.s.I}</span></div><p class="lede" style="font-size:12px">Style: <b>${docLabel(docOf(ldr))}</b>. The leader makes calls that fit this style; populists follow the mood, principled leaders stick to their line, technocrats go by results.</p>`:`<p class="lede">The seat is empty.</p>`;
   if(gv<3){ const c=G.settlers.filter(s=>isAdult(s)&&!s.exp&&isCitizen(s)).sort((a,b)=>b.s.C-a.s.C);
     h+=`<div class="row"><label for="appoint">Overseer: appoint</label><select id="appoint" data-c="appoint"><option value="">Choose a settler…</option>${c.map(s=>`<option value="${s.id}" ${s.id===G.leader?'selected':''}>${esc(fullName(s))} (C ${s.s.C})</option>`).join('')}</select></div>`; }
-  else { h+=`<p class="lede">Next election in ${Math.max(0,G.nextElection-G.day)} days.</p>`; if(G.lastElection) h+=`<div class="pick">${G.lastElection.results.map(r=>`<div class="cand"><span>${esc(r.name)}${r.party&&PARTIES[r.party]?` <b style="color:${PARTIES[r.party].c};font-size:11px">${PARTIES[r.party].s.replace(/s$/,'')}</b>`:''}</span><span class="num">${Math.round(r.share*100)}%</span></div>`).join('')}</div>`; }
+  else { h+=`<p class="lede">${G.postponed?`<b style="color:var(--danger)">Election postponed ${G.postponed} time${G.postponed>1?'s':''} by the leader.</b> Reconsidered in ${Math.max(0,G.nextElection-G.day)} days.`:`Next election in ${Math.max(0,G.nextElection-G.day)} days (every ${ELECT_GAP} days).`} ${ldr?`Chance ${esc(ldr.first)} postpones it: about ${Math.round(postponeOdds(ldr)*100)}%.`:''}</p><div class="row"><button class="btn sm" data-a="electNow" title="Overrule the leader: the election is held at the next day change, no postponing">${G.forceElect?'✓ Election ordered for tomorrow':'Order the election held'}</button></div>`; if(G.lastElection) h+=`<div class="pick">${G.lastElection.results.map(r=>`<div class="cand"><span>${esc(r.name)}${r.party&&PARTIES[r.party]?` <b style="color:${PARTIES[r.party].c};font-size:11px">${PARTIES[r.party].s.replace(/s$/,'')}</b>`:''}</span><span class="num">${Math.round(r.share*100)}%</span></div>`).join('')}</div>`; }
   h+='</div>';
   h+=unrestBox()+leaderBox()+citBox()+councilBox();
   const slots=SLOTS[gv]||0;
@@ -7106,6 +7122,7 @@ document.addEventListener('click',e=>{
     case 'plTreat': if(G.plague){ G.plague.treat=!G.plague.treat; log(`🦠 Treatment with meds ${G.plague.treat?'started':'stopped'}.`,'gov'); save(); } break;
     case 'hallClose': G.hallClosed=G.hallClosed||{}; G.hallClosed[el.dataset.v]=G.day+6; for(const s of partyMembers(el.dataset.v)) s.loy=Math.max(0,(s.loy||50)-6); if(G.assembly&&G.assembly.party===el.dataset.v) G.assembly=null; polNews(`On the Overseer’s order, the ${PARTIES[el.dataset.v].n} hall was closed for 6 days. Members are angry.`); save(); break;
     case 'hallOpen': if(G.hallClosed) G.hallClosed[el.dataset.v]=0; polNews(`On the Overseer’s order, the ${PARTIES[el.dataset.v].n} hall was reopened.`); for(const s of partyMembers(el.dataset.v)) s.loy=Math.min(100,(s.loy||50)+3); save(); break;
+    case 'electNow': if(G.inst.gov>=3){ G.forceElect=true; G.nextElection=Math.min(G.nextElection??G.day+1,G.day+1); polNews('On the Overseer’s order, the election will be held tomorrow. No postponing.'); save(); } break;
     case 'citGrant': { const s=byId(id); if(s) grantCit(s,'granted by the Overseer'); save(); break; }
     case 'citDeny': { const s=byId(id); if(s) denyCit(s); save(); break; }
     case 'citArrest': { const s=byId(id); if(s) arrestNC(s,true); save(); break; }
@@ -7234,7 +7251,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
