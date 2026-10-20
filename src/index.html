@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.0</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.1</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1474,12 +1474,12 @@ function startFight(){
     for(let j=0;j<2;j++){ const hp=48*(.85+rnd()*.3); foes.push({s:mkRaider(2),a:{x:worldW+30+(foes.length)*26,y:lvlY(-1),l:-1,dir:-1,ph:rnd()*6,pose:'walk',off:foes.length},tx:doorX+260+foes.length*24,hp,max:hp,dmg:5.4,tier:2,dead:false,fade:0,W:ITEMS[pick(RWEAP[2])]}); } }
   const arm=[...G.rooms.filter(x=>x.type==='entrance'),...G.rooms.filter(x=>x.type==='armory')].flatMap(workers).filter(s=>!s.exp&&isAdult(s)&&!s.preg);
   const rest=adults.filter(s=>!arm.includes(s)&&s.health>30&&!s.waiting&&!s.milLeave&&s.id!==G.leader).sort((a,b)=>milRank(a)-milRank(b)||memberPow(b)-memberPow(a));
-  const def=[...arm,...rest].slice(0,clamp(n+1+(boss?3:0),2,boss?8:5)).map(s=>s.id);
+  const def=boss?G.rooms.filter(x=>x.type==='entrance').flatMap(workers).filter(s=>!s.exp&&isAdult(s)&&!s.preg).map(s=>s.id):[...arm,...rest].slice(0,clamp(n+1,2,5)).map(s=>s.id); const resp=boss?G.settlers.filter(s=>(isSoldier(s)||isOfficer(s))&&!s.exp&&isAdult(s)&&s.health>18&&!def.includes(s.id)).map(s=>s.id):[];
   const fac=pickFaction(); fac.raids++; for(const f of foes){ f.fac=fac.id; f.s.L=`fx${fac.id}_${f.tier}`; } if(boss) foes[0].s.L='raider2'; regFactionLooks();
   let name=fac.name;
   if(boss) name=`${bossName(boss)}’s horde`;
   else if(G.bos&&((tier>=1&&rnd()<.3)||window.__forceWar)){ const wl=warlordFree(); if(wl.length){ const [key,first,last,crime]=pick(wl), f=foes[0]; f.s.first=first; f.s.last=last; f.s.born=G.day-ri(50,62)*YEAR; f.s.look.style='part'; f.s.look.hair='#5a4a3a'; f.s.look.beard=false; f.war=key; f.crime=crime; f.s.L='raider2'; f.hp=f.max=f.hp*2.2; f.dmg*=1.4; f.W=ITEMS[pick(RWEAP[2])]; name=`${first} ${last}’s warband`; } }
-  FIGHT={tier:boss?2:tier,foes,def,clock:0,next:1,hurt:{},done:false,name,fac:fac.id,boss:boss?bossName(boss):null}; if(boss){ polNews(`☠ BOSS RAID: ${bossName(boss)} is leading a horde against the shelter!`); }
+  FIGHT={tier:boss?2:tier,foes,def,resp,stage:'door',clock:0,next:1,hurt:{},done:false,name,fac:fac.id,boss:boss?bossName(boss):null}; if(boss){ polNews(`☠ BOSS RAID: ${bossName(boss)} is leading a horde against the shelter! The entrance guards go out to meet them; ${resp.length} soldiers and police hold the entrance inside.`); }
   log(`${name} (${n}) ${name.includes('’s')?'is':'are'} coming for the door. ${def.map(id=>byId(id).first).join(', ')} went up to meet them.${vs>=.33?' The shelter is battered, so it is a smaller group than usual.':''}`,'danger');
   toast(`${name} at the door!`);
 }
@@ -1496,17 +1496,18 @@ function updateFight(dt,t){
   const now=Date.now();
   if(!FIGHT){ if(G.session&&!G.vacation&&!G.over&&now>=G.session.nextAtk&&!G.burial&&!cmsOn()&&!G.trader){ G.session.nextAtk=now+ri(9,18)*60000*(1+1.5*vaultStress()); startFight(); } return; }
   const F=FIGHT; FX.alarm=Math.max(FX.alarm,.5);
+  if(F.boss&&F.stage&&F.stage!=='door'){ bossInsideStep(dt); return; }
   for(const f of F.foes){ const a=f.a; a.recoil=Math.max(0,(a.recoil||0)-dt*5); if(f.dead){ f.fade-=dt; continue; } const d=f.tx-a.x; if(Math.abs(d)>1){ a.x+=Math.sign(d)*Math.min(Math.abs(d),62*dt); a.pose='walk'; a.ph+=dt*9; } else a.pose='guard'; a.dir=-1; }
   const arrived=F.foes.some(f=>!f.dead&&Math.abs(f.a.x-f.tx)<=1);
   F.def=F.def.filter(id=>{ const s=byId(id); return s&&!s.exp&&s.health>18; });
   const ready=F.def.filter(id=>{ const a=AG.get(id); return a&&!a.hidden&&a.l===-1&&!(a.path&&a.path.length); });
   F.clock+=dt;
-  if(F.boss&&arrived&&F.clock>=(F.nextSiege||5)&&(F.sieged||0)<2&&F.foes.some(f=>f.boss&&!f.dead)){ F.nextSiege=F.clock+9; F.sieged=(F.sieged||0)+1; damageRooms(1,F.boss); }
   if(arrived&&F.clock>=F.next){ F.next=F.clock+.8;
     for(const id of ready){ const live=F.foes.filter(f=>!f.dead); if(!live.length) break; const s=byId(id); if(!s) continue; const tg=pick(live), d=memberPow(s)*.55*(.7+rnd()*.6)*milFight(s); tg.hp-=d*(tg.boss?.7:1); muzzle(AG.get(id),1,gearOf(s,'w'),tg.a); FXL.push({x:tg.a.x,y:tg.a.y-72,txt:'-'+Math.round(d),col:'#ffd76a',life:1.1,max:1.1,vy:-18}); if(tg.hp<=0){ tg.dead=true; tg.fade=2.6; } }
     if(ready.length) for(const f of F.foes){ if(f.dead) continue; const id=pick(ready), s=byId(id); if(!s||!G.settlers.includes(s)) continue; if(rnd()<.25) continue; const d=raidHit(s,f); hurtSettler(s,d,'Raid injuries'); if(!G.settlers.includes(s)){ F.def=F.def.filter(x=>x!==id); const ri_=ready.indexOf(id); if(ri_>=0) ready.splice(ri_,1); if(!ready.length) break; continue; } F.hurt[id]=1; FX.text(id,'-'+Math.round(d),'#ff7d72'); muzzle(f.a,-1,f.W,AG.get(id)); }
   }
   if(F.foes.every(f=>f.dead)){ if(!F.done){ F.done=true; winFight(); } if(F.foes.every(f=>f.fade<=0)) FIGHT=null; }
+  else if(F.boss&&arrived&&F.foes.some(f=>f.boss&&!f.dead)&&(!F.def.length||F.clock>35)){ startBreach(); }
   else if(arrived&&!ready.length&&!F.def.length){ F.lose=(F.lose||0)+dt; if(F.lose>3){ loseFight(); FIGHT=null; } }
 }
 function winFight(){ CHEER=performance.now()+4500;
@@ -1523,7 +1524,7 @@ function winFight(){ CHEER=performance.now()+4500;
   if(G.session) G.session.fights=(G.session.fights||0)+1; raidCasualties(F); save();
 }
 function loseFight(){ if(FIGHT&&FIGHT.boss) bossAftermath(FIGHT.boss,false); const F=FIGHT, f=[.06,.1,.15][F.tier], lc=Math.round(G.res.caps*f), lf=Math.round(G.res.food*f*.6); G.res.caps-=lc; G.res.food-=lf; log(`${F.name} got past the defenders and ran off with ${lc} caps and ${lf} food.`,'danger'); if(F.foes.some(f=>f.war)) log('Their leader is still out there and may return.','danger'); toast('Raiders got through.'); { const nb2=raiderBodies(F); if(F.fac) factionLoss(F.fac,nb2,0); milFightXP(F,false); } raidCasualties(F); save(); }
-function raiderBodies(F){ let n=0; for(const f of F.foes){ if(!f.dead||f.captured||f.war) continue; f.fade=0; addBody({kind:'raider',s:f.s,Lk:f.s.L,x:f.a.x,l:-1,dir:-1,loot:raiderLoot(f)}); n++; } return n; }
+function raiderBodies(F){ let n=0; for(const f of F.foes){ if(!f.dead||f.captured||f.war) continue; f.fade=0; addBody({kind:'raider',s:f.s,Lk:f.s.L,x:f.a.x,l:f.a.l??-1,dir:-1,loot:raiderLoot(f)}); n++; } return n; }
 // how hard a raider hits this defender: unarmed and unarmored settlers take far more, and tougher raids hit harder
 function raidHit(s,f){ const w=gearOf(s,'w'), o=gearOf(s,'o'); let d=f.dmg*(.6+rnd()*.7)*(G.inst.def>=2?.75:1);
   if(!w) d*=1.25+.15*f.tier; if(!o) d*=1.15+.1*f.tier; else d*=1-Math.min(.45,(o.tier||0)*.07+(bonusOf(s,'E')||0)*.03);
@@ -1549,7 +1550,7 @@ function drawFoes(c,t){
   for(const f of FIGHT.foes){ const a=f.a;
     if(f.dead){ if(f.fade<=0) continue; c.save(); c.globalAlpha=clamp(f.fade,0,1); c.translate(a.x,a.y); c.rotate(1.45); drawPerson(c,{x:0,y:0,dir:-1,ph:0,pose:'stand',off:0},f.s,t,{noBadge:true,noShadow:true,L:LOOKS[f.s.L],W:null,angry:true}); c.restore(); continue; }
     drawPerson(c,a,f.s,t,{noBadge:true,L:LOOKS[f.s.L],W:f.W,hold:true,angry:true});
-    if(f.war){ c.font='bold 8px Archivo, sans-serif'; c.textAlign='center'; c.fillStyle='rgba(20,17,15,.85)'; const tw=c.measureText(f.s.first+' '+f.s.last).width+8; c.fillRect(a.x-tw/2,a.y-100,tw,11); c.fillStyle='#ff8a7a'; c.fillText(f.s.first+' '+f.s.last,a.x,a.y-92); }
+    if(f.war||f.boss){ c.font='bold 8px Archivo, sans-serif'; c.textAlign='center'; c.fillStyle='rgba(20,17,15,.85)'; const tw=c.measureText(f.s.first+' '+f.s.last).width+8; c.fillRect(a.x-tw/2,a.y-100,tw,11); c.fillStyle='#ff8a7a'; c.fillText(f.s.first+' '+f.s.last,a.x,a.y-92); }
     const bw=26, y=a.y-82; c.fillStyle='rgba(20,17,15,.8)'; c.fillRect(a.x-bw/2-1,y-1,bw+2,5); c.fillStyle='#e8624f'; c.fillRect(a.x-bw/2,y,bw*clamp(f.hp/f.max,0,1),3);
   }
 }
@@ -1560,7 +1561,7 @@ function renderSession(){
   const parts=[got.anki?`${got.anki} reviews`:'',got.q?`${got.q} questions`:'',got.min?`${got.min} min other`:''].filter(Boolean).join(' · ')||'Nothing logged yet';
   const F=FIGHT, live=F?F.foes.filter(f=>!f.dead).length:0;
   const h=`<div class="sh"><span class="dot"></span><b>Study session</b><span class="num">${hm(mins)}</span><span class="muted">${parts}${S.fights?` · ${S.fights} raid${S.fights>1?'s':''} repelled`:''}</span><span class="sgrow"></span><button class="btn sm" data-a="sessLog">Log study</button><button class="btn sm" data-a="sessExp">Launch expedition</button>${G.cms?'':'<button class="btn sm" data-a="cmsStart">CMS form</button>'}<button class="btn sm" data-a="obOpen" data-v="list">🩺 OB/GYN orals</button><button class="btn sm" data-a="session">End session</button></div>`+
-    (G.cms?cmsBanner():F&&live?`<div class="alertline"><b style="font-size:14px">${F.name} at the door</b><span>${live} left · Defending: ${F.def.map(id=>byId(id)&&byId(id).first).filter(Boolean).join(', ')||'nobody'}</span><button class="btn sm" data-a="watchFight">Watch</button></div>`:
+    (G.cms?cmsBanner():F&&live?`<div class="alertline"><b style="font-size:14px">${F.name} ${F.stage==='breach'?'is INSIDE the vault':F.stage==='retreat'?'is pulling back':'at the door'}</b><span>${live} left · Defending: ${F.def.map(id=>byId(id)&&byId(id).first).filter(Boolean).join(', ')||'nobody'}</span><button class="btn sm" data-a="watchFight">Watch</button></div>`:
      `<div class="muted" style="font-size:12px">Raiders may test the door while you study. Armory guards and your best-armed settlers go up to fight.</div>`);
   if(el._h===h) return; el._h=h; el.className='sess'; el.innerHTML=h;
 }
@@ -1761,6 +1762,7 @@ function targetFor(s,a,t){
   { const et=emTarget(s); if(et) return et; }
   { const st=surgTarget(s); if(st) return st; }
   { const it=intakeTarget(s,a); if(it) return it; }
+  if(FIGHT&&FIGHT.boss){ const bt=bossRespTarget(s); if(bt) return bt; }
   if(FIGHT){ const di=FIGHT.def.indexOf(s.id); if(di>=0) return {x:doorX+70+di*17,l:-1,pose:'guard',face:1};
     if(s.preg||!isAdult(s)){ const qs=G.rooms.filter(r=>r.type==='quarters').sort((x,y)=>y.floor-x.floor); const r=qs[0]||G.rooms.slice().sort((x,y)=>y.floor-x.floor)[0]; if(r) return {x:roomX(r.col)+30+(s.id%5)*18,l:r.floor,pose:'sit',face:s.id%2?1:-1}; } }
   if(isOfficer(s)&&!s.room&&s.id!==G.leader&&!s.waiting&&!FIGHT){ const hp=hallPatrol(s,a,t); if(hp) return hp; }
@@ -6022,7 +6024,7 @@ function sprintDone(){ const S=G.sprint; if(!S) return; const sec=Math.max(1,(Da
   log(`⏱ Anki sprint: ${S.n} cards in ${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')} (${per.toFixed(1)} s/card).${got.length?' '+got.join(', ')+'.':''}`,'study'); toast(`Sprint done: ${per.toFixed(1)} s/card${got.length?' · '+got[0]:''}`); save(); }
 
 /* ===== Phase 2: boss raids ===== */
-const BOSSES=[['Kostolom','the Bonebreaker'],['Mother','Rust'],['Gvozdeni','Vuk'],['the Butcher','of the Dam'],['Sister','Cinder'],['Old','Grmalj'],['Baba','Smrt'],['the Scrap','King']];
+const BOSSES=[['Kostolom','the Bonebreaker'],['Mother','Rust'],['Gvozdeni','Vuk'],['The Butcher','of the Dam'],['Sister','Cinder'],['Old','Grmalj'],['Baba','Smrt'],['The Scrap','King']];
 const bossName=b=>`${b[0]} ${b[1]}`;
 function bossReady(){ return G.bos!==false&&G.day>=20&&(G.lastBoss==null||G.day-G.lastBoss>=30)&&G.settlers.filter(isAdult).length>=8; }
 const roomDmg=r=>r&&r.dmgUntil&&r.dmgUntil>G.day;
@@ -6040,7 +6042,7 @@ function drawRoomDamage(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=r
   for(let q=0;q<4;q++){ const ph=(t*.25+q*.27+r.id*.13)%1, px=x+40+((r.id*53+q*97)%Math.max(40,w-80)); c.fillStyle=`rgba(80,74,70,${.35*(1-ph)})`; c.beginPath(); c.arc(px+Math.sin(t+q)*6,top+h-20-ph*60,8+ph*14,0,TAU); c.fill(); }
   c.fillStyle='rgba(180,40,30,.9)'; c.fillRect(x+w-112,top+6,104,16); c.fillStyle='#fff'; c.font='bold 10px Archivo, sans-serif'; c.textAlign='center'; c.fillText(`DAMAGED · ${r.dmgUntil-G.day}d`,x+w-60,top+17); c.restore(); }
 function bossLoot(){ const c=ri(150,320); G.res.caps+=c; const t=rnd()<.25?4:3; const ks=lootKeys().filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); const k=ks.length?pick(ks):null; if(k) addItem(k); G.res.stims=Math.min(stimCap(),G.res.stims+2); return `${c} caps, 2 stims${k?`, a ${TIERS[t].toLowerCase()} ${ITEMS[k].name}`:''}`; }
-function takeHostage(bn){ const pool=G.settlers.filter(s=>isAdult(s)&&!s.exp&&!s.preg&&s.id!==G.leader&&!s.detained); if(!pool.length) return null; const s=pick(pool);
+function takeHostage(bn,pool0){ const pool=pool0||G.settlers.filter(s=>isAdult(s)&&!s.exp&&!s.preg&&s.id!==G.leader&&!s.detained); if(!pool.length) return null; const s=pick(pool);
   unassign(s); s.exp='hostage'; const ransom=Math.max(150,Math.round(G.res.caps*.3)); G.hostages=G.hostages||[]; G.hostages.push({sid:s.id,boss:bn,since:G.day,until:G.day+8,ransom});
   const L=G.leader&&byId(G.leader); let sug=''; if(L&&G.inst.gov>=1){ const d=docOf(L); sug=d.sec>.25?`${L.first} wants a rescue mission.`:d.open>.25||d.sec<-.25?`${L.first} wants to pay the ransom.`:`${L.first} is weighing ransom against a rescue.`; }
   polNews(`${bn} dragged ${fullName(s)} out of the shelter as a hostage. Ransom: ${ransom} caps within 8 days. ${sug}`); return s; }
@@ -6059,7 +6061,7 @@ function hostageRescue(sid){ const h=(G.hostages||[]).find(x=>x.sid===sid); if(!
   else { log(`The rescue team (${team.map(s=>s.first).join(', ')}) was driven back.`,'danger'); if(rnd()<.35) hostageEnd(h,'dead'); }
   critAftermath(team); save(); }
 function hostageDay(){ for(const h of (G.hostages||[]).slice()){ if(rnd()<.04){ hostageEnd(h,'escaped'); continue; } if(G.day>=h.until){ if(rnd()<.6) hostageEnd(h,'dead'); else { const s=byId(h.sid); G.hostages=G.hostages.filter(x=>x!==h); if(s){ s.exp=null; removeSettler(s,`Taken away by ${h.boss}`,true); log(`Nobody came for ${fullName(s)}. ${h.boss} took them away for good.`,'death'); } } } } }
-function bossAftermath(bn,won){ G.lastBoss=G.day; G.defDmg={m:won?.25:.5,until:G.day+(won?4:8)}; damageRooms(won?1:ri(2,3),bn);
+function bossAftermath(bn,won){ G.lastBoss=G.day; G.defDmg={m:won?.25:.5,until:G.day+(won?4:8)};
   log(`Defenses were badly damaged by ${bn}: ${won?'−25%':'−50%'} for ${won?4:8} days.`,'danger'); if(!won) takeHostage(bn); }
 /* ===== Phase 2: plagues ===== */
 const PLAGUES=['Red cough','Dust fever','Vault flu','Rat fever','Grey pox','Sweating sickness'];
@@ -6093,6 +6095,49 @@ function plagueDay(){ const P=G.plague; if(!P){ plagueCheck(); return; }
 function plagueBox(){ const P=G.plague; if(!P) return ''; const sick=G.settlers.filter(s=>s.sick);
   return `<div class="box" style="border-color:#7fc96a"><h4>🦠 Outbreak · ${esc(P.name)} · ${SEV[P.sev]}</h4><p class="lede" style="font-size:12px">${sick.length} sick now (${sick.slice(0,8).map(s=>s.first).join(', ')}${sick.length>8?'…':''}) · ${P.total} total · ${P.dead} dead · day ${G.day-P.day0+1}. Sick settlers work at 60%. Preparedness ${plaguePrep()}/4 (staffed clinic, Health level 2+, 10+ stims, a Medbay).</p>
   <div class="row"><button class="btn sm ${P.quar?'pri':''}" data-a="plQuar">${P.quar?'✓ Quarantine on':'Quarantine'}</button><button class="btn sm ${P.treat?'pri':''}" data-a="plTreat">${P.treat?'✓ Treating with meds':'Treat with meds'}</button></div><p class="lede" style="font-size:11px">Quarantine cuts spread a lot but lowers everyone’s mood. Treatment uses meds each day and speeds recovery.</p></div>`; }
+
+/* ===== Boss breach: the horde can break into the vault ===== */
+const BREACH_FLOORS=3;
+function entRoom(){ return G.rooms.find(r=>r.type==='entrance')||null; }
+function roomMid(r){ return roomX(r.col)+roomW(r)/2; }
+function foeGo(f,l,x){ f.path=routeVia(f.a.l,f.a.x,f.a.y,l,x,lvlY(l)); f.dest={l,x}; }
+function foeStep(f,dt){ const a=f.a; if(!f.path||!f.path.length){ a.pose='guard'; return true; } const w=f.path[0];
+  if(w.lift){ const dy=w.y-a.y; if(Math.abs(dy)>1){ a.y+=Math.sign(dy)*Math.min(Math.abs(dy),110*dt); a.x=w.x; a.pose='stand'; return false; } a.y=w.y; a.l=w.l; f.path.shift(); return false; }
+  const dx=w.x-a.x; if(Math.abs(dx)>1){ a.x+=Math.sign(dx)*Math.min(Math.abs(dx),62*dt); a.dir=Math.sign(dx); a.pose='walk'; a.ph+=dt*9; return false; } f.path.shift(); return !f.path.length; }
+function bossRespTarget(s){ const F=FIGHT; if(!F||!F.boss||!F.resp||!F.resp.includes(s.id)||F.stage==='retreat') return null; const i=F.resp.indexOf(s.id);
+  const r=F.stage==='breach'&&F.front?roomById(F.front):entRoom(); if(!r) return null; const side=F.stage==='breach'?-(F.dir||1):1;
+  return {x:clamp(roomMid(r)+side*(40+(i%6)*15),roomX(r.col)+14,roomX(r.col)+roomW(r)-14),l:r.floor,pose:'guard',face:-side}; }
+function startBreach(){ const F=FIGHT, e=entRoom(); if(!e){ bossRetreat('no way in'); return; } F.stage='breach'; F.breachT=F.clock; F.visited=[]; F.deep=e.floor; F.empty=0;
+  polNews(`☠ ${F.boss}’s horde has BROKEN INTO THE VAULT through the ${ROOMS[e.type].name}! Everyone inside will have to fight.`); toast(`${F.boss} broke in!`); FX.alarm=1; bossAdvance(e); }
+function bossAdvance(r){ const F=FIGHT; if(!r){ bossRetreat('reached as far as they dared'); return; } F.front=r.id; F.visited.push(r.id); F.empty=0; F.deep=Math.max(F.deep,r.floor);
+  const live=F.foes.filter(f=>!f.dead), mid=roomMid(r); F.dir=Math.sign(mid-(live[0]?live[0].a.x:mid))||1; live.forEach((f,j)=>foeGo(f,r.floor,mid+(j-live.length/2)*14));
+  if(F.visited.length>1) log(`☠ The horde pushed into the ${ROOMS[r.type].name} (floor ${r.floor+1}).`,'danger'); }
+function bossNextRoom(){ const F=FIGHT, e=entRoom(), cur=roomById(F.front); if(!e||!cur) return null; const maxF=e.floor+BREACH_FLOORS-1;
+  const c=G.rooms.filter(r=>!F.visited.includes(r.id)&&r.floor>=e.floor&&r.floor<=maxF&&r.type!=='entrance'); if(!c.length||F.visited.length>=7) return null;
+  return c.sort((a,b)=>((a.floor===cur.floor?0:1)*5000+Math.abs(a.floor-cur.floor)*1500+Math.abs(roomMid(a)-roomMid(cur)))-((b.floor===cur.floor?0:1)*5000+Math.abs(b.floor-cur.floor)*1500+Math.abs(roomMid(b)-roomMid(cur))))[0]; }
+function bossInsideStep(dt){ const F=FIGHT; F.clock+=dt; FX.alarm=Math.max(FX.alarm,.7);
+  const live=F.foes.filter(f=>!f.dead); for(const f of F.foes){ f.a.recoil=Math.max(0,(f.a.recoil||0)-dt*5); if(f.dead){ f.fade-=dt; continue; } foeStep(f,dt); }
+  if(F.stage==='retreat'){ if(live.every(f=>!f.path||!f.path.length)||F.clock-F.retreatT>25){ FIGHT=null; save(); } return; }
+  if(!live.length){ if(!F.done){ F.done=true; winFight(); } if(F.foes.every(f=>f.fade<=0)) FIGHT=null; return; }
+  const boss=F.foes.find(f=>f.boss), hp=live.reduce((a,f)=>a+f.hp,0), mx=F.foes.reduce((a,f)=>a+f.max,0);
+  if(hp/mx<.3||(boss&&!boss.dead&&boss.hp<boss.max*.3)||F.clock-F.breachT>150){ bossRetreat(boss&&!boss.dead&&boss.hp<boss.max*.3?`${F.boss} was badly wounded`:'they had taken too many losses'); return; }
+  const arrived=live.filter(f=>!f.path||!f.path.length); if(!arrived.length) return;
+  const L=arrived[0].a.l, X=arrived.reduce((a,f)=>a+f.a.x,0)/arrived.length;
+  const eng=G.settlers.filter(s=>{ if(!isAdult(s)||s.exp||s.preg||s.health<=12) return false; const a=AG.get(s.id); return a&&!a.hidden&&a.l===L&&Math.abs(a.x-X)<170&&!(a.path&&a.path.length>1); });
+  if(!eng.length){ F.empty+=dt; if(F.empty>2.5) bossAdvance(bossNextRoom()); return; } F.empty=0;
+  if(F.clock<(F.next||0)) return; F.next=F.clock+.8;
+  for(const s of eng){ const al=live.filter(f=>!f.dead); if(!al.length) break; const armed=!!gearOf(s,'w'), resp=F.resp.includes(s.id); if(!armed&&!resp&&rnd()<.5) continue;
+    const tg=pick(al), d=memberPow(s)*.55*(.7+rnd()*.6)*milFight(s)*(armed?1:.35); tg.hp-=d*(tg.boss?.7:1); muzzle(AG.get(s.id),Math.sign(tg.a.x-AG.get(s.id).x)||1,gearOf(s,'w'),tg.a);
+    FXL.push({x:tg.a.x,y:tg.a.y-72,txt:'-'+Math.round(d),col:'#ffd76a',life:1.1,max:1.1,vy:-18}); if(tg.hp<=0){ tg.dead=true; tg.fade=2.6; } F.met=F.met||{}; F.met[s.id]=1; }
+  for(const f of live){ if(f.dead||rnd()<.25) continue; const s=pick(eng); if(!G.settlers.includes(s)) continue; const d=raidHit(s,f); hurtSettler(s,d,'Raid injuries'); F.hurt[s.id]=1; muzzle(f.a,Math.sign((AG.get(s.id)||f.a).x-f.a.x)||-1,f.W,AG.get(s.id)); if(G.settlers.includes(s)) FX.text(s.id,'-'+Math.round(d),'#ff7d72'); } }
+function bossRetreat(why){ const F=FIGHT; if(!F||F.stage==='retreat') return; F.stage='retreat'; F.retreatT=F.clock; const boss=F.foes.find(f=>f.boss);
+  const lc=Math.round(G.res.caps*.15), lf=Math.round(G.res.food*.15); G.res.caps-=lc; G.res.food-=lf;
+  let hostage=null; if(boss&&!boss.dead){ const met=Object.keys(F.met||{}).map(id=>byId(+id)).filter(s=>s&&isAdult(s)&&!s.exp&&!s.preg&&s.id!==G.leader); const cur=F.front&&roomById(F.front); const pool=met.length?met:(cur?workers(cur).filter(s=>isAdult(s)&&!s.preg&&s.id!==G.leader):[]); hostage=takeHostage(F.boss,pool.length?pool:null); }
+  const e=entRoom(), deep=e?F.deep-e.floor+1:0;
+  log(`☠ ${F.boss}’s horde pulled back (${why})${F.stage&&deep?` after reaching floor ${F.deep+1}`:''}. They took ${lc} caps and ${lf} food${hostage?` and dragged ${fullName(hostage)} away as a hostage`:''}.`,'danger');
+  for(const f of F.foes) if(!f.dead) foeGo(f,-1,worldW+60);
+  const nb=raiderBodies(F); if(F.fac) factionLoss(F.fac,nb,0); milFightXP(F,false); G.lastBoss=G.day; G.defDmg={m:.35,until:G.day+6};
+  if(G.session) G.session.nextAtk=Date.now()+ri(20,35)*60000; raidCasualties(F); save(); }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -7029,7 +7074,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
