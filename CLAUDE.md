@@ -12,14 +12,11 @@
 - Build: `python3 tools/build_desktop.py` wraps `src/index.html` with a document shell and the boot screen into `desktop/app/index.html`; copy it to the Mac's `app/index.html` to update.
 - The artifact build (src/index.html) is still published to the artifact link and keeps working on its own.
 
-# Idea board (not built yet)
-- Political parties (Communist / Capitalist / Nationalist / Civic) layered over factions; faith designation (M/C/O/X) feeds mild voting tendencies.
-- Plagues/pandemics (1–7 deaths by severity and preparedness).
-- Rarer Legendary/Mythic MVP spawns.
-- Occasional boss raids that badly damage defense.
-- Career health: frontline injuries shorten lifespan / slow healing / can kill.
-- Timed Anki mode (start button; 10/20/50-card sprints).
-- Intelligence agency: small corps of agents (smaller than police/military), surveillance, plot detection, counter-coup, can be abused by leaders.
+# Roadmap (agreed with the player; one step per update)
+- DONE v7.9 Phase 1: rarer MVPs, timed Anki sprints (sprintBox, G.sprint/G.sprintPB), career health (s.wear, addWear/wearDay/wearCap/wearBox), citizenship path chosen at entry (s.citTrack 'auto'|'review'; ex-inmates/detained non-citizens forced to review).
+- Phase 2: boss raids (named warlord assaults, heavy defense/room damage, hostages, big loot) → plagues (severity tiers, spread by crowding/clinic/medbay/stims, 1–7 deaths, leader picks quarantine/treatment).
+- Phase 3 politics: parties step 1 (compass economy×identity, 4 parties, membership/drift/switching, display only) → parties step 2 (chairs, party elections, party approval) → faith effects (M/C/O/X mild voting tendencies) → intelligence agency (agents, surveillance, plot detection, abuse) → party-driven coups/assassinations/rebellions (death caps).
+- Anytime: remove OB/GYN mode after the exam (keep loot defs); performance check at parties step 1.
 
 # Temporary
 - OB/GYN Oral Boards (v7.5) + "Operation Delivery Room" expansion (v7.6) + oral-exam format with rubric scoring and mock exams (v7.7; data in OB_EX) + oral exam codes graded by Claude in chat (v7.8; generate with `node tools/ob_code.js <topicIdx> DA PS MG CK critMissed harmful`, topic order = OB_TOPICS) live between `/* ===== OB/GYN ORAL BOARDS` and `END OB/GYN ORAL BOARDS ===== */` in src/index.html. Hooks outside the block: session button + obBox (study tab), `m.t==='ob'` modal, ob* click cases, gearHead OBM_DRAW/OBH_DRAW hooks, hijab/surgcap in COVERS_HAIR + gearHeadBack, mask accessory slot `gear.a` (holderOf/equip/gearItems/bonusOf/lookOf/slotTile/pickerHTML/aitem canvas/storage filter), `lootKeys()` (excludes `ITEMS[k].ob` from all other loot), removeSettler cause 'Died in the ruined hospital'. Each case = expedition (s.exp='ob', back 2 min after finishing). Exclusive loot (ob_/obm_/obw_) stays in saves even after removing the mode — keep the item/look/mask/hat defs if the mode is removed.

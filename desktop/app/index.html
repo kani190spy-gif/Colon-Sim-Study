@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.8</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v7.9</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -739,7 +739,7 @@ const MVP_GEAR={foot:['o_zmaj'],coach:['o_zmaj','o_administrator'],sport:['o_fro
 function mvpFree(){ const used=new Set([...(G.mvpUsed||[]),...G.gate.filter(v=>v.s.mvp).map(v=>v.s.mvp),...G.settlers.filter(s=>s.mvp).map(s=>s.mvp)]); return MVPS.filter(m=>!used.has(m[0])); }
 function mkMVP(note){
   const pool=mvpFree(); if(!pool.length) return null;
-  const wts=pool.map(m=>MYTHIC.has(m[0])?.4:1); let q=rnd()*wts.reduce((a,b)=>a+b,0), mi=0; for(;mi<pool.length-1;mi++){ q-=wts[mi]; if(q<0) break; }
+  const wts=pool.map(m=>MYTHIC.has(m[0])?.15:1); let q=rnd()*wts.reduce((a,b)=>a+b,0), mi=0; for(;mi<pool.length-1;mi++){ q-=wts[mi]; if(q<0) break; }
   const [key,first,last,sex,title,kind,st,ar,lk]=pool[mi], myth=MYTHIC.has(key);
   const s=mkSettler({sex,first,last,born:G.day-ri(ar[0],ar[1])*YEAR-ri(0,YEAR-1),eth:'bs'});
   STATS.forEach(k=>s.s[k]=Math.max(st[k]||0,ri(4,6))); if(myth) STATS.forEach(k=>s.s[k]=Math.min(10,st[k]?st[k]+1:Math.max(s.s[k],6))); s.pre=rnd()<.15?s.pre:null; s.chronic=null; s.mvp=key; s.title=title; s.happy=80;
@@ -749,7 +749,7 @@ function mkMVP(note){
   const ok=MVP_GEAR[kind].filter(k=>ITEMS[k]);
   return {s,expires:G.day+45,gear:{w,o:key==='tito'?'o_marshal':ok.length?pick(ok):undefined},mvp:true};
 }
-function bosVisitor(note){ if(G.bos&&rnd()<.06+.04*(typeof radioPull==='function'?radioPull():0)){ const v=mkMVP(); if(v) return v; } return mkVisitor(note); }
+function bosVisitor(note){ if(G.bos&&rnd()<.035+.025*(typeof radioPull==='function'?radioPull():0)){ const v=mkMVP(); if(v) return v; } return mkVisitor(note); }
 function mvpJoined(s){ if(!s.mvp) return; G.mvpUsed=G.mvpUsed||[]; if(!G.mvpUsed.includes(s.mvp)) G.mvpUsed.push(s.mvp); G.legends=G.legends||[]; G.legends.push({key:s.mvp,id:s.id,name:fullName(s),title:s.title,joined:G.day}); log(`${fullName(s)} (${s.title}) joined the shelter. ${isMythic(s)?'A mythic legend walks the halls!':'A legend walks the halls.'}`,'family'); }
 function mvpDied(s){ const L=(G.legends||[]).find(x=>x.id===s.id); if(L){ L.died=G.day; L.cause=s.cause; L.age=ageY(s); } log(`${fullName(s)} has died. Their name is kept in the Hall of Legends.`,'death'); }
 function bloodline(s){ return s.line?MVPK[s.line]:null; }
@@ -861,6 +861,7 @@ function newGame(opts){
 function starterBps(g){ const b=new Set(g.bps||[]); for(const it of g.items) b.add(it.k); for(const t of ['w','o']){ const ks=lootKeys().filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0&&!b.has(k)); for(let i=0;i<2&&ks.length;i++) b.add(ks.splice(Math.floor(rnd()*ks.length),1)[0]); } g.bps=[...b]; }
 function migrate(g){
   if(!g.citV){ g.citV=1; for(const p of g.settlers||[]) p.cit='citizen'; }
+  if(!g.citTrackV){ g.citTrackV=1; for(const p of g.settlers||[]) if(p.cit&&p.cit!=='citizen'&&!p.citTrack) p.citTrack=(p.cit==='probation'||p.everArrested||p.detained||p.exRaider)?'review':'auto'; }
   for(const r of g.rooms||[]) if(r.type==='precinct'&&(r.w||1)<2){ const occ=(f,c)=>(g.rooms||[]).some(q=>q!==r&&q.floor===f&&c>=q.col&&c<q.col+(q.w||1)); if(r.col+1<6&&!occ(r.floor,r.col+1)) r.w=2; else if(r.col>0&&!occ(r.floor,r.col-1)){ r.col--; r.w=2; } }
   if(g.inst&&g.inst.law==null) g.inst.law=0;
   for(const s of [...g.settlers,...g.dead,...g.gate.map(v=>v.s)]){
@@ -1027,7 +1028,7 @@ function endExpedition(e){
   const alive=teamOf(e).length>0, pct=e.n?e.c/e.n:0;
   if(alive&&e.n>=10){ if(pct>=.9) addLoot(e,2,'Strong finish:'); else if(pct>=.8) addLoot(e,1,'Strong finish:'); }
   if(alive&&e.n>=10&&pct>=.9){ e.loot.bps=e.loot.bps||[]; const k=rollBlueprint(.6); if(k&&!e.loot.bps.includes(k)){ e.loot.bps.push(k); expLog(e,`Strong finish: a blueprint for the ${ITEMS[k].name}.`,'t2'); } }
-  if(G.bos&&alive&&e.n>=10&&pct>=.85&&G.gate.length<4&&rnd()<(pct>=.95?.35:.2)){ const v=mkMVP(`Saw ${teamOf(e)[0].first}’s team on the road and followed them home.`); if(v){ G.gate.push(v); expLog(e,`${fullName(v.s)} was impressed and is following the team home.`,'good'); } }
+  if(G.bos&&alive&&e.n>=10&&pct>=.85&&G.gate.length<4&&rnd()<(pct>=.95?.2:.1)){ const v=mkMVP(`Saw ${teamOf(e)[0].first}’s team on the road and followed them home.`); if(v){ G.gate.push(v); expLog(e,`${fullName(v.s)} was impressed and is following the team home.`,'good'); } }
   if(e.n>0) logStudy('q',e.n,e.c,e.src,null,true);
   if(e.name&&!e.polDone){ e.polDone=true; opPolitics(e,pct,alive); }
   e.status='returning'; e.backAt=Math.max(G.lastReal,Date.now())+(alive?120000:0);
@@ -1044,7 +1045,7 @@ function arriveExp(e){
     log(`${e.name?e.name+': ':''}${team.map(s=>s.first).join(', ')} made it home with ${parts.length?parts.join(', '):'nothing'}.${e.deaths.length?` Lost on the road: ${e.deaths.join(', ')}. The team brought ${e.deaths.length>1?'them':'the body'} home; tap ${e.deaths.length>1?'them':'it'} by the door to arrange a burial.`:''}`,L.items.length?'study':'');
     if(L.items.length) toast(`Expedition home with ${L.items.length} item${L.items.length>1?'s':''}: ${L.items.map(k=>ITEMS[k].name).join(', ')}.`);
   }
-  for(const s of team){ s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; if(s.mil) s.milXP=(s.milXP||0)+3; }
+  for(const s of team){ addWear(s,2,'expedition'); s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; if(s.mil) s.milXP=(s.milXP||0)+3; }
   G.exps=G.exps.filter(x=>x!==e);
 }
 function reportExpedition(ids,src,meds,n,c){
@@ -1196,7 +1197,7 @@ function goalReward(day){
   G.res.caps+=caps; G.res.research+=10;
   for(const s of G.settlers) s.happy=Math.min(100,s.happy+8);
   let v='';
-  if(G.gate.length<4){ const vis=(G.bos&&st.streak%7===0&&rnd()<.4&&mkMVP('Heard the shelter has kept its reactor burning for a week straight.'))||mkVisitor(st.streak%7===0?'elite':null); G.gate.push(vis); v=` ${fullName(vis.s)} saw the reactor glow and is waiting at the gate.`; }
+  if(G.gate.length<4){ const vis=(G.bos&&st.streak%7===0&&rnd()<.25&&mkMVP('Heard the shelter has kept its reactor burning for a week straight.'))||mkVisitor(st.streak%7===0?'elite':null); G.gate.push(vis); v=` ${fullName(vis.s)} saw the reactor glow and is waiting at the gate.`; }
   log(`Daily study goal reached. Streak ${st.streak}. +${caps} caps, +10 research, morale up.${v}`,'study');
   toast(`Daily goal reached! Streak: ${st.streak} day${st.streak===1?'':'s'}.`);
   FX.goal();
@@ -1288,12 +1289,13 @@ function dayStep(){
     if(s.pre&&!s.chronic&&a>=s.pre.onset){ s.chronic={t:s.pre.t,sev:4,dx:false}; if(staffed){s.chronic.dx=true;log(`${fullName(s)} was diagnosed with ${dname(s.pre.t)}.`,'health');} }
     const D=s.chronic?DISEASES[s.chronic.t]:null;
     if(D) s.chronic.sev=Math.min(100,s.chronic.sev+D.prog/YEAR*(1-mg)*(.8+rnd()*.4));
-    const maxH=D?100-s.chronic.sev*.45*(1-mg):100;
+    wearDay(s);
+    const maxH=(D?100-s.chronic.sev*.45*(1-mg):100)-wearCap(s);
     if(!s.exp){
       if(G.flags.food){s.health-=1;s.lastHurt='Starvation';}
       if(G.flags.water){s.health-=1.3;s.lastHurt='Dehydration';}
       if(!G.flags.food&&!G.flags.water){
-        if(s.health<maxH) s.health=Math.min(maxH,s.health+(staffed?.8:.3)*(G.inst.social>=2?1.5:1));
+        if(s.health<maxH) s.health=Math.min(maxH,s.health+(staffed?.8:.3)*(G.inst.social>=2?1.5:1)*(1-(s.wear||0)/200));
         else s.health=Math.max(maxH,s.health-.4);
       }
     }
@@ -1308,7 +1310,7 @@ function dayStep(){
         else { removeSettler(s,s.chronic.dx?'Heart attack':'Sudden collapse'); continue; }
       }
     }
-    const gomp=.00004*Math.exp(.095*a)*(s.mvp?(MYTHIC.has(s.mvp)?.3:.45):1), inf=a<2?(L>=1?.004:.02):0;
+    const gomp=.00004*Math.exp(.095*a)*(s.mvp?(MYTHIC.has(s.mvp)?.3:.45):1)*(1+(s.wear||0)/100), inf=a<2?(L>=1?.004:.02):0;
     const dm=D?1+s.chronic.sev/100*D.hz*(1-mg):1;
     const add=D?Math.pow(s.chronic.sev/100,2)*.12*D.hz/4*(1-mg):0;
     if(rnd()<(gomp*dm+add+inf)/YEAR&&!(AWAY&&AWAY_DEATHS>=2)){ if(AWAY) AWAY_DEATHS++;
@@ -1553,7 +1555,7 @@ function raidHit(s,f){ const w=gearOf(s,'w'), o=gearOf(s,'o'); let d=f.dmg*(.6+r
   if(!w) d*=1.25+.15*f.tier; if(!o) d*=1.15+.1*f.tier; else d*=1-Math.min(.45,(o.tier||0)*.07+(bonusOf(s,'E')||0)*.03);
   if(rnd()<.12+.04*f.tier) d*=2.2; return d; }
 // a hit that would kill: healthy settlers are left critically wounded; already-weakened ones may die
-function hurtSettler(s,d,cause){ const before=s.health; s.health-=d; s.lastHurt=cause;
+function hurtSettler(s,d,cause){ const before=s.health; s.health-=d; s.lastHurt=cause; addWear(s,d*.12,cause);
   if(s.health<=0){ if(before>=40||rnd()>.6){ s.health=3; s.crit=true; FX.text(s.id,'Critical!','#ff7d72'); } else { log(`${fullName(s)} was killed by ${cause.toLowerCase()==='raid injuries'?'raiders':'the accident'}.`,'death'); removeSettler(s,cause==='Raid injuries'?'Killed by raiders':cause); return; } }
   else if(s.health<=10) s.crit=true; }
 function critAftermath(list){ for(const s of list){ if(!s||!s.crit||!G.settlers.includes(s)||emOf(s.id)) continue; s.crit=false;
@@ -3465,7 +3467,7 @@ function wildStep(mins){
 function arriveExplorer(w,s){
   const L=w.loot; G.res.caps+=L.caps; for(const k of L.items) addItem(k); for(const m in L.mats) G.mats[m]=(G.mats[m]||0)+L.mats[m];
   const nb=L.bps.filter(k=>learnBp(k,'brought home by '+s.first)).length; G.res.stims=Math.min(stimCap(),G.res.stims+w.stims);
-  s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; G.wild=G.wild.filter(x=>x!==w); wildPolitics(w,s,false);
+  addWear(s,1.5+(w.used||0)*.5,'wasteland exploration'); s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; G.wild=G.wild.filter(x=>x!==w); wildPolitics(w,s,false);
   const parts=[L.caps&&`${L.caps} caps`,matLine(L.mats)&&`scrap (${matLine(L.mats)})`,nb&&`${nb} blueprint${nb>1?'s':''}`,...L.items.map(k=>ITEMS[k].name)].filter(Boolean);
   log(`${fullName(s)} came back from ${hm(Math.round(w.out))} in the wasteland with ${parts.length?parts.join(', '):'nothing'}${w.used?`, after using ${w.used} stim${w.used>1?'s':''}`:''}.`,'study'); toast(`${s.first} is back from the wasteland.`); }
 // raider drops and expedition finds
@@ -4608,7 +4610,7 @@ function plotStrike(){ const P=G.plot; if(!P||P.stage!==3||nowD()<P.at) return; 
   if(guards&&rnd()<.3){ polNews(`${by.first} was killed by the guards.`); removeSettler(by,'Killed while attempting an assassination'); }
   else if(rnd()<.85) detain(by,'Attempted assassination',ldr&&!G.settlers.includes(ldr)?'life':ri(20,30));
   else { polNews(`${by.first} fled the shelter.`); removeSettler(by,'Fled after an assassination attempt',true); } }
-function detain(s,why,sent){ s.detained={why,until:sent==='life'?1e9:G.day+(sent||2),sent,day:G.day}; s.protest=false; s.strike=false; G.council=(G.council||[]).filter(x=>x!==s.id);
+function detain(s,why,sent){ if(!isCitizen(s)){ s.citTrack='review'; s.everArrested=true; } s.detained={why,until:sent==='life'?1e9:G.day+(sent||2),sent,day:G.day}; s.protest=false; s.strike=false; G.council=(G.council||[]).filter(x=>x!==s.id);
   G.prisonRec=G.prisonRec||[]; G.prisonRec.push({id:s.id,name:fullName(s),from:'the vault ('+why.toLowerCase()+')',crime:why,cap:G.day,sent:sent==='life'?'life':sent,trialDay:sent?G.day:null,end:null,how:null,settler:true});
   polNews(`${fullName(s)} was detained: ${why}.${sent==='life'?' Sentenced to life in the Holding Cells.':sent>2?` Sentenced to ${sent} days.`:''}`); }
 function arrest(id){ const P=G.plot, s=byId(id); if(!P||!s||!P.suspects.includes(id)) return;
@@ -5005,7 +5007,7 @@ function renoBox(r){ const cur=G.officeTheme||'standard', L=G.leader&&byId(G.lea
 const CIT_WAIT=6, CIT_WAIT_RAIDER=18;
 const isCitizen=s=>!!s&&(!s.cit||s.cit==='citizen');
 const citLabel={citizen:'Citizen',resident:'Resident',probation:'Probation',denied:'Denied'};
-function makeResident(s,kind){ s.cit=kind||'resident'; s.citSince=G.day; s.citElig=G.day+(kind==='probation'?CIT_WAIT_RAIDER:CIT_WAIT); s.citGr=0; s.citState='waiting'; }
+function makeResident(s,kind,track){ s.citTrack=track||(kind==='probation'?'review':'auto'); s.cit=kind||'resident'; s.citSince=G.day; s.citElig=G.day+(kind==='probation'?CIT_WAIT_RAIDER:CIT_WAIT); s.citGr=0; s.citState='waiting'; }
 function citPolicy(){ const L=G.leader&&byId(G.leader); if(!L) return {n:'Standard review',d:'No leader: applications wait for the Overseer.'}; const d=docOf(L);
   return d.open>.25?{n:'Open citizenship',d:`${L.first} favors welcoming newcomers as citizens.`}:d.open<-.25?{n:'Strict citizenship',d:`${L.first} wants newcomers to prove themselves first.`}:{n:'Standard review',d:`${L.first} takes each case on its merits.`}; }
 function citRec(s){ const L=G.leader&&byId(G.leader); if(!(G.inst.gov>=1&&L)) return null; const d=docOf(L), W=polStrength(), useful=s.rank===3||Math.max(...STATS.map(k=>s.s[k]||0))>=Math.max(6,Math.round(adultAvg('S')+3));
@@ -5025,7 +5027,7 @@ function citDay(){ if(AWAY) return; const L=G.leader&&byId(G.leader), lowAp=G.in
   for(const s of G.settlers.slice()){ if(s.citGrudge){ s.citGrudge=Math.max(0,s.citGrudge*.96-.1); }
     if(isCitizen(s)||!isAdult(s)) continue;
     if(s.citState==='waiting'&&G.day>=(s.citElig||0)){
-      if(s.cit==='probation'||s.everArrested||(s.loy||50)<40){ s.citState='review'; const r=citRec(s); log(`⚖ ${fullName(s)} is eligible for citizenship and needs a review.${r?` ${L.first} recommends ${r.k==='grant'?'granting':'denying'} it (${r.why}).`:''}`,'gov'); }
+      if(s.citTrack==='review'||s.cit==='probation'||s.everArrested||(!s.citTrack&&(s.loy||50)<40)){ s.citTrack='review'; s.citState='review'; const r=citRec(s); log(`⚖ ${fullName(s)} is eligible for citizenship and needs a review.${r?` ${L.first} recommends ${r.k==='grant'?'granting':'denying'} it (${r.why}).`:''}`,'gov'); }
       else grantCit(s,'automatic'); continue; }
     if(s.detained) continue;
     if(s.citState==='review') s.citGr=(s.citGr||0)+1.5+(lowAp?1.5:0); else if(s.cit==='denied') s.citGr=(s.citGr||0)+1;
@@ -5038,7 +5040,7 @@ function escortFor(){ const gm=guardMode(), jail=G.rooms.find(r=>r.type==='jail'
   const pool=gm==='military'?(jail?workers(jail).filter(isSoldier):[]):gm==='police'?[...(hq?workers(hq).filter(isOfficer):[]),...patrollers()]:[...(hq?workers(hq).filter(isOfficer):[]),...(jail?workers(jail):[]),...patrollers()];
   return pool.find(x=>!(G.escorts||[]).some(e=>e.by===x.id)&&!x.exp)||null; }
 function arrestNC(s,byOverseer,why){ if(!s||isCitizen(s)||s.detained) return false; if(cellsFree()<=0){ if(byOverseer) toast('The Holding Cells are full (or not built). There is nowhere to hold them.'); return false; }
-  const L=G.leader&&byId(G.leader); s.arrestedBy=byOverseer?'overseer':(L?L.id:'overseer'); s.everArrested=true; s.leaveThreat=null;
+  const L=G.leader&&byId(G.leader); s.arrestedBy=byOverseer?'overseer':(L?L.id:'overseer'); s.everArrested=true; s.citTrack='review'; s.leaveThreat=null;
   if(byOverseer) nudgeBlocs({hard:1,reform:-2}); else { nudgeBlocs({hard:2,reform:-3}); if(G.inst.gov>=1&&L){ const W=polStrength(), d=W.hard-W.reform; if(d>0) G.apBoost=(G.apBoost||0)+1; else G.apHit=(G.apHit||0)+1.5; } }
   const o=escortFor(); G.escorts=G.escorts||[];
   if(o&&LIVE){ G.escorts.push({sid:s.id,by:o.id,stage:'fetch',t:nowD()}); }
@@ -5061,9 +5063,9 @@ function citModal(){ const P=citPolicy(), A=G.settlers.filter(isAdult), C=A.filt
   const mood=s=>{ const g=s.citGr||0; return g>=20?'<b style="color:var(--danger)">furious</b>':g>=12?'<span style="color:var(--warn)">angry</span>':g>=5?'impatient':'patient'; };
   const rev=N.filter(s=>s.citState==='review'), wait=N.filter(s=>s.citState==='waiting'), den=N.filter(s=>s.cit==='denied');
   return `<header><h2>Citizenship</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
-  <p class="lede">Policy: <b>${P.n}</b>. ${esc(P.d)} Only citizens vote, run for office, and serve in the military or police. Children born in the vault are citizens. Newcomers wait ${CIT_WAIT} days and are approved automatically unless their case needs review; former raiders wait ${CIT_WAIT_RAIDER} days on probation and always need review. You can grant citizenship at any time.</p>
+  <p class="lede">Policy: <b>${P.n}</b>. ${esc(P.d)} Only citizens vote, run for office, and serve in the military or police. Children born in the vault are citizens. Newcomers wait ${CIT_WAIT} days. When you let someone in you choose their path: automatic (approved when the wait ends) or review (you decide). Anyone who has been held as a non-citizen inmate always needs review; former raiders wait ${CIT_WAIT_RAIDER} days on probation and always need review. You can grant citizenship at any time.</p>
   <div class="box"><h4>Awaiting review (${rev.length})</h4>${rev.length?rev.map(s=>{ const r=citRec(s); return row(s,acts(s),`${citLabel[s.cit]} · waiting ${G.day-(s.citSince??G.day)} days · ${mood(s)}${s.leaveThreat?' · <b style="color:var(--danger)">threatening to leave</b>':''}${r?` · ${esc(L.first)} suggests <b>${r.k==='grant'?'grant':'deny'}</b> (${esc(r.why)})`:''}`); }).join(''):'<p class="lede">Nobody right now.</p>'}</div>
-  <div class="box"><h4>Waiting period (${wait.length})</h4>${wait.length?wait.map(s=>row(s,acts(s),`${citLabel[s.cit]} · eligible in ${Math.max(0,(s.citElig||0)-G.day)} days`)).join(''):'<p class="lede">Nobody right now.</p>'}</div>
+  <div class="box"><h4>Waiting period (${wait.length})</h4>${wait.length?wait.map(s=>row(s,acts(s)+`<button class="btn sm" data-a="citTrack" data-id="${s.id}" title="Switch between automatic approval and review">${s.citTrack==='review'?'Make automatic':'Require review'}</button>`,`${citLabel[s.cit]} · eligible in ${Math.max(0,(s.citElig||0)-G.day)} days · ${s.citTrack==='review'?'<b style="color:var(--warn)">needs review</b>':'automatic path'}${s.everArrested?' · former inmate':''}`)).join(''):'<p class="lede">Nobody right now.</p>'}</div>
   <div class="box"><h4>Denied (${den.length})</h4>${den.length?den.map(s=>row(s,acts(s),`${mood(s)}${s.detained?' · detained':''}${s.leaveThreat?' · <b style="color:var(--danger)">threatening to leave</b>':''}`)).join(''):'<p class="lede">Nobody.</p>'}</div>
   <div class="box"><h4>Citizens (${C.length}) · how they lean right now</h4><p class="lede" style="font-size:12px">Only you can see this.</p>${C.sort((a,b)=>(a.lean||'').localeCompare(b.lean||'')||a.id-b.id).map(s=>row(s,'',`${REL[relOf(s)]} · ${BLOCS[s.lean||'loyal'].n} · would vote ${vote(s)}${s.citD!=null?` · citizen since ${fdate(s.citD)}`:s.bd!=null?' · born here':''}${s.citGrudge>8?' · still bitter about the wait':''}${s.immStance==='strict'?' · wants stricter immigration':''}${s.arrestedBy?' · once detained':''}`)).join('')}</div></div>`; }
 
@@ -5858,7 +5860,7 @@ function obReturn(T){ const S=obState(); S.trips=S.trips.filter(x=>x!==T); const
     opRecord(s,{id:'obx'+(T.id||Date.now()),name:`Hospital run: ${c?c.title:'case'}`,src:'OB/GYN'},{died:true,pct:O.pct});
     removeSettler(s,'Died in the ruined hospital'); log(`${fullName(s)} never made it back from the ruined hospital. Everything they carried was lost.`,'death'); T.done={fate:'dead'}; S.lastBack=T; return; }
   const lostN=[]; for(const k of O.lost||[]){ const id=s.gear&&s.gear[k]; if(id){ const it=itemById(id); if(it) lostN.push(ITEMS[it.k].name); G.items=G.items.filter(i=>i.id!==id); s.gear[k]=null; } }
-  s.health=clamp(O.hp,5,100); if(O.fate==='serious'||O.fate==='disabled') s.recoverUntil=Date.now()+(O.fate==='disabled'?40:20)*60000; else if(O.fate==='minor') s.recoverUntil=Date.now()+6*60000;
+  addWear(s,Math.max(1,(s.health-O.hp)*.15),'the ruined hospital'); s.health=clamp(O.hp,5,100); if(O.fate==='serious'||O.fate==='disabled') s.recoverUntil=Date.now()+(O.fate==='disabled'?40:20)*60000; else if(O.fate==='minor') s.recoverUntil=Date.now()+6*60000;
   if(O.dis&&!s.chronic){ s.chronic={t:O.dis,sev:O.fate==='disabled'?40:20,dx:true}; }
   for(const k of O.loot||[]) got.push(obGive(k,S));
   /* milestones */
@@ -6024,6 +6026,26 @@ function obCodeDoneView(){ const O=UI.ob, S=obState(), C=O.C, T=S.trips.find(x=>
     else { const D=T.done; h+=`<div class="box" style="border-color:${D.fate==='dead'?'#ff4a3a':D.fate==='fine'?'#5ab46e':'#e2c46a'}"><h4>${D.fate==='dead'?`${esc(s.first)} did not come back`:`${esc(s.first)} is home · ${({fine:'unhurt',minor:'minor injuries',serious:'seriously injured',disabled:'barely alive'})[D.fate]||''}`}</h4>${D.fate==='dead'?'<p class="lede">Everything they carried was lost in the ruins.</p>':`<ul class="facts">${(D.got||[]).map(g=>`<li><b>${esc(g)}</b></li>`).join('')||'<li>No loot this time.</li>'}${(D.lostN||[]).map(n=>`<li style="color:#ff9d92">Lost: ${esc(n)}</li>`).join('')}${s.chronic&&Q.dis===s.chronic.t?`<li style="color:#ff9d92">Caught ${esc(DISEASES[Q.dis].name)}</li>`:''}</ul>`}</div>`; } }
   return h+`<div class="row"><button class="btn pri" data-a="obOpen" data-v="code">Redeem another code</button><button class="btn" data-a="obOpen" data-v="list">All cases</button></div>`; }
 /* ===== END OB/GYN ORAL BOARDS ===== */
+
+/* ===== Career health: frontline work wears people down ===== */
+function addWear(s,v,why){ if(!s||!v||!isAdult(s)) return; s.wear=Math.min(100,(s.wear||0)+v); s.wearPk=Math.max(s.wearPk||0,s.wear); if(why){ s.wearSrc=s.wearSrc||{}; const k=/raid|raider/i.test(why)?'raids':/accident/i.test(why)?'accidents':/hospital/i.test(why)?'hospital runs':/expedition/i.test(why)?'expeditions':/wasteland/i.test(why)?'exploring':/duty|soldier|police/i.test(why)?'duty':'injuries'; s.wearSrc[k]=(s.wearSrc[k]||0)+v; } }
+function wearDay(s){ if(!isAdult(s)) return; if(isSoldier(s)) addWear(s,.4,'military duty'); else if(isOfficer(s)) addWear(s,.3,'police duty');
+  else if(s.wear&&!s.exp){ const floor=(s.wearPk||0)*.5; if(s.wear>floor) s.wear=Math.max(floor,s.wear-.08); } }
+const wearCap=s=>Math.round((s.wear||0)*.35);
+function wearBox(s){ const w=s.wear||0; if(s.died!=null||!isAdult(s)||w<1) return ''; const src=Object.entries(s.wearSrc||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${k} ${Math.round(v)}`).join(' · ');
+  return `<div class="box"><h4>Career health</h4><div class="sev"><i style="width:${Math.round(w)}%;background:${w>=60?'var(--danger)':w>=30?'var(--warn)':'var(--ok)'}"></i></div><p class="lede" style="font-size:12px">Wear ${Math.round(w)}/100${src?` (from ${src})`:''}. Max health −${wearCap(s)}, healing ${Math.round(w/2)}% slower, ${Math.round(w)}% higher risk of dying of age or illness. Wear eases slowly once they leave frontline work, but about half of their worst is permanent.</p></div>`; }
+
+/* ===== Timed Anki sprints ===== */
+function sprintBox(){ const S=G.sprint, PB=G.sprintPB||{};
+  if(S){ const sec=Math.floor((Date.now()-S.t0)/1000), pb=PB[S.n];
+    return `<div class="box" style="border-color:var(--accent)"><h4>⏱ Anki sprint · ${S.n} cards</h4><p style="font-size:30px;font-weight:700;margin:4px 0;font-variant-numeric:tabular-nums">${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}</p><p class="lede" style="font-size:12px">${(sec/S.n).toFixed(1)} s per card so far${pb?` · best ${Math.floor(pb/60)}:${String(Math.round(pb%60)).padStart(2,'0')}`:''}. Press Done when you finish card ${S.n}.</p><div class="row"><button class="btn pri" data-a="sprintDone">Done</button><button class="btn sm" data-a="sprintCancel">Cancel</button></div></div>`; }
+  return `<div class="box"><h4>⏱ Anki sprint</h4><p class="lede" style="font-size:12px">Start the clock, do the cards in Anki, press Done. The reviews are logged for you. Beat your best time for that size for bonus charge and caps.${Object.keys(PB).length?' Best: '+Object.entries(PB).map(([n,t])=>`${n} cards ${Math.floor(t/60)}:${String(Math.round(t%60)).padStart(2,'0')}`).join(' · '):''}</p><div class="row">${[10,20,50].map(n=>`<button class="btn sm" data-a="sprintGo" data-v="${n}">${n} cards</button>`).join('')}</div></div>`; }
+function sprintDone(){ const S=G.sprint; if(!S) return; const sec=Math.max(1,(Date.now()-S.t0)/1000), per=sec/S.n; G.sprint=null; G.sprintPB=G.sprintPB||{}; const pb=G.sprintPB[S.n];
+  logStudy('anki',S.n,0,null,null,true); const got=[];
+  if(per<2.5){ log(`Anki sprint of ${S.n} cards in ${Math.round(sec)} s (${per.toFixed(1)} s/card) — too fast to count for a bonus.`,'study'); toast('Logged, but that was too fast for a bonus.'); save(); return; }
+  if(per<=12){ const b=Math.round(S.n*.6); const bf=G.boost; G.boost=Math.min(BOOST_CAP,G.boost+b); dayRec(G.study.open).earned+=G.boost-bf; got.push(`+${b}m pace bonus`); }
+  if(pb==null||sec<pb){ G.sprintPB[S.n]=sec; const c=S.n*3, r=Math.round(S.n/5); G.res.caps+=c; G.res.research+=r; got.push(pb==null?'first time at this size':`new best (was ${Math.floor(pb/60)}:${String(Math.round(pb%60)).padStart(2,'0')})`,`+${c} caps`,`+${r} research`); CHEER=performance.now()+3000; }
+  log(`⏱ Anki sprint: ${S.n} cards in ${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')} (${per.toFixed(1)} s/card).${got.length?' '+got.join(', ')+'.':''}`,'study'); toast(`Sprint done: ${per.toFixed(1)} s/card${got.length?' · '+got[0]:''}`); save(); }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -6354,7 +6376,7 @@ function visitorCard(v,i){
   const gg=v.gear||{}, carry=[gg.w&&ITEMS[gg.w].name,gg.o&&ITEMS[gg.o].name].filter(Boolean).join(' and ');
   const tags=[s.mvp?`★ Legend: ${s.title}`:'',s.blind?'Blind':'',s.rank===3?'Physician':'',s.chronic?'Looks unwell':'',s.look.ghoul?'Ghoulish':'',s.look.scar?'Scarred':''].filter(Boolean).join(' · ');
   const full=popUsed()>=housing();
-  return `<div class="visitor${s.mvp?' legend':''}"><div class="who">${s.mvp?'<span style="color:#f2c230">★</span> ':''}${esc(fullName(s))}</div><div class="meta">${s.sex==='F'?'Woman':'Man'}, ${ageY(s)} · ${top}${tags?' · '+tags:''}</div><div class="meta">${esc(s.note)}${carry?` Carrying ${esc(carry)}, which they'd bring with them.`:''} Leaves in ${v.expires-G.day} days.</div>${recLine(v)}<div class="acts"><button class="btn pri sm" data-a="accept" data-i="${i}" ${full?'disabled title="No housing. Build or upgrade Quarters."':''}>Let in</button><button class="btn sm" data-a="reject" data-i="${i}">Turn away</button></div></div>`;
+  return `<div class="visitor${s.mvp?' legend':''}"><div class="who">${s.mvp?'<span style="color:#f2c230">★</span> ':''}${esc(fullName(s))}</div><div class="meta">${s.sex==='F'?'Woman':'Man'}, ${ageY(s)} · ${top}${tags?' · '+tags:''}</div><div class="meta">${esc(s.note)}${carry?` Carrying ${esc(carry)}, which they'd bring with them.`:''} Leaves in ${v.expires-G.day} days.</div>${recLine(v)}<div class="acts"><button class="btn pri sm" data-a="accept" data-i="${i}" ${full?'disabled title="No housing. Build or upgrade Quarters."':''}>Let in · auto path</button><button class="btn sm" data-a="accept" data-i="${i}" data-v="review" ${full?'disabled':''} title="They become eligible after the waiting period, but you decide on their citizenship">Let in · needs review</button><button class="btn sm" data-a="reject" data-i="${i}">Turn away</button></div></div>`;
 }
 function renderGate(){
   const el=$('gate');
@@ -6550,7 +6572,7 @@ function renderPanel(){
   renderTabs();
   const el=$('tab'); if(busy(el)){ const p=$('spreview'); if(p) p.innerHTML=studyPreview(); return; }
   const st=el.scrollTop;
-  const html=UI.tab==='study'?obBox()+cmsBox()+renderStudy():UI.tab==='store'?renderStore():UI.tab==='settlers'?renderSettlers():UI.tab==='inst'?renderInst():UI.tab==='council'?renderCouncil():UI.tab==='exp'?renderExp():renderLog();
+  const html=UI.tab==='study'?sprintBox()+obBox()+cmsBox()+renderStudy():UI.tab==='store'?renderStore():UI.tab==='settlers'?renderSettlers():UI.tab==='inst'?renderInst():UI.tab==='council'?renderCouncil():UI.tab==='exp'?renderExp():renderLog();
   if(el._h===html&&el._tab===UI.tab) return; const same=el._tab===UI.tab; el._h=html; el._tab=UI.tab;
   const inner=same?keepScroll(el):null; el.innerHTML=html; el.scrollTop=st; if(inner) inner();
 }
@@ -6604,7 +6626,7 @@ function settlerModal(id){
   if(G.leader===s.id) tags.push('<span class="tag a">Leader</span>');
   if(alive&&G.inst.gov>=1&&s.loy!=null&&age(s)>=18){ const pf=pfacOf(s); tags.push(`<span class="tag" style="border-color:${BLOCS[s.lean||'loyal'].c};color:${BLOCS[s.lean||'loyal'].c}">${BLOCS[s.lean||'loyal'].a}${pf?` · ${esc(pf.name)}`:''} · loyalty ${Math.round(s.loy)}</span>`); }
   if(s.rank) tags.push(`<span class="tag ${s.rank===3?'g':'b'}">${['','Medic','Resident','Attending physician'][s.rank]}</span>`);
-  tags.push(relTag(s)); if(isAdult(s)||s.cit) tags.push(isCitizen(s)?'<span class="tag g">Citizen</span>':`<span class="tag r">${citLabel[s.cit]||'Non-citizen'} · non-citizen</span>`);
+  tags.push(relTag(s)); if(isAdult(s)||s.cit) tags.push(isCitizen(s)?'<span class="tag g">Citizen</span>':`<span class="tag r">${citLabel[s.cit]||'Non-citizen'} · non-citizen${s.citTrack?' · '+(s.citTrack==='review'?'needs review':'automatic path'):''}</span>`);
   if(s.blind) tags.push(`<span class="tag b">Blind since birth</span>`);
   if(s.preg) tags.push(`<span class="tag a">Expecting · due in ${hm(Math.max(1,Math.round(s.preg.left!=null?s.preg.left:(s.preg.due-nowD())*60)))}</span>`);
   if(alive&&!isAdult(s)) tags.push(`<span class="tag">Child · grows up in ${s.kidMin!=null?hm(Math.max(1,Math.round(KID_MIN-s.kidMin))):'a while'}</span>`);
@@ -6617,7 +6639,7 @@ function settlerModal(id){
   h+=`<div class="hero"><canvas class="portrait" data-draw="portrait" data-id="${s.id}" data-w="170" data-h="214" width="170" height="214" aria-label="Portrait of ${esc(fullName(s))}"></canvas><div class="slots2">${slotTile(s,'o')}${slotTile(s,'w')}${(s.gear&&s.gear.a)||G.items.some(i=>ITEMS[i.k].t==='a')?slotTile(s,'a'):''}<div class="row">${alive?`<button class="btn sm" data-a="editLook" data-id="${s.id}">${UI.modal.edit?'Close editor':'Edit look'}</button>`:''}${alive&&!s.exp?`<button class="btn sm" data-a="follow" data-id="${s.id}">Find in shelter</button>`:''}${alive&&isAdult(s)?`<span class="lede" style="font-size:12px">Expedition power ${Math.round(memberPow(s))}</span>`:''}</div></div></div>`;
   if(UI.modal.pick&&alive) h+=pickerHTML(s,UI.modal.pick);
   if(UI.modal.edit&&alive) h+=lookEditor(s);
-  h+=`<div class="tags">${tags.join('')}</div><div class="special">${sp}</div>`+milBox(s)+polBoxS(s)+lifeBox(s);
+  h+=`<div class="tags">${tags.join('')}</div><div class="special">${sp}</div>`+milBox(s)+polBoxS(s)+wearBox(s)+lifeBox(s);
   if(alive) h+=`<div class="bars"><span>Health</span><span class="track"><i style="width:${s.health}%;background:var(${s.health<40?'--danger':'--ok'})"></i></span><span class="num">${Math.round(s.health)}</span><span>Happiness</span><span class="track"><i style="width:${s.happy}%;background:var(--accent)"></i></span><span class="num">${Math.round(s.happy)}%</span></div><div class="hf">${happyFactors(s).map(([l,v])=>`<span class="${v>0?'up':'dn'}">${l} ${v>0?'+':''}${v}</span>`).join('')}<span class="tg">Heading to ${Math.round(happyTarget(s))}%</span></div>`;
   if(alive&&!s.exp&&s.health<100) h+=`<div class="row"><button class="btn sm" data-a="stim" data-id="${s.id}" ${G.res.stims>=1?'':'disabled'}>Use a stim (+${STIM_HEAL} health · ${Math.floor(G.res.stims)} left)</button></div>`;
   if(alive&&s.exp&&String(s.exp)[0]==='w'){ const w=explorerOf(s); if(w) h+=`<div class="box"><h4>Exploring the wasteland</h4><p class="lede" style="font-size:12px">${w.status==='out'?`Out for ${hm(Math.round(w.out))} with ${w.stims} stims left.`:`Heading home, back in ${hm(Math.ceil(w.left))}.`}</p>${w.status==='out'?`<button class="btn sm" data-a="recall" data-id="${w.id}">Call home</button>`:''}</div>`; }
@@ -6673,7 +6695,7 @@ function assignModal(rid){
     const cur=r.craft&&r.craft.k?`<div class="box"><h4>Building: <span class="tier${ITEMS[r.craft.k].tier}">${esc(ITEMS[r.craft.k].name)}</span></h4><div class="sev"><i style="width:${clamp(r.craft.prog/r.craft.need*100,0,100)}%;background:#c08cf0"></i></div><p class="lede" style="font-size:12px">${sp?`About ${hm(Math.max(1,Math.ceil((r.craft.need-r.craft.prog)/sp/(G.boost>0?1:.5))))} left.`:'Paused: nobody is working here.'}</p></div>`:'';
     ex+=cur+`<div class="box"><h4>Blueprints (${kn.length}) · builds up to ${TIERS[FACT_TIER[r.level]]}</h4>${kn.map(k=>{ const R=recipe(k), t=ITEMS[k].tier, why=canCraft(r,k); return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:6px"><span><span class="tier${t}">${esc(ITEMS[k].name)}</span><br><span class="lede" style="font-size:11px">${CRAFT_CAPS[t]} caps · ${Object.keys(R).map(m=>`<span style="color:${(G.mats[m]||0)>=R[m]?'inherit':'var(--danger)'}">${R[m]} ${MATS[m].n.toLowerCase()}</span>`).join(', ')} · ${hm(CRAFT_MIN[t])} at full speed</span></span>${why?`<span class="why">${esc(why)}</span>`:`<button class="btn sm pri" data-a="craft" data-id="${r.id}" data-v="${k}">Build</button>`}</div>`; }).join('')||'<p class="lede">No blueprints yet. Explore the wasteland or run expeditions to find some.</p>'}</div>`; }
   if(r.type==='radio'){ const md=r.mode||'recruit', st=radioStr(md);
-    ex+=`<div class="box"><h4>Broadcast</h4><div class="seg">${Object.keys(RADIO_MODES).map(k=>`<button class="${md===k?'on':''}" data-a="radioMode" data-id="${r.id}" data-v="${k}" ${k==='propaganda'&&G.inst.gov<1?'disabled':''}>${RADIO_MODES[k].n}</button>`).join('')}</div><p class="lede" style="font-size:12px;margin-top:8px">${RADIO_MODES[md].d} ${md==='recruit'?`Right now: about ${(0.95+Math.min(1,st/12)*2.1).toFixed(1)} arrivals per game day, up to ${2+(st>0?3:0)} (normally 0–2). Signal strength ${st.toFixed(1)} of 12.${G.bos?` Legend odds per arrival: ${Math.round((6+4*Math.min(1,st/12)))}%.`:''} Nobody comes while every bed is taken.`:md==='morale'?`Right now: +${Math.round(Math.min(10,st*.5))} happiness for everyone.`:`Right now: +${Math.round(Math.min(12,st*.6))} approval.`}</p></div>`; }
+    ex+=`<div class="box"><h4>Broadcast</h4><div class="seg">${Object.keys(RADIO_MODES).map(k=>`<button class="${md===k?'on':''}" data-a="radioMode" data-id="${r.id}" data-v="${k}" ${k==='propaganda'&&G.inst.gov<1?'disabled':''}>${RADIO_MODES[k].n}</button>`).join('')}</div><p class="lede" style="font-size:12px;margin-top:8px">${RADIO_MODES[md].d} ${md==='recruit'?`Right now: about ${(0.95+Math.min(1,st/12)*2.1).toFixed(1)} arrivals per game day, up to ${2+(st>0?3:0)} (normally 0–2). Signal strength ${st.toFixed(1)} of 12.${G.bos?` Legend odds per arrival: ${(3.5+2.5*Math.min(1,st/12)).toFixed(1)}%.`:''} Nobody comes while every bed is taken.`:md==='morale'?`Right now: +${Math.round(Math.min(10,st*.5))} happiness for everyone.`:`Right now: +${Math.round(Math.min(12,st*.6))} approval.`}</p></div>`; }
   if(r.type==='medbay'){ const hurt=G.settlers.filter(x=>!x.exp&&x.health<100).length; ex+=`<p class="lede">${Math.floor(G.res.stims)} of ${stimCap()} stims stored. Each heals ${STIM_HEAL} health. Upgrading or merging Medbays raises storage.</p><div class="row"><button class="btn" data-a="healAll" ${hurt&&G.res.stims>=1?'':'disabled'}>Use stims on the injured (${hurt})</button></div>`; }
   if(r.type==='clinic'&&G.care){ const staff=G.rooms.filter(q=>q.type==='clinic').flatMap(workers), pts=G.settlers.filter(x=>x.chronic&&x.chronic.dx&&!x.exp).sort((a,b)=>b.chronic.sev-a.chronic.sev), RK=['Medic','Medic','Resident','Attending'];
     ex=`<p class="lede">Treating ${G.care.treated} of ${G.care.load} diagnosed patients. Capacity ${G.care.cap}.</p>
@@ -6823,6 +6845,10 @@ document.addEventListener('click',e=>{
     case 'reno': { renovate(el.dataset.v,true); save(); break; }
     case 'moveOffice': { moveOffice(+el.dataset.v,+el.dataset.c); break; }
     case 'citOpen': UI.modal={t:'cit'}; break;
+    case 'citTrack': { const s=byId(id); if(s&&!isCitizen(s)){ s.citTrack=s.citTrack==='review'?'auto':'review'; toast(`${s.first}: ${s.citTrack==='review'?'citizenship will need your review':'automatic citizenship after the wait'}.`); save(); } break; }
+    case 'sprintGo': if(!G.sprint){ G.sprint={n:+el.dataset.v,t0:Date.now()}; save(); } break;
+    case 'sprintDone': sprintDone(); break;
+    case 'sprintCancel': G.sprint=null; save(); break;
     case 'citGrant': { const s=byId(id); if(s) grantCit(s,'granted by the Overseer'); save(); break; }
     case 'citDeny': { const s=byId(id); if(s) denyCit(s); save(); break; }
     case 'citArrest': { const s=byId(id); if(s) arrestNC(s,true); save(); break; }
@@ -6866,7 +6892,7 @@ document.addEventListener('click',e=>{
     case 'unfollow': UI.follow=null; break;
     case 'zoom': { const v=el.dataset.v; if(v==='+') setZoom(UI.zoom*1.25); else if(v==='-') setZoom(UI.zoom/1.25); else { UI.follow=null; setZoom(1); } break; }
     case 'scrap': { const it=itemById(id); if(it&&!holderOf(id)){ const d=ITEMS[it.k]; G.items=G.items.filter(i=>i!==it); G.res.caps+=SCRAP[d.tier]; const back=scrapReturn(it.k); for(const m in back) G.mats[m]=(G.mats[m]||0)+back[m]; log(`Scrapped a ${d.name}: ${SCRAP[d.tier]} caps and ${matLine(back)}.`); if(!d.ob&&!(G.bps||[]).includes(it.k)&&rnd()<.25) learnBp(it.k,'worked out by taking it apart'); toast(`Scrapped ${d.name} for ${SCRAP[d.tier]} caps.`);} break; }
-    case 'accept': { const i=+el.dataset.i, v=G.gate[i]; if(v&&popUsed()<housing()){ immigDecide(v.s,true,v); if(v.s.mvp){ v.s.cit='citizen'; v.s.citD=G.day; } else makeResident(v.s); G.gate.splice(i,1);G.settlers.push(v.s);v.s.intake=Date.now()+ENT_INTAKE;v.s.waiting=true;v.s.joinD=G.day;G.stats.arrivals++; const gg=v.gear||{}; v.s.gear=v.s.gear||{}; if(gg.w) v.s.gear.w=addItem(gg.w).id; if(gg.o) v.s.gear.o=addItem(gg.o).id;if(v.s.mvp) mvpJoined(v.s); else log(`${fullName(v.s)} joined the shelter.`,'family');UI.modal={t:'settler',id:v.s.id,edit:true};toast(`${v.s.first} is in. Review and edit them here.`);} break; }
+    case 'accept': { const i=+el.dataset.i, v=G.gate[i]; if(v&&popUsed()<housing()){ immigDecide(v.s,true,v); if(v.s.mvp){ v.s.cit='citizen'; v.s.citD=G.day; } else makeResident(v.s,undefined,el.dataset.v==='review'?'review':'auto'); G.gate.splice(i,1);G.settlers.push(v.s);v.s.intake=Date.now()+ENT_INTAKE;v.s.waiting=true;v.s.joinD=G.day;G.stats.arrivals++; const gg=v.gear||{}; v.s.gear=v.s.gear||{}; if(gg.w) v.s.gear.w=addItem(gg.w).id; if(gg.o) v.s.gear.o=addItem(gg.o).id;if(v.s.mvp) mvpJoined(v.s); else log(`${fullName(v.s)} joined the shelter.`,'family');UI.modal={t:'settler',id:v.s.id,edit:true};toast(`${v.s.first} is in. Review and edit them here.`);} break; }
     case 'reject': { const i=+el.dataset.i, v=G.gate[i]; if(v){ immigDecide(v.s,false,v); G.gate.splice(i,1);log(`You turned ${fullName(v.s)} away from the gate.`); if(UI.modal&&UI.modal.t==='visitor') closeModal();} break; }
     case 'rename': { const s=byId(id); const f=$('rnFirst').value.trim(), l=$('rnLast').value.trim(); if(s&&f){s.first=f.slice(0,20);s.last=(l||s.last).slice(0,24);toast(`Renamed to ${fullName(s)}.`);} if(document.activeElement) document.activeElement.blur(); break; }
     case 'pair': { const s=byId(id), p=byId(+$('pairPick').value); if(s&&p){ setPartner(s,p); if(!moveCouple(s,p)) toast('They’re partners now, but no quarters has room for both. Upgrade or build Quarters.'); } break; }
@@ -6951,7 +6977,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
