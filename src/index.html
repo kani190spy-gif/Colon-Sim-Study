@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.7</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.8</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -322,7 +322,7 @@ const hm=min=>{min=Math.max(0,Math.round(min));const h=Math.floor(min/60),m=min%
 
 const STATS=['S','P','E','C','I','A','L'];
 const STAT_NAMES={S:'Strength',P:'Perception',E:'Endurance',C:'Charisma',I:'Intelligence',A:'Agility',L:'Luck'};
-const STAT_FIT={S:'Generator · Armory',P:'Water Plant',E:'Armory · Farm · Cistern · Expeditions',C:'Trade Post · Quarters',I:'Lab · Clinic · Purifier',A:'Mess Hall · Cannery',L:'Expeditions'};
+const STAT_FIT={S:'Generator · Armory · Salvage · Mine',P:'Water Plant',E:'Armory · Farm · Cistern · Refinery · Expeditions',C:'Trade Post · Bazaar · Cooperative · Quarters',I:'Lab · Clinic · Purifier · Bank',A:'Mess Hall · Cannery',L:'Salvage luck · Expeditions'};
 const RES={food:'Food',water:'Water',power:'Power',meds:'Meds',stims:'Stims',caps:'Caps',research:'Research'};
 const RCOL={food:'--r-food',water:'--r-water',power:'--r-power',meds:'--r-meds',stims:'--r-stim',caps:'--r-caps',research:'--r-research'};
 const RHEX={food:'#f09a52',water:'#5fd0d6',power:'#ffd055',meds:'#ff7d72',stims:'#ff8fb0',caps:'#e2b57c',research:'#b9a5ff'};
@@ -880,7 +880,7 @@ function computeMods(frac){
   return {power:g,water:g*np,food:g*np,meds:g*np,stims:g*np,caps:g*np*(1+[0,.15,.35,.6][I.econ])*(1+secB('eco')*.03),
     research:g*np*(1+(I.edu>=3?.25:0)+(I.edu>=4?.25:0)+(pol('grants')?.2:0))};
 }
-function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return d.base*workers(r).reduce((a,s)=>a+effStat(s,d.stat),0)*lvlMult[r.level]*mods[d.res]*mergeBonus(r)*dmgMult(r)*(r.type==='diner'?1+farmBoost():1); }
+function roomOutput(r,mods){ const d=ROOMS[r.type]; if(!d.res) return 0; return d.base*workers(r).reduce((a,s)=>a+effStat(s,d.stat),0)*lvlMult[r.level]*mods[d.res]*mergeBonus(r)*dmgMult(r)*(r.type==='diner'?1+farmBoost():1)*(coopNear(r)?1.1:1)*(r.type==='bazaar'?bazaarMult():1); }
 function armoryDef(r){ return workers(r).reduce((a,s)=>{const w=gearOf(s,'w');return a+(effStat(s,'S')+effStat(s,'E'))/2+(w?w.dmg*.6:0);},0)*lvlMult[r.level]*mergeBonus(r)*dmgMult(r); }
 function defense(){ let d=5; for(const r of G.rooms) if(r.type==='armory'||r.type==='entrance') d+=armoryDef(r); d+=milDef(); for(const s of G.settlers) if(s.mil&&!s.exp) d+=rankOf(s)*.6; d*=(1+cmdBonus())*defDmgMult()*(1+secB('def')*.03); d*=1+[0,.2,.45,.8,1.1][G.inst.def]; if(pol('curfew')) d*=1.25; if(pol('opengate')) d*=.9; return d; }
 const popUsed=()=>G.settlers.length+G.settlers.filter(x=>x.preg).length;
@@ -1058,6 +1058,7 @@ function build(type,floor,col){
   if(d.hidden) return false;
   if(d.pop&&G.settlers.length<d.pop){toast(`Needs ${d.pop} settlers`);return false;}
   if(d.unique&&G.rooms.some(r=>r.type===type)){toast(`You can only have one ${d.name}.`);return false;}
+  if(d.bottom&&floor!==G.floors-1){toast(`The ${d.name} must be dug on the deepest floor.`);return false;}
   if(type==='phall'&&!hallFreeParty()){toast('Every party already has a hall.');return false;}
   let c0=col;
   if(need>1){ let ok=false; for(let q=0;q<need;q++){ const st=col-q; if(st<0||st+need>COLS) continue; let free=true; for(let z=0;z<need;z++) if(roomAt(floor,st+z)) free=false; if(free){ c0=st; ok=true; break; } } if(!ok){ toast(`The ${d.name} needs ${need===2?'two':'three'} empty slots side by side.`); return false; } }
@@ -1067,7 +1068,7 @@ function build(type,floor,col){
   G.res.caps-=d.cost;
   const r={id:G.nextId++,type,floor,col:c0,w:need,level:1,workers:[],train:'S',craft:0}; G.rooms.push(r); if(type==='phall') hallsAssign();
   const m=tryMerge(r);
-  log(m.w>need?`Built a ${d.name} on B${floor+1}. It joined the room next door and is now ${m.w} slots wide.`:`Built a ${d.name} on B${floor+1}.`);
+  const an=/^[AEIOU]/.test(d.name)?'an':'a'; log(m.w>need?`Built ${an} ${d.name} on B${floor+1}. It joined the room next door and is now ${m.w} slots wide.`:`Built ${an} ${d.name} on B${floor+1}.`);
   if(m.w>need) toast(`Rooms merged: ${d.name} is now ${m.w} wide.`);
   return true;
 }
@@ -1283,7 +1284,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -3386,7 +3387,7 @@ function useStim(s){ if(!s||G.res.stims<1||s.health>=100) return false; G.res.st
 const MATS={cloth:{n:'Cloth',r:0},plastic:{n:'Plastic',r:0},iron:{n:'Iron',r:0},wire:{n:'Wire',r:1},copper:{n:'Copper',r:1},glass:{n:'Glass',r:1},circuitry:{n:'Circuitry',r:2},gold:{n:'Gold',r:3},uranium:{n:'Uranium',r:3}};
 const MATR=['Common','Uncommon','Rare','Very rare'], MATC=['#d8cfc0','#7fd38a','#7fb8e8','#f2b83b'];
 // b: 0 (plain) .. 1 (deep wasteland / lucky): shifts odds toward rarer scrap
-function rollMat(b){ b=clamp(b,0,1); const w=[60-30*b,26+10*b,10+12*b,4+8*b], tot=w.reduce((a,x)=>a+x,0); let q=rnd()*tot, r=0; for(;r<3&&q>=w[r];r++) q-=w[r]; return pick(Object.keys(MATS).filter(k=>MATS[k].r===r)); }
+function rollMat(b){ b=clamp(b,0,1); const w=[60-30*b,26+10*b,10+12*b,4+8*b], tot=w.reduce((a,x)=>a+x,0); let q=rnd()*tot, r=0; for(;r<3&&q>=w[r];r++) q-=w[r]; return pick(Object.keys(MATS).filter(k=>MATS[k].r===r&&!MATS[k].nr)); }
 function addMats(into,n,b){ const got={}; for(let i=0;i<n;i++){ const k=rollMat(b); into[k]=(into[k]||0)+1; got[k]=(got[k]||0)+1; } return got; }
 const matLine=m=>Object.keys(MATS).filter(k=>m&&m[k]).map(k=>`${m[k]} ${MATS[k].n.toLowerCase()}`).join(', ');
 // blueprints
@@ -3408,9 +3409,9 @@ function canCraft(r,k){ const R=recipe(k), t=ITEMS[k].tier;
   if(r.craft) return 'Already building something'; if(t>FACT_TIER[r.level]) return `Needs a level ${FACT_TIER.findIndex((x,i)=>i&&x>=t)} factory`;
   if(G.res.caps<CRAFT_CAPS[t]) return `Needs ${CRAFT_CAPS[t]} caps`;
   for(const m in R) if((G.mats[m]||0)<R[m]) return `Needs ${R[m]} ${MATS[m].n.toLowerCase()}`; return ''; }
-function startCraft(r,k){ if(canCraft(r,k)) return false; const R=recipe(k), t=ITEMS[k].tier; for(const m in R) G.mats[m]-=R[m]; G.res.caps-=CRAFT_CAPS[t]; r.craft={k,need:CRAFT_MIN[t],prog:0}; log(`The ${ROOMS[r.type].name} started building a ${ITEMS[k].name}.`,'study'); return true; }
+function startCraft(r,k){ if(canCraft(r,k)) return false; const R=recipe(k), t=ITEMS[k].tier; for(const m in R) G.mats[m]-=R[m]; G.res.caps-=CRAFT_CAPS[t]; r.craft={k,need:CRAFT_MIN[t],prog:0}; const fm=r.type==='workshop'?'oil':'rubber', fn=1+t, fast=(G.mats[fm]||0)>=fn; if(fast){ G.mats[fm]-=fn; r.craft.fast=1.3; } log(`The ${ROOMS[r.type].name} started building a ${ITEMS[k].name}${fast?` (using ${fn} ${fm} to work 30% faster)`:''}.`,'study'); return true; }
 function craftSpeed(r){ const st=ROOMS[r.type].stat; const sum=workers(r).reduce((a,s)=>a+effStat(s,st),0); return sum?(.5+sum/10)*lvlMult[r.level]:0; }
-function craftStep(mins){ for(const r of G.rooms){ if(!r.craft||typeof r.craft!=='object') continue; r.craft.prog+=mins*craftSpeed(r)*(G.boost>0?1:.5);
+function craftStep(mins){ for(const r of G.rooms){ if(!r.craft||typeof r.craft!=='object') continue; r.craft.prog+=mins*craftSpeed(r)*(G.boost>0?1:.5)*(r.craft.fast||1);
   if(r.craft.prog>=r.craft.need){ const k=r.craft.k; r.craft=null; addItem(k); log(`The ${ROOMS[r.type].name} finished a ${TIERS[ITEMS[k].tier]} ${ITEMS[k].name}. It's in storage.`,'study'); toast(`Built: ${ITEMS[k].name}`); const w=workers(r)[0]; if(w) FX.text(w.id,ITEMS[k].name,TIERC[ITEMS[k].tier]); } } }
 function scrapReturn(k){ const R=recipe(k), o={}; for(const m in R){ const n=Math.max(R[m]>1?1:0,Math.floor(R[m]*.5)); if(n) o[m]=n; } if(!Object.keys(o).length) o.iron=1; return o; }
 // ---- wasteland exploration (one settler, real time) ----
@@ -4224,7 +4225,7 @@ function milModal(){ const sol=G.settlers.filter(isSoldier), res=G.settlers.filt
   const row=(s,btns)=>`<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:5px"><span><button class="link" data-a="open" data-id="${s.id}">${esc(fullName(s))}</button> <span class="lede" style="font-size:12px">${s.mil&&cmdRoom()?`<b style="color:#e2c46a">${RANKS[rankOf(s)].n}</b> · `:''}${s.mil?post(s)+' · ':jobName(s)+' · '}power ${Math.round(memberPow(s))}${s.mil?` · ${Math.floor(s.milXP||0)} service pts`:''}</span></span><span class="row">${s.mil&&cmdRoom()&&(s.rank_m||0)<RANKS.length-1?(promoWhy(s)?`<span class="why" style="font-size:11px">${esc(promoWhy(s))}</span>`:`<button class="btn sm pri" data-a="milPromo" data-id="${s.id}">Promote to ${RANKS[(s.rank_m||0)+1].n}</button>`):''}${btns}</span></div>`;
   return `<header><h2>Military</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
   <p class="lede">${sol.length} soldier${sol.length===1?'':'s'} · ${res.length} reservist${res.length===1?'':'s'} · upkeep ${up.f} food and ${up.c} caps per day${G.flags.unpaid?' · <b style="color:var(--danger)">unpaid</b>':''}. Defense ${Math.round(defense())}.</p>
-  <div class="row"><button class="btn sm pri" data-a="milTree">Military tree</button></div>
+  <div class="row"><button class="btn sm pri" data-a="milTree">Military tree</button></div>${vacancyBox()}
   ${cmdRoom()?`<div class="box"><h4>Chain of command</h4>${RANKS.slice(3).map((R,i)=>{ const r=i+3, L=G.settlers.filter(x=>x.mil&&(x.rank_m||0)===r); return `<div class="row" style="justify-content:space-between"><span><b>${R.n}</b> <span class="lede" style="font-size:11px">${R.xp} pts · ${ITEMS[R.uni].name}${R.def?` · Defense ${R.def}+`:''}</span></span><span class="lede" style="font-size:12px">${L.map(x=>esc(x.first+' '+x.last)).join(', ')||'—'} (${L.length}/${Math.min(rankCap(r),99)})</span></div>`; }).join('')}<p class="lede" style="font-size:12px">Service points come from days on duty, training, raids and expeditions. Promotion needs the points, an open post (posts grow with the size of the army), the Defense level, and the rank's uniform in storage, which is issued at the ceremony. Officers posted at the Command Post boost the whole army: +${Math.round(cmdBonus()*100)}% right now.</p></div>`:`<div class="box"><h4>Chain of command</h4><p class="lede" style="font-size:12px">Build a Command Post (Defense level 1, 800 caps) to establish ranks and promotions. Service points are already being earned.</p></div>`}
   <div class="box"><h4>Soldiers (full-time)</h4><p class="lede" style="font-size:12px">Only soldiers can guard the Armory, the Entrance and the Command Post. They can also train in the Weight Room, Firing Range, Drill Hall and similar rooms, and go on leave to Quarters to start a family (they return to their post once a pregnancy begins, or after the birth for mothers), but they cannot work civilian jobs. Soldiers without a post still add defense and are first up the stairs in a raid. Each costs 1 food and 2 caps a day.</p>${sol.length?sol.map(s=>row(s,`<button class="btn sm" data-a="milRes" data-id="${s.id}">Make reservist</button><button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button>`)).join(''):'<p class="lede">None yet.</p>'}</div>
   <div class="box"><h4>Reservists</h4><p class="lede" style="font-size:12px">Reservists keep their civilian jobs and are called up when raiders come, before untrained settlers. Each costs 1 cap a day.</p>${res.length?res.map(s=>row(s,`<button class="btn sm" data-a="milSol" data-id="${s.id}">Make soldier</button><button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button>`)).join(''):'<p class="lede">None yet.</p>'}</div>
@@ -6671,6 +6672,73 @@ function milTreeModal(){ const D=milTreeData(), sec=typeof secOf==='function'?se
   <div class="row"><button class="btn sm" data-a="milOpen">Military roster</button></div></div>`;
   return h; }
 
+/* ===== v9.8: economy rooms that make materials (+ oil & rubber) ===== */
+ROOMS.salvage={name:'Salvage Yard',stat:'S',cost:200,col:'--r-shop',hex:'#8a7a5a',desc:'Strips wreckage for scrap: iron, plastic, wire, copper and glass every day. Lucky workers turn up circuitry.'};
+ROOMS.coop={name:'Workers’ Cooperative',stat:'C',cost:250,col:'--r-shop',hex:'#a0503a',desc:'Zadruga. A weaving co-op that makes cloth, and its organizers make every staffed production room next to it 10% more productive.'};
+ROOMS.bank={name:'Savings Bank',stat:'I',cost:400,col:'--r-caps',hex:'#c9a24a',req:{econ:1},desc:'Pays daily interest on the shelter’s caps and slowly builds a small gold reserve. A careless or disloyal banker can lose money on bad loans.'};
+ROOMS.bazaar={name:'Bazaar',stat:'C',cost:300,col:'--r-caps',hex:'#d48a3a',desc:'Čaršija. Private stalls that earn more caps the bigger the shelter. Traders here sell a few rare materials each day.'};
+ROOMS.refinery={name:'Oil Refinery',stat:'E',cost:350,col:'--r-power',hex:'#4a4a52',desc:'Pumps and cracks crude into oil and rubber. Oil speeds up builds in the Weapon Factory and rubber in the Outfit Factory.'};
+ROOMS.mine={name:'Deep Mine',stat:'S',cost:500,col:'--r-power',hex:'#5a4a3a',bottom:true,desc:'Must be dug on the deepest floor. Hard, dangerous work that wears miners down. Brings up iron and, now and then, uranium.'};
+Object.assign(ROOMS.bazaar,{res:'caps',base:.5}); 
+MATS.oil={n:'Oil',r:1,nr:true}; MATS.rubber={n:'Rubber',r:1,nr:true};
+const ECON_T=['salvage','coop','bank','bazaar','refinery','mine'];
+function matAcc(r,m,x){ r._acc=r._acc||{}; r._acc[m]=(r._acc[m]||0)+x; const n=Math.floor(r._acc[m]); if(n>0){ r._acc[m]-=n; G.mats[m]=(G.mats[m]||0)+n; (r._got=r._got||{})[m]=(r._got[m]||0)+n; } return n; }
+function coopNear(r){ if(r.type==='coop') return false; return G.rooms.some(q=>q.type==='coop'&&q.floor===r.floor&&workers(q).length&&(q.col+(q.w||1)===r.col||r.col+(r.w||1)===q.col)); }
+const bazaarMult=()=>1+G.settlers.length/50;
+const STALL={circuitry:45,gold:110,uranium:140,oil:20,rubber:20};
+function econDay(){ for(const r of G.rooms){ if(!ECON_T.includes(r.type)) continue; r._got={}; const W=workers(r); if(!W.length) continue;
+  if(r.type==='salvage'){ const n=roomPow(r,.35), L=W.reduce((a,s)=>a+effStat(s,'L'),0)/W.length; const pool=['iron','iron','plastic','plastic','wire','copper','glass'];
+    let left=n; while(left>0){ const part=Math.min(1,left); left-=part; matAcc(r,rnd()<.05+L*.012?'circuitry':pick(pool),part); } }
+  else if(r.type==='coop') matAcc(r,'cloth',roomPow(r,.3));
+  else if(r.type==='bank'){ const rate=Math.min(.006,roomPow(r,.0004)), cap=40*lvlMult[r.level]*(r.w||1), gain=Math.min(cap,G.res.caps*rate); G.res.caps+=gain; r._int=Math.round(gain);
+    matAcc(r,'gold',roomPow(r,.004)); const avgI=W.reduce((a,s)=>a+effStat(s,'I'),0)/W.length, bad=W.some(s=>(s.loy||50)<30);
+    if((avgI<4||bad)&&rnd()<.04){ const lost=Math.round(G.res.caps*.02); G.res.caps-=lost; log(`The Savings Bank lost ${lost} caps on bad loans.`,'danger'); } }
+  else if(r.type==='bazaar'){ r.stall={}; const n=r.level+(r.w||1); for(let i=0;i<n;i++){ const k=pick(Object.keys(STALL)); r.stall[k]=(r.stall[k]||0)+1; } }
+  else if(r.type==='refinery'){ const x=roomPow(r,.25); matAcc(r,'oil',x*.6); matAcc(r,'rubber',x*.4); }
+  else if(r.type==='mine'){ matAcc(r,'iron',roomPow(r,.15)); matAcc(r,'uranium',roomPow(r,.03)); for(const s of W) addWear(s,.35,'mining'); if(rnd()<.015){ const s=pick(W); hurtSettler(s,ri(10,30),'Mine accident'); log(`A mine accident hurt ${fullName(s)}.`,'danger'); } } } }
+function v98Panel(r){ if(!ECON_T.includes(r.type)) return ''; const g=r._got&&Object.keys(r._got).length?`Yesterday: ${matLine(r._got)}.`:'';
+  if(r.type==='salvage') return `<p class="lede">About ${roomPow(r,.35).toFixed(1)} scrap a day. ${g}</p>`;
+  if(r.type==='coop') return `<p class="lede">About ${roomPow(r,.3).toFixed(1)} cloth a day. ${G.rooms.filter(coopNear).length} neighboring production room${G.rooms.filter(coopNear).length===1?'':'s'} get +10%. ${g}</p>`;
+  if(r.type==='bank') return `<p class="lede">Interest ${(Math.min(.006,roomPow(r,.0004))*100).toFixed(2)}% a day (up to ${Math.round(40*lvlMult[r.level]*(r.w||1))} caps)${r._int!=null?`, ${r._int} caps yesterday`:''}. ${g}</p>`;
+  if(r.type==='refinery') return `<p class="lede">About ${(roomPow(r,.25)*.6).toFixed(1)} oil and ${(roomPow(r,.25)*.4).toFixed(1)} rubber a day. Stock: ${Math.floor(G.mats.oil||0)} oil, ${Math.floor(G.mats.rubber||0)} rubber. ${g}</p>`;
+  if(r.type==='mine') return `<p class="lede">About ${roomPow(r,.15).toFixed(1)} iron and ${roomPow(r,.03).toFixed(2)} uranium a day. Miners wear down faster and accidents happen. ${g}</p>`;
+  if(r.type==='bazaar'){ const st=r.stall||{}, ks=Object.keys(st).filter(k=>st[k]>0); return `<p class="lede">Stalls earn ${Math.round((bazaarMult()-1)*100)}% more with ${G.settlers.length} settlers.</p><div class="box"><h4>Today’s stalls</h4>${ks.length?ks.map(k=>`<div class="row" style="justify-content:space-between"><span>${MATS[k].n} × ${st[k]}</span><button class="btn sm" data-a="bzBuy" data-id="${r.id}" data-v="${k}" ${G.res.caps<STALL[k]?'disabled':''}>Buy 1 · ${STALL[k]} caps</button></div>`).join(''):'<p class="lede">Sold out. New stock tomorrow (staff the stalls).</p>'}</div>`; }
+  return ''; }
+/* art */
+function drawSalvage(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#4a4438'); g.addColorStop(1,'#5a5242'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  const cols=['#7a6a5a','#8a8a8a','#6a5a4a','#9a7a4a','#5a6a7a']; for(let i=0;i<14;i++){ const px=W0+10+((i*37)%(W1-W0-40)), sz=8+(i*7)%12; c.fillStyle=cols[i%5]; c.beginPath(); c.moveTo(px,fl); c.lineTo(px+sz*.6,fl-sz-(i%3)*4); c.lineTo(px+sz*1.4,fl); c.fill(); }
+  c.strokeStyle='#d0b040'; c.lineWidth=2; c.beginPath(); c.moveTo(W1-20,top+12); c.lineTo(W1-20,fl-30); c.stroke(); c.fillStyle='#e2b13c'; c.fillRect(W1-60,top+10,46,5); c.strokeStyle='#888'; c.lineWidth=1; c.beginPath(); c.moveTo(W1-50,top+15); c.lineTo(W1-50,top+30+Math.sin(t)*3); c.stroke(); c.fillStyle='#555'; c.fillRect(W1-56,top+30+Math.sin(t)*3,12,4); }
+function drawCoop(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#5a3a30'); g.addColorStop(1,'#6a4a3a'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.fillStyle='#b8282a'; c.fillRect(W0+10,top+10,40,24); c.fillStyle='#e2c46a'; c.font='bold 7px system-ui'; c.fillText('ZADRUGA',W0+13,top+25);
+  for(const lx of [W0+60,W0+105]){ c.fillStyle='#6a4a2a'; c.fillRect(lx,fl-34,34,4); c.fillRect(lx,fl-34,3,34); c.fillRect(lx+31,fl-34,3,34); for(let k=0;k<6;k++){ c.strokeStyle=['#c0392b','#e2c46a','#2f6fb0'][k%3]; c.lineWidth=1.5; c.beginPath(); c.moveTo(lx+5+k*5,fl-30); c.lineTo(lx+5+k*5,fl-12); c.stroke(); } c.fillStyle='#8a6a4a'; c.fillRect(lx+3,fl-12+Math.sin(t*3+lx)*1.5,28,3); }
+  c.fillStyle='#d8cfc0'; for(let k=0;k<3;k++) c.fillRect(W1-40,top+14+k*10,28,7); }
+function drawBank(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; c.fillStyle='#4a4436'; c.fillRect(W0,top,W1-W0,fl-top); c.fillStyle='#d8d0b8'; for(const px of [W0+12,W1-22]) c.fillRect(px,top+8,10,fl-top-10);
+  c.fillStyle='#3a3a40'; c.beginPath(); c.arc(x+w/2,top+(fl-top)/2,22,0,TAU); c.fill(); c.strokeStyle='#c9a24a'; c.lineWidth=3; c.stroke(); c.strokeStyle='#888'; c.lineWidth=2; for(let k=0;k<3;k++){ const a=t*.5+k*2.1; c.beginPath(); c.moveTo(x+w/2,top+(fl-top)/2); c.lineTo(x+w/2+Math.cos(a)*14,top+(fl-top)/2+Math.sin(a)*14); c.stroke(); }
+  c.fillStyle='#f2b83b'; for(let k=0;k<Math.min(5,Math.floor(G.mats.gold||0));k++) c.fillRect(W0+30+k*7,fl-8,6,4); }
+function drawBazaar(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; c.fillStyle='#5a4030'; c.fillRect(W0,top,W1-W0,fl-top); const aw=['#c0392b','#e2b13c','#2e9e6e'];
+  for(let k=0;k<3;k++){ const sx=W0+6+k*((W1-W0-12)/3), sw=(W1-W0-12)/3-6; for(let q=0;q<5;q++){ c.fillStyle=q%2?'#f2efe6':aw[k]; c.fillRect(sx+q*sw/5,top+12,sw/5,10); } c.fillStyle='#6a4a2a'; c.fillRect(sx,fl-20,sw,6); c.fillRect(sx+2,fl-14,3,14); c.fillRect(sx+sw-5,fl-14,3,14);
+    for(let q=0;q<4;q++){ c.fillStyle=['#d8433a','#f2b83b','#7cc04a','#c08cf0'][(q+k)%4]; c.beginPath(); c.arc(sx+6+q*(sw-10)/3,fl-23,3,0,TAU); c.fill(); } } }
+function drawRefinery(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; c.fillStyle='#34343a'; c.fillRect(W0,top,W1-W0,fl-top);
+  for(const [tx,tw] of [[W0+10,26],[W0+44,20]]){ c.fillStyle='#6a6a72'; c.fillRect(tx,top+20,tw,fl-top-20); c.fillStyle='#4a4a52'; for(let y=top+26;y<fl;y+=12) c.fillRect(tx,y,tw,2); }
+  c.strokeStyle='#8a8a92'; c.lineWidth=3; c.beginPath(); c.moveTo(W0+36,top+40); c.lineTo(W0+44,top+40); c.moveTo(W0+64,top+50); c.lineTo(W1-40,top+50); c.lineTo(W1-40,fl-20); c.stroke();
+  c.fillStyle='#1a1a1a'; for(let k=0;k<3;k++) fillRR(c,W1-34+(k%2)*10,fl-14-Math.floor(k/2)*12,10,12,2,'#1a1a1a'); c.fillStyle='#2a2a2a'; c.beginPath(); c.arc(W1-62,fl-10,8,0,TAU); c.fill(); c.fillStyle='#444'; c.beginPath(); c.arc(W1-62,fl-10,3,0,TAU); c.fill();
+  if(on||G.flags.power){ c.fillStyle=`rgba(255,140,40,${.5+.3*Math.sin(t*6)})`; c.beginPath(); c.arc(W0+20,top+16,4,0,TAU); c.fill(); } }
+function drawMine(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#3a2e24'); g.addColorStop(1,'#2a2018'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.fillStyle='#5a4632'; for(let i=0;i<20;i++){ c.beginPath(); c.arc(W0+((i*53)%(W1-W0)),top+8+((i*29)%(fl-top-20)),3+(i%4),0,TAU); c.fill(); }
+  c.fillStyle='#6a4a2a'; c.fillRect(W0+20,top+10,6,fl-top-10); c.fillRect(W1-26,top+10,6,fl-top-10); c.fillRect(W0+20,top+10,W1-W0-40,6);
+  c.fillStyle='#1a140e'; c.beginPath(); c.moveTo(W0+40,fl); c.lineTo(W0+40,top+40); c.quadraticCurveTo(x+w/2,top+22,W1-40,top+40); c.lineTo(W1-40,fl); c.fill();
+  c.fillStyle='#7a7a6a'; c.fillRect(W0+50,fl-12,26,8); c.fillStyle='#4a6a3a'; for(let k=0;k<Math.min(3,Math.floor(G.mats.uranium||0));k++){ c.fillStyle='#7cf06a'; c.fillRect(W0+53+k*7,fl-16,5,4); }
+  c.fillStyle=`rgba(255,220,120,${.6+.2*Math.sin(t*3)})`; c.beginPath(); c.arc(x+w/2,top+30,3,0,TAU); c.fill(); }
+PROPS.salvage=drawSalvage; PROPS.coop=drawCoop; PROPS.bank=drawBank; PROPS.bazaar=drawBazaar; PROPS.refinery=drawRefinery; PROPS.mine=drawMine;
+Object.assign(JOBPULL,{salvage:[-.4,0],coop:[-.9,0],bank:[.6,0],bazaar:[.9,0],refinery:[-.4,.1],mine:[-.5,.2]});
+/* promotions: vacancies are announced with suggestions; the Overseer decides */
+function promoCands(r){ return G.settlers.filter(s=>isSoldier(s)&&s.id!==G.leader&&!s.milLeave&&(s.rank_m||0)===r-1).map(s=>({s,why:promoWhy(s)})).filter(x=>!x.why||/uniform/.test(x.why)).sort((a,b)=>(!!a.why-!!b.why)||(b.s.milXP||0)-(a.s.milXP||0)||memberPow(b.s)-memberPow(a.s)).slice(0,3); }
+function openPosts(){ if(!cmdRoom()) return []; const out=[]; for(let r=3;r<RANKS.length;r++){ const cap=Math.min(rankCap(r),99), n=rankCount(r); if(n>=cap) continue; const c=promoCands(r); if(c.length) out.push({r,cap,n,c}); } return out; }
+function vacancyDay(){ if(!cmdRoom()) return; G.vacSeen=G.vacSeen||{}; const O=openPosts(), keys=new Set(O.map(o=>o.r));
+  for(const o of O){ const k=o.r+':'+o.n; if(G.vacSeen[o.r]===k) continue; G.vacSeen[o.r]=k; log(`🎖 Open post: ${RANKS[o.r].n} (${o.n} of ${o.cap} filled). Suggested: ${o.c.map(x=>`${x.s.first} (${Math.floor(x.s.milXP||0)} pts${x.why?', needs uniform':''})`).join(', ')}. You decide in the Military roster.`,'gov'); }
+  for(const r in G.vacSeen) if(!keys.has(+r)) delete G.vacSeen[r]; }
+function vacancyBox(){ const O=openPosts(); if(!O.length) return ''; return `<div class="box" style="border-color:#c9a24a"><h4>🎖 Open posts</h4>${O.map(o=>`<div style="margin:6px 0"><b>${RANKS[o.r].n}</b> <span class="lede" style="font-size:12px">${o.n}/${o.cap} filled · suggested:</span><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:4px">${o.c.map(x=>x.why?`<span class="tag">${esc(x.s.first)} · ${Math.floor(x.s.milXP||0)} pts · ${esc(x.why)}</span>`:`<button class="btn sm pri" data-a="milPromo" data-id="${x.s.id}">Promote ${esc(x.s.first)} · ${Math.floor(x.s.milXP||0)} pts</button>`).join('')}</div></div>`).join('')}<p class="lede" style="font-size:12px">Suggestions favor service points, then fighting power. Promotions are your call.</p></div>`; }
+
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
   c.fillStyle='#211d19'; c.fillRect(x,top,w,h);
@@ -7333,7 +7401,7 @@ function assignModal(rid){
     ${tm.length<cap?`<p class="lede" style="font-size:12px;margin-top:8px">Appoint (best rescue rating first):</p><div class="pick">${cand.map(x=>`<button data-a="ert" data-id="${x.id}"><span>${esc(fullName(x))} ${settlerIcons(x)}</span><span class="jb">${jobName(x)}</span><span class="sv">A ${x.s.A} · I ${x.s.I}</span></button>`).join('')}</div>`:''}
     <div class="row"><button class="btn sm" data-a="ertDrill" ${tm.length?'':'disabled'}>Run a drill</button></div></div>`; }
   if(r.type==='surgery') ex+=surgPanel(r);
-  ex+=v93Panel(r);
+  ex+=v93Panel(r)+v98Panel(r);
   if(r.type==='office') ex+=renoBox(r);
   if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button><button class="btn sm" data-a="milTree">Military tree</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
@@ -7428,6 +7496,7 @@ document.addEventListener('click',e=>{
     case 'tBuy': tBuy(+el.dataset.i); break;
     case 'tBye': if(G.trader){ log(`${G.trader.name} waved goodbye${G.trader.deals?' after a good bit of business':''}.`,'gov'); G.trader=null; G.nextTraderD=nowD()+2+rnd(); } UI.modal=null; break;
     case 'milOpen': UI.modal={t:'mil'}; break;
+    case 'bzBuy': { const r=roomById(id), k=el.dataset.v; if(r&&r.stall&&r.stall[k]>0&&G.res.caps>=STALL[k]){ G.res.caps-=STALL[k]; G.mats[k]=(G.mats[k]||0)+1; r.stall[k]--; toast(`Bought 1 ${MATS[k].n.toLowerCase()}.`); save(); } break; }
     case 'milTree': UI.modal={t:'miltree'}; setTimeout(()=>{ const t=document.querySelector('.miltree'); if(t) t.scrollLeft=(t.scrollWidth-t.clientWidth)/2; },60); break;
     case 'polOpen': UI.modal={t:'pol'}; break;
     case 'polPromo': { const s=byId(id); if(s) polPromote(s); break; }
@@ -7625,7 +7694,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
