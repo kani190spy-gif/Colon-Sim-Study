@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.5</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.6</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -4265,13 +4265,14 @@ function milModal(){ const sol=G.settlers.filter(isSoldier), res=G.settlers.filt
   const row=(s,btns)=>`<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:5px"><span><button class="link" data-a="open" data-id="${s.id}">${esc(fullName(s))}</button> <span class="lede" style="font-size:12px">${s.mil&&cmdRoom()?`<b style="color:#e2c46a">${RANKS[rankOf(s)].n}</b> · `:''}${s.mil?post(s)+' · ':jobName(s)+' · '}power ${Math.round(memberPow(s))}${s.mil?` · ${Math.floor(s.milXP||0)} service pts`:''}</span></span><span class="row">${s.mil&&cmdRoom()&&(s.rank_m||0)<RANKS.length-1?(promoWhy(s)?`<span class="why" style="font-size:11px">${esc(promoWhy(s))}</span>`:`<button class="btn sm pri" data-a="milPromo" data-id="${s.id}">Promote to ${RANKS[(s.rank_m||0)+1].n}</button>`):''}${btns}</span></div>`;
   return `<header><h2>Military</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
   <p class="lede">${sol.length} soldier${sol.length===1?'':'s'} · ${res.length} reservist${res.length===1?'':'s'} · upkeep ${up.f} food and ${up.c} caps per day${G.flags.unpaid?' · <b style="color:var(--danger)">unpaid</b>':''}. Defense ${Math.round(defense())}.</p>
+  <div class="row"><button class="btn sm pri" data-a="milTree">Military tree</button></div>
   ${cmdRoom()?`<div class="box"><h4>Chain of command</h4>${RANKS.slice(3).map((R,i)=>{ const r=i+3, L=G.settlers.filter(x=>x.mil&&(x.rank_m||0)===r); return `<div class="row" style="justify-content:space-between"><span><b>${R.n}</b> <span class="lede" style="font-size:11px">${R.xp} pts · ${ITEMS[R.uni].name}${R.def?` · Defense ${R.def}+`:''}</span></span><span class="lede" style="font-size:12px">${L.map(x=>esc(x.first+' '+x.last)).join(', ')||'—'} (${L.length}/${Math.min(rankCap(r),99)})</span></div>`; }).join('')}<p class="lede" style="font-size:12px">Service points come from days on duty, training, raids and expeditions. Promotion needs the points, an open post (posts grow with the size of the army), the Defense level, and the rank's uniform in storage, which is issued at the ceremony. Officers posted at the Command Post boost the whole army: +${Math.round(cmdBonus()*100)}% right now.</p></div>`:`<div class="box"><h4>Chain of command</h4><p class="lede" style="font-size:12px">Build a Command Post (Defense level 1, 800 caps) to establish ranks and promotions. Service points are already being earned.</p></div>`}
   <div class="box"><h4>Soldiers (full-time)</h4><p class="lede" style="font-size:12px">Only soldiers can guard the Armory, the Entrance and the Command Post. They can also train in the Weight Room, Firing Range, Drill Hall and similar rooms, and go on leave to Quarters to start a family (they return to their post once a pregnancy begins, or after the birth for mothers), but they cannot work civilian jobs. Soldiers without a post still add defense and are first up the stairs in a raid. Each costs 1 food and 2 caps a day.</p>${sol.length?sol.map(s=>row(s,`<button class="btn sm" data-a="milRes" data-id="${s.id}">Make reservist</button><button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button>`)).join(''):'<p class="lede">None yet.</p>'}</div>
   <div class="box"><h4>Reservists</h4><p class="lede" style="font-size:12px">Reservists keep their civilian jobs and are called up when raiders come, before untrained settlers. Each costs 1 cap a day.</p>${res.length?res.map(s=>row(s,`<button class="btn sm" data-a="milSol" data-id="${s.id}">Make soldier</button><button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button>`)).join(''):'<p class="lede">None yet.</p>'}</div>
   <div class="box"><h4>Enlist (strongest first)</h4>${cand.length?cand.slice(0,30).map(s=>row(s,`<button class="btn sm pri" data-a="milSol" data-id="${s.id}">Soldier</button><button class="btn sm" data-a="milRes" data-id="${s.id}">Reservist</button>`)).join(''):'<p class="lede">No adults 18+ available.</p>'}</div></div>`; }
 function milBox(s){ if(s.died!=null||!isAdult(s)) return ''; const r=s.room&&roomById(s.room);
   if(!s.mil) return milAge(s)?`<div class="box"><h4>Military</h4><p class="lede" style="font-size:12px">Civilian.</p><div class="row"><button class="btn sm" data-a="milSol" data-id="${s.id}">Enlist as soldier</button><button class="btn sm" data-a="milRes" data-id="${s.id}">Enlist as reservist</button></div></div>`:'';
-  return `<div class="box"><h4>Military</h4><p class="lede" style="font-size:12px">${s.milLeave?'<b>Relieved of duty while serving as leader.</b> ':''}${s.wasSoldier?'<b>Serving on the council as a reservist.</b> ':''}${cmdRoom()?`<b style="color:#e2c46a">${RANKS[rankOf(s)].n}</b> · ${Math.floor(s.milXP||0)} service points · `:''}${isSoldier(s)?`Full-time soldier · ${r?`posted to the ${ROOMS[r.type].name} B${r.floor+1}`:'unposted'}`:'Reservist · keeps their civilian job'} · enlisted ${fdate(s.milSince||0)}</p><div class="row">${isSoldier(s)?`<button class="btn sm" data-a="milRes" data-id="${s.id}">Make reservist</button>`:`<button class="btn sm" data-a="milSol" data-id="${s.id}">Make full-time soldier</button>`}<button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button><button class="btn sm" data-a="milOpen">Military roster</button></div></div>`; }
+  return `<div class="box"><h4>Military</h4><p class="lede" style="font-size:12px">${s.milLeave?'<b>Relieved of duty while serving as leader.</b> ':''}${s.wasSoldier?'<b>Serving on the council as a reservist.</b> ':''}${cmdRoom()?`<b style="color:#e2c46a">${RANKS[rankOf(s)].n}</b> · ${Math.floor(s.milXP||0)} service points · `:''}${isSoldier(s)?`Full-time soldier · ${r?`posted to the ${ROOMS[r.type].name} B${r.floor+1}`:'unposted'}`:'Reservist · keeps their civilian job'} · enlisted ${fdate(s.milSince||0)}</p><div class="row">${isSoldier(s)?`<button class="btn sm" data-a="milRes" data-id="${s.id}">Make reservist</button>`:`<button class="btn sm" data-a="milSol" data-id="${s.id}">Make full-time soldier</button>`}<button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button><button class="btn sm" data-a="milOpen">Military roster</button><button class="btn sm" data-a="milTree">Military tree</button></div></div>`; }
 
 /* ===== Knights, redcoats, musket & longsword ===== */
 { const NEW_OUTFITS=[
@@ -4374,13 +4375,13 @@ const RANKS=[
  {n:'Colonel',a:'COL',xp:140,uni:'o_colonel',def:4},
  {n:'General',a:'GEN',xp:220,uni:'o_general',def:4}];
 const cmdRoom=()=>G.rooms.find(r=>r.type==='command');
-const rankOf=s=>s&&s.mil&&cmdRoom()?(s.rank_m||0):0;
+const rankOf=s=>s&&s.mil&&cmdRoom()?(s.mil==='reserve'?Math.min(3,s.rank_m||0):(s.rank_m||0)):0;
 const armySize=()=>G.settlers.filter(s=>s.mil&&!s.died).length;
 function rankCap(r){ const n=armySize(); if(r<=2) return 999; if(r===3) return Math.max(1,Math.ceil(n/4)); if(r===4) return n>=5?Math.max(1,Math.floor(n/8)):0; if(r===5) return n>=8?1+Math.floor(n/16):0; if(r===6) return n>=12?1:0; return n>=6?1:0; }
-const rankCount=r=>G.settlers.filter(s=>s.mil&&(s.rank_m||0)===r).length;
+const rankCount=r=>G.settlers.filter(s=>isSoldier(s)&&s.id!==G.leader&&!s.milLeave&&(s.rank_m||0)===r).length;
 function uniformFor(s,r){ const k=RANKS[r].uni; if(!k) return {ok:true}; const wear=gearOf(s,'o'); if(wear&&('o_'+wear.look.replace(/^o_/,''))===k) return {ok:true,worn:true};
   const it=G.items.find(i=>i.k===k&&!holderOf(i.id)); return it?{ok:true,it}:{ok:false,k}; }
-function promoWhy(s){ if(!cmdRoom()) return 'Build a Command Post first'; if(!s.mil) return 'Not in the military'; const r=(s.rank_m||0)+1; if(r>=RANKS.length) return 'Highest rank'; const R=RANKS[r];
+function promoWhy(s){ if(!cmdRoom()) return 'Build a Command Post first'; if(!s.mil) return 'Not in the military'; const r=(s.rank_m||0)+1; if(r>=RANKS.length) return 'Highest rank'; if(s.id===G.leader) return 'Relieved of duty while serving as leader'; if(s.mil==='reserve'&&r>3) return 'Officer ranks need active duty'; const R=RANKS[r];
   if((s.milXP||0)<R.xp) return `${Math.floor(s.milXP||0)}/${R.xp} service points`; if((G.inst.def||0)<R.def) return `Needs Defense level ${R.def}`;
   if(rankCount(r)>=rankCap(r)) return `No open ${R.n} post (army of ${armySize()})`; const u=uniformFor(s,r); if(!u.ok) return `Needs a ${ITEMS[u.k].name} uniform`; return ''; }
 function promote(s){ const why=promoWhy(s); if(why){ toast(why); return false; } const r=(s.rank_m||0)+1, u=uniformFor(s,r);
@@ -6676,6 +6677,39 @@ function renderElections(){ let h=`<h3 class="sec">Elections</h3>`; const V=G.vo
   const H=(G.elHist||[]).slice(0,-1).reverse(); if(H.length) h+=`<div class="box"><h4>Earlier elections</h4><ul class="facts" style="font-size:12px">${H.map(e=>{ const w=e.results.slice().sort((a,b)=>b.share-a.share)[0]; return `<li>${fdate(e.d)} · ${esc(w.name)} won with ${Math.round(w.share*100)}%${e.turnout?` · turnout ${Math.round(e.turnout.cast/Math.max(1,e.turnout.elig)*100)}%`:''}</li>`; }).join('')}</ul></div>`;
   return h; }
 
+/* ===== v9.6: Military tree (chain of command with portraits) ===== */
+const RES_MAX=3; // reservists hold at most Sergeant; officer ranks need active duty
+const onDuty=s=>s&&isSoldier(s)&&s.id!==G.leader&&!s.milLeave;
+function treeStatus(s){ if(s.exp==='hostage') return 'hostage'; if(s.exp) return 'away'; if(s.detained) return 'detained'; if(s.health<40) return 'wounded'; return ''; }
+function milTreeData(){ const act=G.settlers.filter(onDuty).sort((a,b)=>(b.rank_m||0)-(a.rank_m||0)||(b.milXP||0)-(a.milXP||0));
+  const lv={}; for(const s of act){ const r=rankOf(s); (lv[r]=lv[r]||[]).push(s); }
+  const ranks=Object.keys(lv).map(Number).sort((a,b)=>b-a), kids=new Map(), roots=[];
+  const enl=ranks.filter(r=>r<=2).flatMap(r=>lv[r]);
+  const offs=ranks.filter(r=>r>=3); let prev=null;
+  for(const r of offs){ const L=lv[r]; if(!prev) roots.push(...L); else L.forEach((s,i)=>{ const boss=prev[i%prev.length]; (kids.get(boss.id)||kids.set(boss.id,[]).get(boss.id)).push(s); }); prev=L; }
+  if(enl.length){ if(!prev) roots.push(...enl); else enl.forEach((s,i)=>{ const boss=prev[i%prev.length]; (kids.get(boss.id)||kids.set(boss.id,[]).get(boss.id)).push(s); }); }
+  return {act,roots,kids,acting:roots.length&&rankOf(roots[0])<RANKS.length-1&&cmdRoom()?roots[0]:null}; }
+function treeCard(s,acting){ const r=rankOf(s), R=RANKS[r], st=treeStatus(s), rm=s.room&&roomById(s.room);
+  return `<button class="mtc" data-a="open" data-id="${s.id}" title="${esc(fullName(s))}">${faceHTML(s,44)}<span class="mtr" style="background:${r>=7?'#d9b14a':r>=4?'#c9a24a':r>=3?'#8aa060':'#5a6a4a'}">${R.a}</span><span class="mtn">${esc(s.first)} ${esc(s.last.slice(0,1))}.</span><span class="mts">${acting?`<b style="color:#e2c46a">Acting commander</b>`:cmdRoom()?R.n:'Soldier'}${st?` · <i style="color:var(--warn)">${st}</i>`:''}</span><span class="mts">${rm?esc(ROOMS[rm.type].name):'unposted'}</span></button>`; }
+function treeNode(s,D,acting){ const k=D.kids.get(s.id)||[]; return `<li>${treeCard(s,acting)}${k.length?`<ul>${k.map(x=>treeNode(x,D)).join('')}</ul>`:''}</li>`; }
+const MT_CSS=`<style>.miltree{overflow-x:auto;padding:8px 0 4px}.miltree ul{display:flex;justify-content:center;gap:6px;padding:16px 0 0;margin:0;position:relative;list-style:none}.miltree li{display:flex;flex-direction:column;align-items:center;position:relative;padding:0 2px}
+.miltree li::before,.miltree li::after{content:'';position:absolute;top:-16px;height:16px;border-top:2px solid #6a7050;width:50%}.miltree li::before{right:50%}.miltree li::after{left:50%;border-left:2px solid #6a7050}.miltree li:only-child::before,.miltree li:only-child::after{border-top:none}.miltree li:only-child::after{width:0}
+.miltree li:first-child::before,.miltree li:last-child::after{border-top:none}.miltree li:last-child::before{border-right:2px solid #6a7050;width:0;right:auto;left:50%}.miltree ul ul::before{content:'';position:absolute;top:0;left:50%;height:16px;border-left:2px solid #6a7050}.miltree>ul{padding-top:0}.miltree>ul>li::before,.miltree>ul>li::after{display:none}
+.mtc{display:flex;flex-direction:column;align-items:center;gap:1px;background:#23271c;border:1px solid #4a5038;border-radius:8px;padding:6px 6px 5px;min-width:86px;max-width:104px;color:inherit;cursor:pointer;font:inherit}.mtc:hover{border-color:#c9a24a}.mtc .face{border-radius:50%;background:#2e3324}
+.mtr{font-size:10px;font-weight:700;color:#14170f;border-radius:4px;padding:0 5px;margin-top:2px;letter-spacing:.04em}.mtn{font-size:12px;font-weight:600;white-space:nowrap}.mts{font-size:10px;color:var(--muted);text-align:center;line-height:1.2}
+.mtrow{display:flex;flex-wrap:wrap;gap:6px}.mtrow .mtc{opacity:.8}#modal .dlg:has(.miltree){max-width:1100px;width:min(1100px,96vw)}</style>`;
+function milTreeModal(){ const D=milTreeData(), sec=typeof secOf==='function'?secOf('def'):null, L=G.leader&&byId(G.leader);
+  const res=G.settlers.filter(isReserve).sort((a,b)=>(b.rank_m||0)-(a.rank_m||0)), detached=G.settlers.filter(s=>s.mil&&(s.id===G.leader||s.milLeave));
+  let h=MT_CSS+`<header><h2>Military · chain of command</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
+  <p class="lede" style="font-size:13px">${D.act.length} active-duty soldier${D.act.length===1?'':'s'} · ${res.length} reservist${res.length===1?'':'s'}${cmdRoom()?'':' · <b>Build a Command Post to unlock ranks.</b>'}. Each officer commands the ranks directly below; squads of enlisted soldiers report to sergeants. Tap anyone to open their profile.</p>
+  ${L||sec?`<div class="row" style="justify-content:center;gap:8px;margin:6px 0 2px;flex-wrap:wrap">${L?`<span class="tag">Head of state: ${esc(fullName(L))}</span>`:''}${sec?`<span class="tag">Civilian oversight: ${esc(fullName(sec))}, ${SECS.def.n}</span>`:''}</div>`:''}
+  <div class="miltree">${D.roots.length?`<ul>${D.roots.map((s,i)=>treeNode(s,D,i===0&&D.acting===s)).join('')}</ul>`:'<p class="lede">No active-duty soldiers.</p>'}</div>`;
+  if(D.acting) h+=`<p class="lede" style="font-size:12px;text-align:center">No active ${RANKS[RANKS.length-1].n}: ${esc(fullName(D.acting))}, the senior ${RANKS[rankOf(D.acting)].n}, is acting commander.</p>`;
+  if(detached.length) h+=`<div class="box"><h4>Relieved of duty</h4><div class="mtrow">${detached.map(s=>treeCard(s)).join('')}</div><p class="lede" style="font-size:12px">${detached.map(s=>`${esc(s.first)} is serving as leader and is relieved of duty until they leave office. Their rank of ${RANKS[s.rank_m||0].n} is kept on record and resumes when they return.`).join(' ')}</p></div>`;
+  h+=`<div class="box"><h4>Reserve</h4>${res.length?`<div class="mtrow">${res.map(s=>{ const held=s.rank_m||0; return treeCard(s)+(held>RES_MAX?'':''); }).join('')}</div>`:'<p class="lede">No reservists.</p>'}<p class="lede" style="font-size:12px">Reservists keep their civilian jobs and are called up in emergencies. They can rise to ${RANKS[RES_MAX].n} at most; officer ranks (${RANKS[RES_MAX+1].n} and up) need active duty. An officer moved to the reserve keeps the rank on record, serves as a ${RANKS[RES_MAX].n} meanwhile, and gets the rank back on returning to active duty.${res.some(s=>(s.rank_m||0)>RES_MAX)?` Inactive officer ranks: ${res.filter(s=>(s.rank_m||0)>RES_MAX).map(s=>`${esc(s.first)} (${RANKS[s.rank_m].n})`).join(', ')}.`:''}</p></div>
+  <div class="row"><button class="btn sm" data-a="milOpen">Military roster</button></div></div>`;
+  return h; }
+
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
   c.fillStyle='#211d19'; c.fillRect(x,top,w,h);
@@ -7340,7 +7374,7 @@ function assignModal(rid){
   if(r.type==='surgery') ex+=surgPanel(r);
   ex+=v93Panel(r);
   if(r.type==='office') ex+=renoBox(r);
-  if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
+  if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button><button class="btn sm" data-a="milTree">Military tree</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
   return `<header><h2>${d.name}${(r.w||1)>1&&!d.wide?` ×${r.w}`:''} · B${r.floor+1} · Level ${r.level}</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
   <p class="lede">${d.desc} ${st?`Uses <b>${STAT_NAMES[st]}</b>.`:''} ${r.workers.length}/${roomCap(r)} slots filled.</p>${r.dmgUntil&&r.dmgUntil>G.day?repairBox(r):''}${ex}
@@ -7390,6 +7424,7 @@ function renderModal(){
   else if(m.t==='cms') h=cmsModal();
   else if(m.t==='ob') h=obModal();
   else if(m.t==='mil') h=milModal();
+  else if(m.t==='miltree') h=milTreeModal();
   else if(m.t==='pol') h=polModal();
   else if(m.t==='cit') h=citModal();
   else if(m.t==='trade') h=tradeModal();
@@ -7432,13 +7467,14 @@ document.addEventListener('click',e=>{
     case 'tBuy': tBuy(+el.dataset.i); break;
     case 'tBye': if(G.trader){ log(`${G.trader.name} waved goodbye${G.trader.deals?' after a good bit of business':''}.`,'gov'); G.trader=null; G.nextTraderD=nowD()+2+rnd(); } UI.modal=null; break;
     case 'milOpen': UI.modal={t:'mil'}; break;
+    case 'milTree': UI.modal={t:'miltree'}; break;
     case 'polOpen': UI.modal={t:'pol'}; break;
     case 'polPromo': { const s=byId(id); if(s) polPromote(s); break; }
     case 'polFull': { const s=byId(id); if(s) swearIn(s,'officer'); break; }
     case 'polAux': { const s=byId(id); if(s) swearIn(s,'aux'); break; }
     case 'polOff': { const s=byId(id); if(s) unswear(s); break; }
     case 'milSol': { const s=byId(id); if(s) enlist(s,'soldier'); break; }
-    case 'milRes': { const s=byId(id); if(s){ const r=s.room&&roomById(s.room); if(r&&MIL_POSTS.includes(r.type)) unassign(s); enlist(s,'reserve'); } break; }
+    case 'milRes': { const s=byId(id); if(s){ const r=s.room&&roomById(s.room); if(r&&MIL_POSTS.includes(r.type)) unassign(s); enlist(s,'reserve'); if(cmdRoom()&&(s.rank_m||0)>3) log(`${fullName(s)} moved to the reserve. Their ${RANKS[s.rank_m].n} rank is kept on record; they serve as a Sergeant until they return to active duty.`); } break; }
     case 'milPromo': { const s=byId(id); if(s) promote(s); break; }
     case 'milOff': { const s=byId(id); if(s) discharge(s); break; }
     case 'obCodeCheck': case 'obCodeSend': case 'obOpen': case 'obGo': case 'obPick': case 'obPr': case 'obMockGo': case 'obMockPr': case 'obStims': case 'obSend': case 'obAns': case 'obEnough': case 'obStand': case 'obRethink': case 'obOrdReset': case 'obNext': case 'obQuit': case 'obRf': case 'obRfNext': case 'obG': obClick(a,el.dataset.v,id); break;
