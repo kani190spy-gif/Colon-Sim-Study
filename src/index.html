@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.1</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v8.2</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1281,7 +1281,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection){ election(); G.nextElection=d+4*YEAR; }
@@ -6139,6 +6139,54 @@ function bossRetreat(why){ const F=FIGHT; if(!F||F.stage==='retreat') return; F.
   const nb=raiderBodies(F); if(F.fac) factionLoss(F.fac,nb,0); milFightXP(F,false); G.lastBoss=G.day; G.defDmg={m:.35,until:G.day+6};
   if(G.session) G.session.nextAtk=Date.now()+ri(20,35)*60000; raidCasualties(F); save(); }
 
+/* ===== Phase 3 · Parties step 1: the political compass and party membership (display only) ===== */
+const PARTIES={com:{n:'Communist Party',s:'Communists',c:'#c0392b',ec:-.62,idn:0,d:'Collective ownership, rationing by need, workers first.'},
+  mkt:{n:'Free Market Party',s:'Free Marketeers',c:'#d4a017',ec:.62,idn:-.1,d:'Trade, private caps, low levies, reward the productive.'},
+  nat:{n:'Nationalist Party',s:'Nationalists',c:'#2f6fb0',ec:.1,idn:.62,d:'Our people first: strong borders, tradition, a firm hand.'},
+  civ:{n:'Civic Unity',s:'Civic Unionists',c:'#2e9e6e',ec:-.1,idn:-.62,d:'One vault for everyone: equal rights, open doors, shared institutions.'}};
+const PK=Object.keys(PARTIES);
+const pDist=(s,k)=>Math.hypot((s.ec||0)-PARTIES[k].ec,(s.idn||0)-PARTIES[k].idn);
+function nearestParty(s){ return PK.slice().sort((a,b)=>pDist(s,a)-pDist(s,b))[0]; }
+function seedIdeology(s){ if(s.ec!=null) return; const par=(s.parents||[]).map(anyById).filter(p=>p&&p.ec!=null);
+  const g=()=>(rnd()+rnd()+rnd()-1.5)*.55;
+  if(par.length){ s.ec=clamp(par.reduce((a,p)=>a+p.ec,0)/par.length*.7+g()*.7,-1,1); s.idn=clamp(par.reduce((a,p)=>a+p.idn,0)/par.length*.7+g()*.7,-1,1); }
+  else { let ec=g(), idn=g(); const r=s.room&&roomById(s.room);
+    if(r&&['generator','water','diner','workshop','garden'].includes(r.type)) ec-=.15; if(r&&['trade','office','lab'].includes(r.type)) ec+=.15; if(s.s&&s.s.C>=7) ec+=.08;
+    if(s.mil||s.pol) idn+=.2; if(s.lean==='hard') idn+=.2; if(s.lean==='reform') idn-=.2; if(s.immStance==='strict') idn+=.25; if(s.immStance==='open') idn-=.25; if(!isCitizen(s)) idn-=.3; if(s.exRaider) ec+=.1;
+    s.ec=clamp(ec,-1,1); s.idn=clamp(idn,-1,1); }
+  s.ec0=s.ec; s.idn0=s.idn; }
+function partyDay(){ const A=polAdults(); G.pDrift=G.pDrift||{ec:0,idn:0}; const D=G.pDrift;
+  // vault-wide pressures
+  const short=G.flags.food||G.flags.water, rich=G.res.caps>1500, rdead=G.dead.filter(s=>!s.departed&&/raid|hostage/i.test(s.cause||'')&&s.died>=G.day-1).length;
+  D.ec=clamp(D.ec*.9+(short?-.03:0)+(rich?.01:0),-.3,.3); D.idn=clamp(D.idn*.9+rdead*.03+((G.hostages||[]).length?.02:0)+(G.plague?-.01:0),-.3,.3);
+  const sw=[];
+  for(const s of A){ seedIdeology(s);
+    const pullE=(s.ec0-s.ec)*.03+D.ec*.14+(rnd()-.5)*.03, pullI=(s.idn0-s.idn)*.03+D.idn*.14+(s.citGrudge?-.01:0)+(s.arrestedBy?-.01:0)+(rnd()-.5)*.02;
+    s.ec=clamp(s.ec+pullE,-1,1); s.idn=clamp(s.idn+pullI,-1,1);
+    const best=nearestParty(s);
+    if(!s.party){ s.party=best; s.partyD=G.day; continue; }
+    if(best!==s.party&&pDist(s,best)+.1<pDist(s,s.party)&&rnd()<.35&&G.day-(s.partyD||0)>=5){ const old=s.party; s.party=best; s.partyD=G.day; s.partyHist=(s.partyHist||[]).concat({d:G.day,from:old,to:best}).slice(-6); sw.push([s,old,best]); } }
+  for(const s of G.settlers) if(!isAdult(s)||age(s)<18) s.party=s.party&&age(s)>=18?s.party:null;
+  if(sw.length){ G.pSwitch=(G.pSwitch||[]).concat(sw.map(([s,o,n])=>({d:G.day,id:s.id,from:o,to:n}))).slice(-60);
+    const big=sw.filter(([s])=>s.id===G.leader||s.s.C>=7||(G.council||[]).includes(s.id)); for(const [s,o,n] of big) polNews(`${fullName(s)}${s.id===G.leader?' (the leader)':''} left the ${PARTIES[o].n} for the ${PARTIES[n].n}.`); }
+  if(G.day%6===0) partySnap(); }
+function partySnap(){ const C=polAdults().filter(s=>isCitizen(s)&&s.party); const o={d:G.day}; for(const k of PK) o[k]=C.filter(s=>s.party===k).length; G.pHist=(G.pHist||[]).concat(o).slice(-40); }
+function partyTag(s){ if(!s.party||age(s)<18) return ''; const P=PARTIES[s.party]; return `<span class="tag" style="border-color:${P.c};color:${P.c}">${isCitizen(s)?P.s.replace(/s$/,''):'Sympathizes: '+P.s}</span>`; }
+function compassSVG(A,W,H){ const pad=18, X=v=>pad+(v+1)/2*(W-2*pad), Y=v=>pad+(1-(v+1)/2)*(H-2*pad);
+  let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:auto" role="img" aria-label="Political compass">`;
+  g+=`<rect x="${pad}" y="${pad}" width="${W-2*pad}" height="${H-2*pad}" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.15)"/><line x1="${X(0)}" y1="${pad}" x2="${X(0)}" y2="${H-pad}" stroke="rgba(255,255,255,.15)"/><line x1="${pad}" y1="${Y(0)}" x2="${W-pad}" y2="${Y(0)}" stroke="rgba(255,255,255,.15)"/>`;
+  g+=`<text x="${pad+2}" y="${Y(0)-4}" font-size="9" fill="#9a9086">← Collective</text><text x="${W-pad-2}" y="${Y(0)-4}" font-size="9" fill="#9a9086" text-anchor="end">Market →</text><text x="${X(0)+4}" y="${pad+10}" font-size="9" fill="#9a9086">Nationalist ↑</text><text x="${X(0)+4}" y="${H-pad-4}" font-size="9" fill="#9a9086">Civic ↓</text>`;
+  for(const k of PK){ const P=PARTIES[k]; g+=`<circle cx="${X(P.ec)}" cy="${Y(P.idn)}" r="16" fill="${P.c}" opacity=".13"/><text x="${X(P.ec)}" y="${Y(P.idn)+28}" font-size="9" fill="${P.c}" text-anchor="middle">${P.s}</text>`; }
+  for(const s of A){ const P=PARTIES[s.party]; if(!P) continue; const cit=isCitizen(s); g+=`<circle cx="${X(s.ec).toFixed(1)}" cy="${Y(s.idn).toFixed(1)}" r="${s.id===G.leader?5:3.2}" fill="${cit?P.c:'none'}" stroke="${s.id===G.leader?'#fff':P.c}" stroke-width="${s.id===G.leader?1.6:1}"><title>${esc(fullName(s))} · ${P.n}${cit?'':' (non-citizen)'}</title></circle>`; }
+  return g+'</svg>'; }
+function partyBox(){ if(G.inst.gov<1) return ''; if(!G.pInit){ G.pInit=1; partyDay(); partySnap(); } const A=polAdults().filter(s=>s.party), C=A.filter(isCitizen), L=G.leader&&byId(G.leader), tot=Math.max(1,C.length);
+  const H=(G.pHist||[]).slice(-10), trend=k=>{ if(H.length<2) return ''; const d=H[H.length-1][k]-H[0][k]; return d>0?` <span style="color:var(--ok)">▲${d}</span>`:d<0?` <span style="color:var(--danger)">▼${-d}</span>`:''; };
+  const sw=(G.pSwitch||[]).filter(x=>x.d>=G.day-12);
+  return `<div class="box"><h4>Parties</h4><p class="lede" style="font-size:12px">Every adult sits somewhere on two axes: <b>economy</b> (collective ↔ market) and <b>identity</b> (civic ↔ nationalist). They join the nearest party and slowly drift with events: shortages push people left, prosperity right; raid deaths and hostages push them nationalist; being refused or detained pushes them civic. Switching takes a real shift, so parties are sticky. Parties do not do anything yet; that comes next.</p>
+  ${compassSVG(A,360,260)}
+  <div style="margin-top:8px">${PK.map(k=>{ const P=PARTIES[k], n=C.filter(s=>s.party===k).length, sy=A.filter(s=>!isCitizen(s)&&s.party===k).length; return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding:5px 0"><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${P.c}"></i> <b>${P.n}</b> <span class="lede" style="font-size:12px">${esc(P.d)}</span></span><span style="white-space:nowrap"><b>${n}</b> members · ${Math.round(n/tot*100)}%${sy?` · ${sy} sympathizer${sy>1?'s':''}`:''}${trend(k)}</span></div>`; }).join('')}</div>
+  <p class="lede" style="font-size:12px">${L&&L.party?`Leader ${esc(L.first)} belongs to the <b style="color:${PARTIES[L.party].c}">${PARTIES[L.party].n}</b>. `:''}${sw.length?`${sw.length} settler${sw.length>1?'s':''} switched parties in the last 12 days.`:'No one has switched parties recently.'} Hollow circles are non-citizens (sympathizers; they cannot join).</p></div>`; }
+
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
   c.fillStyle='#211d19'; c.fillRect(x,top,w,h);
@@ -6575,7 +6623,7 @@ function renderCouncil(){
   const ap=G.approval, col=ap<20?'--danger':ap<35?'--warn':'--ok';
   h+=`<div class="box"><h4>Approval ${Math.round(ap)}%</h4><div class="meter"><i style="width:${ap}%;background:var(${col})"></i><span class="mk" style="left:35%"></span><span class="mk" style="left:20%"></span></div>
     <p class="lede">${ap<20?(gv>=4?'Deep unrest. Production is down 20%.':'Deep unrest. Production is down 20% and settlers may leave.'):ap<35?'Workers are striking. Production is down 20%.':'The shelter is broadly content.'} Approval follows average mood, the leader’s Charisma and recent deeds. It is checked twice each game day.${G.leader&&tenureYrs()>0?` ${byId(G.leader)?esc(byId(G.leader).first):'The leader'} has been in office ${tenureYrs().toFixed(1)} year${tenureYrs()>=1&&tenureYrs()<1.05?'':'s'}${tenurePen()>0?`; people are tiring of them (−${tenurePen().toFixed(1)})`:'; after a year, people start to tire of a long-serving leader'}.`:''}</p>${apSpark()}</div>`;
-  h+=polBox();
+  h+=polBox()+partyBox();
   const ldr=G.leader?byId(G.leader):null;
   h+=`<div class="box"><h4>Leader</h4>`;
   h+=ldr?`<div class="row"><button class="link" data-a="open" data-id="${ldr.id}">${esc(fullName(ldr))}</button><span class="num" style="color:var(--muted)">C ${ldr.s.C} · I ${ldr.s.I}</span></div><p class="lede" style="font-size:12px">Style: <b>${docLabel(docOf(ldr))}</b>. The leader makes calls that fit this style; populists follow the mood, principled leaders stick to their line, technocrats go by results.</p>`:`<p class="lede">The seat is empty.</p>`;
@@ -6718,7 +6766,7 @@ function settlerModal(id){
   if(G.leader===s.id) tags.push('<span class="tag a">Leader</span>');
   if(alive&&G.inst.gov>=1&&s.loy!=null&&age(s)>=18){ const pf=pfacOf(s); tags.push(`<span class="tag" style="border-color:${BLOCS[s.lean||'loyal'].c};color:${BLOCS[s.lean||'loyal'].c}">${BLOCS[s.lean||'loyal'].a}${pf?` · ${esc(pf.name)}`:''} · loyalty ${Math.round(s.loy)}</span>`); }
   if(s.rank) tags.push(`<span class="tag ${s.rank===3?'g':'b'}">${['','Medic','Resident','Attending physician'][s.rank]}</span>`);
-  tags.push(relTag(s)); if(isAdult(s)||s.cit) tags.push(isCitizen(s)?'<span class="tag g">Citizen</span>':`<span class="tag r">${citLabel[s.cit]||'Non-citizen'} · non-citizen${s.citTrack?' · '+(s.citTrack==='review'?'needs review':'automatic path'):''}</span>`);
+  tags.push(relTag(s)); { const pt=partyTag(s); if(pt) tags.push(pt); } if(isAdult(s)||s.cit) tags.push(isCitizen(s)?'<span class="tag g">Citizen</span>':`<span class="tag r">${citLabel[s.cit]||'Non-citizen'} · non-citizen${s.citTrack?' · '+(s.citTrack==='review'?'needs review':'automatic path'):''}</span>`);
   if(s.blind) tags.push(`<span class="tag b">Blind since birth</span>`);
   if(s.preg) tags.push(`<span class="tag a">Expecting · due in ${hm(Math.max(1,Math.round(s.preg.left!=null?s.preg.left:(s.preg.due-nowD())*60)))}</span>`);
   if(alive&&!isAdult(s)) tags.push(`<span class="tag">Child · grows up in ${s.kidMin!=null?hm(Math.max(1,Math.round(KID_MIN-s.kidMin))):'a while'}</span>`);
@@ -7074,7 +7122,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
