@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v9.9</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.0</span></span><span class="date" id="cdate"></span></button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -395,7 +395,7 @@ const ROOMS={
 };
 const lvlMult=[0,1,1.4,1.85,2.4], MAXLVL=4, UPSTEP=[0,300,900,2400];
 const COLS=6;
-const MAXW={radio:2,medbay:3,generator:4,water:4,diner:4,lab:3,trade:3,quarters:3,clinic:3,armory:3,training:3,school:3,gym:2,range:2,drill:2,lounge:2,classroom:2,athletics:2,gameroom:2,jail:3};
+const MAXW={farm:3,cannery:3,purifier:2,cistern:3,salvage:3,coop:2,bank:2,bazaar:3,refinery:2,mine:3,radio:2,medbay:3,generator:4,water:4,diner:4,lab:3,trade:3,quarters:3,clinic:3,armory:3,training:3,school:3,gym:2,range:2,drill:2,lounge:2,classroom:2,athletics:2,gameroom:2,jail:3};
 const jailCap=r=>2*(r.w||1);
 function jailFree(){ for(const r of G.rooms) if(r.type==='jail'){ const n=(G.captives||[]).filter(q=>q.room===r.id).length; if(n<jailCap(r)) return r; } return null; }
 const TRAINS=r=>ROOMS[r.type]&&ROOMS[r.type].trains;
@@ -910,6 +910,7 @@ function effStat(s,stat){
   let m=1;
   if(s.health<30) m*=.6; else if(s.health<60) m*=.85;
   if(s.sick) m*=.6;
+  if(isDrunk(s)) m*=.6; else if(hungOver(s)) m*=.85;
   if(s.chronic) m*=1-(s.chronic.sev/250)*(1-(s._mg||0));
   if(s.eduDone&&s.track===stat) m*=1+EDU_BONUS;
   return v*m;
@@ -1326,7 +1327,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -1340,7 +1341,7 @@ function schoolSeats(){ return G.rooms.filter(TRAINS).reduce((a,r)=>a+kidSeats(r
 function checkEdu(s){ if(s.track&&!s.eduDone&&s.s[s.track]>=10){ s.eduDone=true; log(`${fullName(s)} completed a ${STAT_NAMES[s.track]} education: +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[s.track]} rooms.`,'family'); FX.text(s.id,'Educated!','#7fd38a'); } }
 function lifeStep(mins,frac){
   const nd=nowD();
-  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); voteStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
+  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); voteStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); drinkStep(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
   if(G.captives&&G.captives.length){ G.captives=G.captives.filter(q=>{ if(roomById(q.room)) return true; prisonEnd(q,'Escaped'); log(`${q.s.first} ${q.s.last} slipped away when the Holding Cells were torn down.`,'danger'); return false; }); }
   { const k=1-Math.exp(-mins/20); for(const s of G.settlers){ if(s.grief) s.grief=Math.max(0,s.grief-mins*.1); s.happy=clamp(s.happy+(happyTarget(s)-s.happy)*k,0,100); } }
   if(LIVE&&G.inst.health>=1&&ertTeam().length) for(const r of G.rooms) if(['generator','workshop','water','diner'].includes(r.type)&&r.workers.length&&rnd()<1-Math.exp(-mins*.0035)){ const v=byId(pick(r.workers)); if(v&&!v.preg&&!emOf(v.id)&&!ertOn(v)){ hurtSettler(v,ri(12,22),'Workplace accident'); if(G.settlers.includes(v)&&!callEmergency(v,'accident')) critAftermath([v]); } }
@@ -1804,7 +1805,7 @@ function wander(a,r,t,poses){
 }
 function targetFor(s,a,t){
   if(s.exp) return {x:worldW+40,l:-1,pose:'stand',exit:true};
-  { const bt=burialTarget(s); if(bt) return bt; const mt=mournTarget(s); if(mt) return mt; const tt=traderTarget(s); if(tt) return tt; const ut=uprisingTarget(s)||escortTarget(s,a)||detainTarget(s)||protestTarget(s)||voteTarget(s)||assemblyTarget(s)||strikeTarget(s,a,t); if(ut) return ut; const lt=leaderTarget(s,a,t); if(lt) return lt; }
+  { const bt=burialTarget(s); if(bt) return bt; const mt=mournTarget(s); if(mt) return mt; const tt=traderTarget(s); if(tt) return tt; const ut=uprisingTarget(s)||escortTarget(s,a)||detainTarget(s)||protestTarget(s)||voteTarget(s)||assemblyTarget(s)||strikeTarget(s,a,t)||drinkTarget(s,a,t); if(ut) return ut; const lt=leaderTarget(s,a,t); if(lt) return lt; }
   { const et=emTarget(s); if(et) return et; }
   { const st=surgTarget(s); if(st) return st; }
   { const it=intakeTarget(s,a); if(it) return it; }
@@ -1906,6 +1907,7 @@ function updAgent(a,s,dt,t){
   const k=sizeK(s), old=age(s)>62;
   let sp=(s.blind?26:old?27:36)*(k<1?.85:1)*(s.health<35?.7:1);
   if(tg.run) sp=(48+6*effStat(s,'A'))*(s.health<35?.8:1); else if(tg.haul) sp=42+3*effStat(s,'A'); else if(tg.slow&&a.l===tg.l) sp*=.65;
+  if(isDrunk(s)) sp*=.7;
   if(a.path&&a.path.length){
     const p=a.path[0];
     if(p.lift){
@@ -2546,7 +2548,8 @@ function settleEmergencies(){ for(const e of [...(G.emerg||[])]) resolveEm(e,fal
 let CHEER=0;
 // settler sprites: each settler is drawn into its own small canvas ~10 times a second and copied every frame
 const SPR=new Map(), SPR_FPS=window.desktop?15:10, SPR_MX=54, SPR_MY=128, SPR_H=146;
-function drawPersonCached(c,a,s,t,opt){
+function drawPersonCached(c,a,s,t,opt){ if(s&&isDrunk(s)&&a&&a.x!=null){ c.save(); c.translate(a.x,a.y); c.rotate(Math.sin(t*2.6+(s.id||0))*.13); c.translate(-a.x,-a.y); drawPersonCached0(c,a,s,t,opt); c.restore(); return; } return drawPersonCached0(c,a,s,t,opt); }
+function drawPersonCached0(c,a,s,t,opt){
   if(fullRate()){ drawPerson(c,a,s,t,opt); return; }
   const pose=opt.pose||a.pose; if(pose==='down'||pose==='bed'||pose==='stretcher'||pose==='ride'){ drawPerson(c,a,s,t,opt); return; }
   const S=DPR*SC; let E=SPR.get(s.id);
@@ -4642,7 +4645,7 @@ function arrest(id){ const P=G.plot, s=byId(id); if(!P||!s||!P.suspects.includes
   if(id!==P.by){ const I=investigate(id); if(I&&rnd()<I.p){ P.suspects=P.suspects.filter(x=>x!==id); polNews(`Before the arrest, ${fullName(I.best)} of the Vault Police checked ${s.first}’s story and cleared them. ${s.first} is not the plotter. ${P.suspects.length} suspect${P.suspects.length===1?'':'s'} remain.`); return; } }
   if(id===P.by){ G.plot=null; detain(s,'Plotting to assassinate the leader',ri(12,20)); if(P.party) openInquiry(P,'caught'); polNews(`On the Overseer’s order, ${s.first} was arrested and confessed to the plot. The leader is safe.`); }
   else { detain(s,'Wrongly suspected of plotting',1); for(const x of polAdults()) x.loy=Math.max(0,(x.loy||50)-6); P.suspects=P.suspects.filter(x=>x!==id); polNews(`${s.first} was arrested but turned out to be innocent. The vault is uneasy about the heavy hand. The real plotter is still out there.`); } }
-function detainDay(){ for(const s of G.settlers){ const D=s.detained; if(!D) continue; if(G.day>=D.until){ s.detained=null; const R=(G.prisonRec||[]).slice().reverse().find(r=>r.id===s.id&&r.end==null); if(R){ R.end=G.day; R.how=D.sent===1?'Released, found innocent':'Released after serving the sentence'; } polNews(`${fullName(s)} was released from detention.`); } } }
+function detainDay(){ for(const s of G.settlers){ const D=s.detained; if(!D) continue; if(G.day>=D.until){ s.detained=null; const R=(G.prisonRec||[]).slice().reverse().find(r=>r.id===s.id&&r.end==null); if(R){ R.end=G.day; R.how=D.short?'Released after sobering up':D.sent===1?'Released, found innocent':'Released after serving the sentence'; } polNews(`${fullName(s)} was released from detention.`); } } }
 function detainTarget(s){ if(!s.detained) return null; const j=G.rooms.find(r=>r.type==='jail')||entRoom(); if(!j) return null; return {x:roomX(j.col)+(j.type==='jail'?150+(s.id%3)*20:120),l:j.floor,pose:'sit',face:-1}; }
 function strikeTarget(s,a,t){ if(!s.strike) return null; const d=G.rooms.find(r=>r.type==='diner'); return d?wander(a,d,t,['sit','stand']):null; }
 function unrestBox(){ if(G.inst.gov<1) return ''; const P=G.protest, Q=G.plot, S=(G.pfac||[]).filter(f=>!f.gone&&f.strike), bg=bodyguards(); let h='';
@@ -6815,6 +6818,60 @@ function rescueModal(m){ const h=(G.hostages||[]).find(x=>x.sid===m.sid), hs=h&&
 
 function wfFix(){ for(const r of G.rooms){ if(r.type!=='workshop') continue; const civ=r.workers.map(byId).filter(s=>s&&!isSoldier(s)); if(!civ.length) continue; for(const s of civ) unassign(s); log(`The Weapon Factory is now a military facility. ${civ.map(s=>s.first).join(', ')} ${civ.length>1?'were':'was'} moved out and need${civ.length>1?'':'s'} a new job. Post at least ${WF_MIN} soldiers there.`,'gov'); } }
 
+/* ===== v10.0: base art for rooms that had none (Intelligence Bureau, Party Hall) ===== */
+PROPS.intel=(c,x,top,w,fl,t,on,r)=>{ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#2e3238'); g.addColorStop(1,'#3a3f46'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.fillStyle='rgba(0,0,0,.2)'; for(let px=W0+18;px<W1;px+=36) c.fillRect(px,top+6,2,fl-top-8); c.fillStyle=on||G.flags.power?'#d8e2ea':'#6a727a'; c.fillRect(x+w/2-16,top+6,32,3); };
+PROPS.phall=(c,x,top,w,fl,t,on,r)=>{ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#4a3a30'); g.addColorStop(1,'#5a4838'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.fillStyle='rgba(255,255,255,.04)'; for(let px=W0+20;px<W1;px+=40) c.fillRect(px,top+8,16,fl-top-30);
+  for(let i=0;i<7;i++){ const cx=W0+30+i*((W1-W0-200)/7); c.fillStyle='#3a2a1e'; c.fillRect(cx,fl-14,14,3); c.fillRect(cx+1,fl-11,2,11); c.fillRect(cx+11,fl-11,2,11); c.fillRect(cx+11,fl-24,3,12); } };
+/* ===== v10.0: Rakija Distillery, drinking and alcohol use ===== */
+ROOMS.distill={name:'Rakija Distillery',stat:'L',cost:300,col:'--r-shop',hex:'#9a6a3a',desc:'A copper still for šljivovica and lozovača. Sells rakija for caps and supplies the vault’s drinkers. Contested: heavy drinking leads to disorder, and the leader or council may shut it down.'};
+MAXW.distill=2; Object.assign(JOBPULL,{distill:[.3,.2]});
+const DRINK=['Abstains','Social drinker','Heavy drinker','Alcohol use disorder'];
+const distOpen=()=>!(G.distClosed&&(G.distClosed.until==null||G.distClosed.until>G.day));
+const isDrunk=s=>!!s&&s.drunkUntil!=null&&s.drunkUntil>nowD();
+const hungOver=s=>!!s&&s.hangUntil!=null&&s.hangUntil>nowD()&&!isDrunk(s);
+function seedDrink(s){ if(s.drink!=null) return; const ab=relOf(s)==='M'?.55:.25; if(rnd()<ab){ s.drink=0; return; } const u=rnd(); s.drink=u<.75?1:u<.93?2:3; }
+function drinkDay(){ const stills=G.rooms.filter(r=>r.type==='distill'); G.rakija=G.rakija||0; const open=distOpen();
+  if(open) for(const r of stills){ const n=roomPow(r,1); G.rakija+=n; r._made=Math.round(n); }
+  const sell=open?Math.max(0,Math.floor(G.rakija-15)):0; if(sell>0){ G.rakija-=sell; G.res.caps+=sell*8; G._rakSold=sell; } else G._rakSold=0;
+  const A=G.settlers.filter(s=>isAdult(s)&&age(s)>=18&&!s.exp&&!s.detained); let inc=0;
+  for(const s of A){ seedDrink(s); if(!s.drink) continue; const stressed=s.happy<40||(s.grief||0)>0||!s.room&&!s.mil&&!s.pol;
+    if(G.rakija<1){ if(s.drink===3){ s.happy=Math.max(0,s.happy-3); if(rnd()<.03) s.drink=2; } else if(s.drink===2) s.happy=Math.max(0,s.happy-1); continue; }
+    if(s.drink===1&&rnd()<(stressed?.012:.002)) s.drink=2; else if(s.drink===2&&rnd()<(stressed?.015:.003)) s.drink=3; else if(s.drink===2&&s.happy>70&&rnd()<.01) s.drink=1; else if(s.drink===3&&s.happy>70&&rnd()<.005) s.drink=2;
+    if(rnd()<[0,.12,.35,.7][s.drink]){ G.rakija--; s.drinkAt=G.day+.55+rnd()*.35; s.happy=Math.min(100,s.happy+(s.drink===1?3:2)); }
+    if(s.drink===3){ s.health=Math.max(5,s.health-.4); addWear(s,.15,'alcohol'); } }
+  G.drinkInc=(G.drinkInc||[]).filter(d=>G.day-d<=10); distPolDay(); }
+function drinkStep(){ const nd=nowD(); for(const s of G.settlers){ if(s.drinkAt==null||nd<s.drinkAt) continue;
+  if(s.exp||s.detained){ s.drinkAt=null; continue; } if(nd<s.drinkAt+.06) continue; s.drinkAt=null; const lv=s.drink||1, gets=lv>=2||rnd()<.12;
+  if(gets){ s.drunkUntil=nd+(lv===3?.25:.12)+rnd()*.1; s.hangUntil=lv>=2?s.drunkUntil+.3:null; if(!AWAY&&rnd()<.6) FX.text(s.id,'hic!','#e8b070'); }
+  if(gets&&rnd()<[0,.01,.05,.12][lv]) drunkDisorder(s); } }
+function drunkDisorder(s){ G.drinkInc=(G.drinkInc||[]).concat(G.day); const cops=G.settlers.filter(x=>isOfficer(x)&&!x.exp&&!x.detained&&x.id!==s.id);
+  if(cops.length&&G.rooms.some(r=>r.type==='jail')){ s.detained={why:'Drunk and disorderly',until:G.day+1,sent:1,day:G.day,short:true}; s.protest=false; s.strike=false; G.prisonRec=G.prisonRec||[]; G.prisonRec.push({id:s.id,name:fullName(s),from:'the vault (drunk and disorderly)',crime:'Drunk and disorderly',cap:G.day,sent:1,trialDay:G.day,end:null,how:null,settler:true});
+    log(`🍶 ${fullName(s)} caused a drunken disturbance and was held overnight by ${pick(cops).first} of the Vault Police.`,'gov'); }
+  else { const v=pick(G.settlers.filter(x=>x!==s&&!x.exp))||null; if(v) v.happy=Math.max(0,v.happy-6); log(`🍶 ${fullName(s)} started a drunken brawl${v?` with ${v.first}`:''}. With no police to step in, it ran its course.`,'danger'); } }
+function drinkTarget(s,a,t){ if(s.drinkAt==null||nowD()<s.drinkAt||s.exp||s.detained||FIGHT) return null; const r=G.rooms.find(q=>q.type==='distill'&&distOpen())||G.rooms.find(q=>q.type==='lounge')||G.rooms.find(q=>q.type==='diner'); return r?wander(a,r,t,['stand','sit']):null; }
+function distPolDay(){ const L=G.leader&&byId(G.leader), inc=(G.drinkInc||[]).length; if(!G.rooms.some(r=>r.type==='distill')) return;
+  if(distOpen()){ if(calm()) return; const d=L?docOf(L):null, A=polAdults().filter(isCitizen), abst=A.length?A.filter(s=>s.drink===0).length/A.length:0;
+    let p=0, by=null; if(L){ p=(d.sec>.25?.06*inc:.025*inc)+(abst>.6?.02:0)-(d.prag>.5?.02:0); by='leader'; }
+    if(G.inst.gov>=3&&inc>=3&&rnd()<.25){ const C=councilors(); if(C.length>=3){ const yes=C.filter(c=>c.drink===0||(c.drink||0)<2&&rnd()<.4+inc*.05).length; if(yes*2>C.length){ distClose(ri(8,14),'council',`The council voted ${yes} to ${C.length-yes} to suspend the Rakija Distillery after ${inc} drunken incident${inc>1?'s':''}.`); return; } } }
+    if(by&&rnd()<p){ distClose(ri(6,15),'leader',`${L.first} ordered the Rakija Distillery shut${inc?` after ${inc} drunken incident${inc>1?'s':''}`:''}.`); } }
+  else if(G.distClosed.by!=='overseer'&&L&&docOf(L).prag>.5&&G.res.caps<300&&rnd()<.15){ G.distClosed=null; polNews(`${L.first} reopened the Rakija Distillery early: the vault needs the caps.`); } }
+function distClose(days,by,msg){ G.distClosed={until:days==null?null:G.day+days,by}; for(const s of G.settlers){ if((s.drink||0)>=2) s.loy=Math.max(0,(s.loy||50)-3); else if(s.drink===0) s.loy=Math.min(100,(s.loy||50)+1); }
+  polNews(`🍶 ${msg} ${days?`It stays closed for ${days} days.`:'It stays closed until reopened.'} Drinkers are unhappy; abstainers approve. You can reopen it from the distillery.`); }
+function distPanel(r){ if(r.type!=='distill') return ''; const A=G.settlers.filter(s=>isAdult(s)&&age(s)>=18); const cnt=[0,1,2,3].map(k=>A.filter(s=>s.drink===k).length), inc=(G.drinkInc||[]).length, open=distOpen();
+  return `<div class="box"><h4>${open?'Open':'<span style="color:var(--danger)">Closed</span>'} · ${Math.floor(G.rakija||0)} bottles in stock</h4><p class="lede" style="font-size:12px">${open?`About ${roomPow(r,1).toFixed(1)} bottles a day; stock over 15 is sold at 8 caps a bottle${G._rakSold?` (${G._rakSold} sold yesterday)`:''}.`:`Closed by the ${G.distClosed.by==='overseer'?'Overseer':G.distClosed.by}${G.distClosed.until!=null?` for ${Math.max(0,G.distClosed.until-G.day)} more days`:''}. Drinkers live off the remaining stock, then go without.`} Drinking in the vault: ${cnt[0]} abstain, ${cnt[1]} social, ${cnt[2]} heavy, ${cnt[3]} with alcohol use disorder. ${inc} drunken incident${inc===1?'':'s'} in the last 10 days.</p>
+  <div class="row">${open?`<button class="btn sm" data-a="distShut">Overseer: close it</button>`:`<button class="btn sm pri" data-a="distOpen">Overseer: reopen it</button>`}</div></div>`; }
+function drinkBox(s){ if(s.drink==null||!isAdult(s)||s.died!=null) return ''; const st=isDrunk(s)?' · <b style="color:#e8b070">drunk right now</b>':hungOver(s)?' · hung over':''; return `<div class="box"><h4>Alcohol</h4><p class="lede" style="font-size:12px">${DRINK[s.drink]}${st}.${s.drink===3?' Loses health slowly and is often drunk or hung over at work.':s.drink===2?' Can slide into alcohol use disorder under stress.':''}</p></div>`; }
+function drawDistill(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#4a3424'); g.addColorStop(1,'#5a4030'); c.fillStyle=g; c.fillRect(W0,top,W1-W0,fl-top);
+  c.fillStyle='#b87333'; c.beginPath(); c.ellipse(W0+40,fl-26,20,24,0,0,TAU); c.fill(); c.fillStyle='#d08a4a'; c.beginPath(); c.ellipse(W0+34,fl-32,6,10,0,0,TAU); c.fill(); c.strokeStyle='#b87333'; c.lineWidth=3; c.beginPath(); c.moveTo(W0+40,fl-50); c.lineTo(W0+40,top+16); c.lineTo(W0+80,top+16); c.lineTo(W0+80,fl-40); c.stroke();
+  c.fillStyle=distOpen()&&(on||G.flags.power)?`rgba(255,120,40,${.6+.3*Math.sin(t*5)})`:'#2a2018'; c.fillRect(W0+28,fl-6,24,4);
+  for(let k=0;k<3;k++){ const bx=W0+96+k*26; c.fillStyle='#6a4a2a'; c.beginPath(); c.ellipse(bx,fl-12,11,13,0,0,TAU); c.fill(); c.strokeStyle='#3a2a1a'; c.lineWidth=1.5; c.beginPath(); c.moveTo(bx-11,fl-16); c.lineTo(bx+11,fl-16); c.moveTo(bx-11,fl-8); c.lineTo(bx+11,fl-8); c.stroke(); }
+  const n=Math.min(8,Math.floor(G.rakija||0)); for(let k=0;k<n;k++){ c.fillStyle='rgba(220,230,240,.75)'; c.fillRect(W1-60+(k%4)*12,top+16+Math.floor(k/4)*18,5,13); c.fillStyle='#c0392b'; c.fillRect(W1-60+(k%4)*12,top+15+Math.floor(k/4)*18,5,3); }
+  c.fillStyle='#3a2a1a'; c.fillRect(W1-66,top+30,54,3); c.fillRect(W1-66,top+48,54,3);
+  if(!distOpen()){ c.strokeStyle='rgba(200,40,40,.85)'; c.lineWidth=3; c.beginPath(); c.moveTo(W0+10,top+10); c.lineTo(W1-10,fl-6); c.moveTo(W1-10,top+10); c.lineTo(W0+10,fl-6); c.stroke(); } }
+PROPS.distill=drawDistill;
+
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
   c.fillStyle='#211d19'; c.fillRect(x,top,w,h);
@@ -7408,7 +7465,7 @@ function settlerModal(id){
   h+=`<div class="hero"><canvas class="portrait" data-draw="portrait" data-id="${s.id}" data-w="170" data-h="214" width="170" height="214" aria-label="Portrait of ${esc(fullName(s))}"></canvas><div class="slots2">${slotTile(s,'o')}${slotTile(s,'w')}${(s.gear&&s.gear.a)||G.items.some(i=>ITEMS[i.k].t==='a')?slotTile(s,'a'):''}<div class="row">${alive?`<button class="btn sm" data-a="editLook" data-id="${s.id}">${UI.modal.edit?'Close editor':'Edit look'}</button>`:''}${alive&&!s.exp?`<button class="btn sm" data-a="follow" data-id="${s.id}">Find in shelter</button>`:''}${alive&&isAdult(s)?`<span class="lede" style="font-size:12px">Expedition power ${Math.round(memberPow(s))}</span>`:''}</div></div></div>`;
   if(UI.modal.pick&&alive) h+=pickerHTML(s,UI.modal.pick);
   if(UI.modal.edit&&alive) h+=lookEditor(s);
-  h+=`<div class="tags">${tags.join('')}</div><div class="special">${sp}</div>`+milBox(s)+polBoxS(s)+wearBox(s)+lifeBox(s);
+  h+=`<div class="tags">${tags.join('')}</div><div class="special">${sp}</div>`+milBox(s)+polBoxS(s)+wearBox(s)+drinkBox(s)+lifeBox(s);
   if(alive) h+=`<div class="bars"><span>Health</span><span class="track"><i style="width:${s.health}%;background:var(${s.health<40?'--danger':'--ok'})"></i></span><span class="num">${Math.round(s.health)}</span><span>Happiness</span><span class="track"><i style="width:${s.happy}%;background:var(--accent)"></i></span><span class="num">${Math.round(s.happy)}%</span></div><div class="hf">${happyFactors(s).map(([l,v])=>`<span class="${v>0?'up':'dn'}">${l} ${v>0?'+':''}${v}</span>`).join('')}<span class="tg">Heading to ${Math.round(happyTarget(s))}%</span></div>`;
   if(alive&&!s.exp&&s.health<100) h+=`<div class="row"><button class="btn sm" data-a="stim" data-id="${s.id}" ${G.res.stims>=1?'':'disabled'}>Use a stim (+${STIM_HEAL} health · ${Math.floor(G.res.stims)} left)</button></div>`;
   if(alive&&s.exp&&String(s.exp)[0]==='w'){ const w=explorerOf(s); if(w) h+=`<div class="box"><h4>Exploring the wasteland</h4><p class="lede" style="font-size:12px">${w.status==='out'?`Out for ${hm(Math.round(w.out))} with ${w.stims} stims left.`:`Heading home, back in ${hm(Math.ceil(w.left))}.`}</p>${w.status==='out'?`<button class="btn sm" data-a="recall" data-id="${w.id}">Call home</button>`:''}</div>`; }
@@ -7477,7 +7534,7 @@ function assignModal(rid){
     ${tm.length<cap?`<p class="lede" style="font-size:12px;margin-top:8px">Appoint (best rescue rating first):</p><div class="pick">${cand.map(x=>`<button data-a="ert" data-id="${x.id}"><span>${esc(fullName(x))} ${settlerIcons(x)}</span><span class="jb">${jobName(x)}</span><span class="sv">A ${x.s.A} · I ${x.s.I}</span></button>`).join('')}</div>`:''}
     <div class="row"><button class="btn sm" data-a="ertDrill" ${tm.length?'':'disabled'}>Run a drill</button></div></div>`; }
   if(r.type==='surgery') ex+=surgPanel(r);
-  ex+=v93Panel(r)+v98Panel(r)+wfPanel(r);
+  ex+=v93Panel(r)+v98Panel(r)+wfPanel(r)+distPanel(r);
   if(r.type==='office') ex+=renoBox(r);
   if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button><button class="btn sm" data-a="milTree">Military tree</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
@@ -7492,7 +7549,7 @@ function buildModal(f,c){
   return `<header><h2>Build on B${f+1}</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd"><p class="lede">You have ${Math.floor(G.res.caps)} caps.</p><div class="bgrid">${Object.entries(ROOMS).filter(([k,d])=>!d.hidden).map(([k,d])=>{
     const popOK=!d.pop||G.settlers.length>=d.pop;
     const ok=popOK&&reqOK(d.req)&&G.res.caps>=d.cost&&!(d.unique&&G.rooms.some(r=>r.type===k));
-    return `<button style="--rc:var(${d.col})" data-a="doBuild" data-v="${k}" data-f="${f}" data-c="${c}" ${ok?'':'disabled'}><span class="t">${d.name}${d.stat?` · ${d.stat}`:''}</span><span class="d">${d.desc}</span><span class="c">${d.cost} caps${d.wide?' · 2 slots':` · merges to ${MAXW[k]} wide`}${!reqOK(d.req)?` · needs ${reqText(d.req)}`:''}${popOK?'':` · needs ${d.pop} settlers`}${d.unique&&G.rooms.some(r=>r.type===k)?' · already built':''}</span></button>`;}).join('')}</div><p class="lede" style="font-size:12px">Build next to a room of the same type and level and they join into one bigger room with more slots and a 10% output bonus per extra slot. Upgrading a merged room upgrades all of it.</p></div>`;
+    return `<button style="--rc:var(${d.col})" data-a="doBuild" data-v="${k}" data-f="${f}" data-c="${c}" ${ok?'':'disabled'}><span class="t">${d.name}${d.stat?` · ${d.stat}`:''}</span><span class="d">${d.desc}</span><span class="c">${d.cost} caps${d.wide?` · ${d.wide} slots`:d.unique?' · 1 slot':` · merges to ${MAXW[k]||3} wide`}${!reqOK(d.req)?` · needs ${reqText(d.req)}`:''}${popOK?'':` · needs ${d.pop} settlers`}${d.unique&&G.rooms.some(r=>r.type===k)?' · already built':''}</span></button>`;}).join('')}</div><p class="lede" style="font-size:12px">Build next to a room of the same type and level and they join into one bigger room with more slots and a 10% output bonus per extra slot. Upgrading a merged room upgrades all of it.</p></div>`;
 }
 function menuModal(){
   const g=G.study.goal;
@@ -7574,6 +7631,8 @@ document.addEventListener('click',e=>{
     case 'tBye': if(G.trader){ log(`${G.trader.name} waved goodbye${G.trader.deals?' after a good bit of business':''}.`,'gov'); G.trader=null; G.nextTraderD=nowD()+2+rnd(); } UI.modal=null; break;
     case 'milOpen': UI.modal={t:'mil'}; break;
     case 'bzBuy': { const r=roomById(id), k=el.dataset.v; if(r&&r.stall&&r.stall[k]>0&&G.res.caps>=STALL[k]){ G.res.caps-=STALL[k]; G.mats[k]=(G.mats[k]||0)+1; r.stall[k]--; toast(`Bought 1 ${MATS[k].n.toLowerCase()}.`); save(); } break; }
+    case 'distShut': distClose(null,'overseer','On the Overseer’s order, the Rakija Distillery was closed.'); save(); break;
+    case 'distOpen': { G.distClosed=null; polNews('On the Overseer’s order, the Rakija Distillery reopened.'); for(const x of G.settlers) if(x.drink===0) x.loy=Math.max(0,(x.loy||50)-1); save(); break; }
     case 'milTree': UI.modal={t:'miltree'}; setTimeout(()=>{ const t=document.querySelector('.miltree'); if(t) t.scrollLeft=(t.scrollWidth-t.clientWidth)/2; },60); break;
     case 'polOpen': UI.modal={t:'pol'}; break;
     case 'polPromo': { const s=byId(id); if(s) polPromote(s); break; }
@@ -7774,7 +7833,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
