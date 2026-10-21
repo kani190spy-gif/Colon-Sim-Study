@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.6</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.7</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -363,7 +363,7 @@ const hm=min=>{min=Math.max(0,Math.round(min));const h=Math.floor(min/60),m=min%
 
 const STATS=['S','P','E','C','I','A','L'];
 const STAT_NAMES={S:'Strength',P:'Perception',E:'Endurance',C:'Charisma',I:'Intelligence',A:'Agility',L:'Luck'};
-const STAT_FIT={S:'Generator · Armory · Salvage · Mine',P:'Water Plant',E:'Armory · Farm · Cistern · Refinery · Expeditions',C:'Trade Post · Bazaar · Cooperative · Quarters',I:'Lab · Clinic · Purifier · Bank',A:'Mess Hall · Cannery',L:'Salvage luck · Expeditions'};
+const STAT_FIT={S:'Generator · Armory · Salvage · Mine',P:'Water Plant',E:'Armory · Farm · Cistern · Refinery · Expeditions',C:'Trade Post · Bazaar · Cooperative · Quarters',I:'Lab · Clinic · Bank',A:'Mess Hall · Cannery · Purifier',L:'Salvage luck · Expeditions'};
 const RES={food:'Food',water:'Water',power:'Power',meds:'Meds',stims:'Stims',caps:'Caps',research:'Research'};
 const RCOL={food:'--r-food',water:'--r-water',power:'--r-power',meds:'--r-meds',stims:'--r-stim',caps:'--r-caps',research:'--r-research'};
 const RHEX={food:'#f09a52',water:'#5fd0d6',power:'#ffd055',meds:'#ff7d72',stims:'#ff8fb0',caps:'#e2b57c',research:'#b9a5ff'};
@@ -7104,7 +7104,7 @@ const SONG_ORDER=['vault','folkrock','folkpop','ceremony','vault','callresp'];
 function musPlay(id){ if(!MUS.on) return; MUS.pendingSong=id; }
 
 /* ===== v10.6: Water Purifier as a bottling plant (produces water) ===== */
-Object.assign(ROOMS.purifier,{res:'water',base:2.2,desc:'A bottling and filtration plant: rinse carousel, filler heads, sand and carbon filters. Workers produce clean water, and the cleaner supply means outbreaks start less often and spread more slowly. Intelligence runs the chemistry.'});
+Object.assign(ROOMS.purifier,{stat:'A',res:'water',base:2.2,desc:'A bottling and filtration plant: rinse carousel, filler heads, sand and carbon filters. Workers produce clean water, and the cleaner supply means outbreaks start less often and spread more slowly. Agility keeps the line moving.'});
 function purBottle(c,bx,by,fill,cap){ c.fillStyle='rgba(210,235,245,.55)'; c.fillRect(bx-3,by-14,6,14); c.fillRect(bx-1.5,by-18,3,4); if(fill>0){ c.fillStyle='rgba(70,160,220,.85)'; c.fillRect(bx-2.5,by-1-12*fill,5,12*fill); } c.fillStyle=cap?'#3a6ab0':'rgba(200,220,230,.6)'; c.fillRect(bx-2,by-20,4,2); c.strokeStyle='rgba(30,40,50,.5)'; c.lineWidth=.6; c.strokeRect(bx-3,by-14,6,14); }
 function purPipes(c,x,top,w,fl,on){ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#5a5850'); g.addColorStop(1,'#6e6a60'); c.fillStyle=g; c.fillRect(W0,top+4,W1-W0,fl-top-4);
   c.fillStyle='rgba(0,0,0,.12)'; for(let px=W0+24;px<W1;px+=48) c.fillRect(px,top+6,2,fl-top-10);
