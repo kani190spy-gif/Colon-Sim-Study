@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.9</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.0</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1831,7 +1831,7 @@ function targetFor(s,a,t){
         if(!a.pat||a.pat.r!==r.id) a.pat={r:r.id,side:i%2,wait:0}; const P=a.pat; let x=P.side?R:L;
         if(a.l===r.floor&&Math.abs(a.x-x)<3&&!(a.path&&a.path.length)){ if(!P.wait) P.wait=t+2.5+rnd()*4.5; else if(t>P.wait){ P.side^=1; P.wait=0; x=P.side?R:L; } }
         return {x,l:r.floor,pose:'guard',face:P.wait?(P.side?-1:1):(x>a.x?1:-1),slow:true}; }
-      if(r.type==='execc'){ const i=Math.max(0,r.workers.indexOf(s.id)), ph=(t*.02+s.id*.37)%1; if(ph<.12) return {x:execSeat(r,i)+18,l:r.floor,pose:'read',face:1}; return {x:execSeat(r,i)+51,l:r.floor,pose:'desk',face:-1}; }
+      if(r.type==='execc'){ const pi=SK.findIndex(k=>G.cab&&G.cab[k]===s.id), i=pi>=0?pi:Math.max(0,r.workers.indexOf(s.id)), ph=(t*.02+s.id*.37)%1; if(ph<.12) return {x:execSeat(r,i)+18,l:r.floor,pose:'read',face:1}; return {x:execSeat(r,i)+51,l:r.floor,pose:'desk',face:-1}; }
       if(r.type==='command'){ const gid=cmdGuardId(r); if(s.id===gid) return {x:roomX(r.col)+44,l:r.floor,pose:'guard',face:1}; const j=Math.max(0,r.workers.filter(id=>id!==gid).indexOf(s.id)); return {x:roomX(r.col)+stationX(r,j),l:r.floor,pose:['point','gesture','type','read'][j%4],face:[1,-1,1,-1][j%4]}; }
       const i=Math.max(0,r.workers.indexOf(s.id)), wide=ROOMS[r.type].wide, li=wide?i:i%perSeg(r), lx=wide?0:stationLocal(r,li,perSeg(r));
       let face=r.type==='generator'?(li===0?-1:lx<WD.roomW/2?1:-1):r.type==='school'?-1:(lx<WD.roomW/2?1:-1);
@@ -6557,11 +6557,20 @@ PROPS.execc=(c,x,top,w,fl,t,lit,r)=>{ const T=execTheme(r); const g=c.createLine
   if(r&&r.design==='socialist'){ c.fillStyle='#8a2a24'; c.fillRect(x+w/2-80,top+8,6,44); c.fillRect(x+w/2+74,top+8,6,44); }
   c.fillStyle=T.rug; c.fillRect(x+60,fl-3,w-120,3); };
 function execSeat(r,i){ const w=roomW(r), per=(w-80)/6; return roomX(r.col)+30+(i%6)*per; }
+const EXEC_DESK={
+ int:{t:'INTERNAL AFFAIRS',c:'#3a6ab0',draw:(c,x,y)=>{ c.fillStyle='#c9a24a'; c.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, q=i%2?1.4:3.2; c.lineTo(x+20+Math.cos(a)*q,y-5+Math.sin(a)*q); } c.fill(); c.fillStyle='#e8e2d2'; c.fillRect(x+27,y-3,10,3); c.fillStyle='#7a6a4a'; c.fillRect(x+27,y-5,10,2); }},
+ def:{t:'NATIONAL DEFENCE',c:'#5a6a3a',draw:(c,x,y)=>{ c.fillStyle='#3a3a30'; c.fillRect(x+30,y-12,1,12); c.fillStyle='#4a5a2e'; c.fillRect(x+31,y-12,7,5); c.fillStyle='#d9b14a'; c.fillRect(x+33.5,y-10.5,2,2); c.fillStyle='#4a5a2e'; c.beginPath(); c.ellipse(x+19,y-2.5,5,3,0,Math.PI,TAU); c.fill(); c.fillRect(x+13,y-2.5,12,1.5); }},
+ eco:{t:'ECONOMY',c:'#c9a24a',draw:(c,x,y)=>{ for(let k=0;k<4;k++){ c.fillStyle=k%2?'#d9b14a':'#b8902a'; c.fillRect(x+30,y-2-k*1.6,7,1.5); } c.fillStyle='#5a3a22'; c.fillRect(x+14,y-6,12,6); c.fillStyle='#d8c8a0'; for(let r2=0;r2<2;r2++) for(let k=0;k<4;k++){ c.beginPath(); c.arc(x+16+k*2.6,y-4.5+r2*2.6,.9,0,TAU); c.fill(); } }},
+ hea:{t:'PUBLIC HEALTH',c:'#c0392b',draw:(c,x,y)=>{ c.fillStyle='#f2efe6'; c.fillRect(x+28,y-9,9,9); c.fillStyle='#c0392b'; c.fillRect(x+31.5,y-8,2,7); c.fillRect(x+29,y-5.5,7,2); c.fillStyle='#e8a040'; c.fillRect(x+16,y-6,4,6); c.fillStyle='#f2efe6'; c.fillRect(x+16,y-7,4,1.4); }},
+ sdb:{t:'STATE SECURITY',c:'#1a1a1a',draw:(c,x,y)=>{ c.fillStyle='#1a1a1a'; c.fillRect(x+28,y-4,9,4); c.fillRect(x+29,y-6,2,2); c.fillRect(x+34,y-6,2,2); c.fillRect(x+29,y-7,7,1.2); c.fillStyle='#b8282a'; c.fillRect(x+13,y-3,13,3); c.fillStyle='#f2efe6'; c.font='bold 3px sans-serif'; c.fillText('SECRET',x+13.5,y-.8); }},
+ cit:{t:'CITIZENSHIP',c:'#2e8a8a',draw:(c,x,y)=>{ c.fillStyle='#2a4a6a'; c.fillRect(x+14,y-3,8,3); c.fillStyle='#d9b14a'; c.fillRect(x+16.5,y-2.2,3,1.2); c.fillStyle='#5a3a22'; c.fillRect(x+31,y-7,3,5); c.fillStyle='#8a2a24'; c.fillRect(x+29,y-2,7,2); c.fillStyle='#3a6ab0'; c.beginPath(); c.arc(x+40,y-4,0,0,TAU); c.fill(); }}};
 function drawExecDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), fl=top+WD.floorH-14, T=execTheme(r); c.save();
   c.fillStyle='#c9a24a'; c.fillRect(x+w/2-34,top+8,2,40); flagDraw(c,x+w/2-31,top+10,62,40,null,t);
-  for(let i=0;i<6;i++){ const dx=execSeat(r,i); c.fillStyle=T.chair; c.fillRect(dx+46,fl-24,12,4); c.fillRect(dx+56,fl-34,3,14); c.fillRect(dx+47,fl-20,2,20); c.fillRect(dx+55,fl-20,2,20);
-    c.fillStyle=T.desk; c.fillRect(dx,fl-18,44,5); c.fillRect(dx+3,fl-13,3,13); c.fillRect(dx+38,fl-13,3,13); c.fillStyle='rgba(0,0,0,.25)'; c.fillRect(dx,fl-13,44,1);
-    c.fillStyle='#8a7a5a'; c.fillRect(dx+6,fl-26,2,8); c.fillStyle=T.lamp; c.beginPath(); c.arc(dx+7,fl-27,4,Math.PI,TAU); c.fill(); c.fillStyle='#e8e2d2'; c.fillRect(dx+16,fl-21,14,3); c.fillStyle='#2a2a2a'; c.fillRect(dx+32,fl-22,8,4); }
+  for(let i=0;i<6;i++){ const dx=execSeat(r,i), k=SK[i], D=EXEC_DESK[k], held=!!(G.cab&&G.cab[k]);
+    c.fillStyle='rgba(20,16,12,.72)'; c.fillRect(dx-2,fl-74,50,11); c.fillStyle=D.c; c.fillRect(dx-2,fl-74,3,11); c.fillStyle=held?'#f2efe6':'rgba(242,239,230,.45)'; c.font='bold 6.5px Archivo, sans-serif'; c.textAlign='left'; c.fillText(D.t,dx+3,fl-66.5);
+    c.fillStyle=T.chair; c.fillRect(dx+46,fl-24,12,4); c.fillRect(dx+56,fl-34,3,14); c.fillRect(dx+47,fl-20,2,20); c.fillRect(dx+55,fl-20,2,20);
+    c.fillStyle=T.desk; c.fillRect(dx,fl-18,44,5); c.fillRect(dx+3,fl-13,3,13); c.fillRect(dx+38,fl-13,3,13); c.fillStyle=D.c; c.fillRect(dx,fl-13.5,44,1.5);
+    c.fillStyle='#8a7a5a'; c.fillRect(dx+6,fl-26,2,8); c.fillStyle=T.lamp; c.beginPath(); c.arc(dx+7,fl-27,4,Math.PI,TAU); c.fill(); D.draw(c,dx,fl-18,t); }
   c.restore(); }
 function execDesignBox(r){ if(r.type!=='execc') return ''; const cur=r.design||'standard';
   return `<div class="box"><h4>Interior design</h4><p class="lede" style="font-size:12px">Current: <b>${EXEC_THEMES[cur].n}</b>.</p><div class="pgrid">${Object.entries(EXEC_THEMES).map(([k,T])=>`<button class="pcard sm" data-a="execDesign" data-id="${r.id}" data-v="${k}" ${k===cur||G.res.caps<T.cost?'disabled':''} title="${esc(T.d)}"><span class="pt" style="display:flex;gap:6px;align-items:center"><i style="display:inline-block;width:22px;height:16px;border-radius:3px;background:linear-gradient(${T.w1},${T.w2});box-shadow:inset 0 -5px 0 ${T.wain}"></i><span class="pn">${T.n}${k===cur?' ✓':''}</span></span><span class="lede" style="font-size:11px">${T.d} ${T.cost?T.cost+' caps':'Free'}</span></button>`).join('')}</div></div>`; }
