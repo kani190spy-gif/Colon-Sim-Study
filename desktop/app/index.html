@@ -67,7 +67,7 @@ button{cursor:pointer}
 #app{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 32px;max-width:none;margin:0 auto;display:flex;flex-direction:column;gap:10px}
 
 .top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:6px}
-.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}.musbtn{background:none;border:1px solid var(--line);color:var(--accent);border-radius:50%;width:28px;height:28px;font-size:15px;line-height:1;cursor:pointer;flex:none}.musbtn.off{color:var(--muted);opacity:.55;text-decoration:line-through}
 .brand button{background:none;border:0;padding:0;text-align:left}
 .brand .nm{font-family:var(--f-display);font-size:19px;line-height:1.1;display:block;color:var(--accent)}
 .brand .date{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.0</span></span><span class="date" id="cdate"></span></button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.1</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -4391,7 +4391,7 @@ function promoWhy(s){ if(!cmdRoom()) return 'Build a Command Post first'; if(!s.
   if(rankCount(r)>=rankCap(r)) return `No open ${R.n} post (army of ${armySize()})`; const u=uniformFor(s,r); if(!u.ok) return `Needs a ${ITEMS[u.k].name} uniform`; return ''; }
 function promote(s){ const why=promoWhy(s); if(why){ toast(why); return false; } const r=(s.rank_m||0)+1, u=uniformFor(s,r);
   if(u.it){ s.gear=s.gear||{}; s.gear.o=u.it.id; }
-  s.rank_m=r; s.happy=Math.min(100,s.happy+10); for(const x of G.settlers) if(x.mil&&x!==s) x.happy=Math.min(100,x.happy+2);
+  s.rank_m=r; if(r===RANKS.length-1) musAnthem(); s.happy=Math.min(100,s.happy+10); for(const x of G.settlers) if(x.mil&&x!==s) x.happy=Math.min(100,x.happy+2);
   G.milHist=G.milHist||[]; G.milHist.unshift({id:s.id,r,d:G.day});
   log(`🎖 Ceremony at the Command Post: ${fullName(s)} was promoted to ${RANKS[r].n}${u.it?` and issued the ${ITEMS[RANKS[r].uni].name} uniform`:''}.`,'gov'); toast(`${s.first} promoted to ${RANKS[r].n}!`); CHEER=performance.now()+4000; FX.text(s.id,RANKS[r].n+'!','#e2c46a'); return true; }
 // officers posted at the Command Post lead the whole army
@@ -6391,7 +6391,7 @@ function uprisingStep(dt){ const U=G.uprising; if(!U) return; const nd=nowD();
 function uprHit(t,d,by){ const U=G.uprising; if(!U||!t||!G.settlers.includes(t)) return; const principal=t.id===G.leader||t.id===U.chair;
   if(t.health-d<=0&&!principal&&U.deaths>=U.cap){ t.health=Math.max(4,Math.min(t.health,8)); U.downs[t.id]=1; FX.text(t.id,'Down','#ff7d72'); return; }
   const was=G.settlers.includes(t); hurtSettler(t,d,t.rebel?'Killed in the uprising':'Killed by rebels'); if(was&&!G.settlers.includes(t)&&!principal) U.deaths++; else if(G.settlers.includes(t)){ FX.text(t.id,'-'+Math.round(d),'#ff7d72'); if(t.health<=15) U.downs[t.id]=1; } }
-function endUprising(how){ const U=G.uprising; if(!U) return; G.uprising=null; const k=U.party, P=PARTIES[k], ch=byId(U.chair), L=G.leader&&byId(G.leader);
+function endUprising(how){ musAnthem(); const U=G.uprising; if(!U) return; G.uprising=null; const k=U.party, P=PARTIES[k], ch=byId(U.chair), L=G.leader&&byId(G.leader);
   const R=U.ids.map(byId).filter(Boolean); for(const s of R) s.rebel=false; G.pRage=G.pRage||{}; G.pRage[k]=0;
   if(how==='crushed'){ let n=0; for(const s of R){ if(!G.settlers.includes(s)) continue; detain(s,s===ch?'Led an armed uprising':'Took part in an armed uprising',s===ch?ri(30,45):ri(15,30)); n++; } suspendParty(k,ri(18,24),'it rose up in arms against the leadership');
     polNews(`☢ The ${P.n} uprising was crushed. ${n} rebel${n===1?'':'s'} arrested${U.deaths?`, ${U.deaths} killed`:''}.`); for(const s of polAdults()) if(s.party!==k) s.loy=Math.min(100,(s.loy||50)+2); }
@@ -6430,7 +6430,7 @@ function coupStep(){ const C=G.coup; if(!C) return; const by=byId(C.by), L=G.lea
   if(C.stage==='brew'){ if(G.day>=C.next){ C.stage='strike'; C.decideBy=nowD()+1/24; polNews(`☢ COUP: ${fullName(by)} has moved ${C.kind==='mil'?'troops':'officers'} against ${L.first}! Choose within the hour: back the coup, oppose it, or stay out of it.`); toast('Coup under way!'); }
     else if(L&&!C.purgeTried){ C.purgeTried=true; const d=docOf(L); if(d.sec>.3&&rnd()<.35){ detain(by,'Arrested on suspicion of plotting a coup',ri(10,20)); polNews(`${L.first} struck first: ${fullName(by)} was arrested on suspicion of plotting a coup.`); for(const s of G.settlers) if(C.kind==='mil'?isSoldier(s):s.pol) s.loy=Math.max(0,(s.loy||50)-5); G.coup=null; } } return; }
   if(C.stage==='strike'&&(C.choice||nowD()>=C.decideBy)) resolveCoup(); }
-function resolveCoup(){ const C=G.coup; G.coup=null; const by=byId(C.by), L=byId(G.leader); if(!by||!L) return; const F=coupForces(by,C.kind);
+function resolveCoup(){ musAnthem(); const C=G.coup; G.coup=null; const by=byId(C.by), L=byId(G.leader); if(!by||!L) return; const F=coupForces(by,C.kind);
   let cp=F.coup.reduce((a,s)=>a+memberPow(s),0), lp=F.loyal.reduce((a,s)=>a+memberPow(s),0)+memberPow(L)*.5; if(C.choice==='back') cp*=1.5; if(C.choice==='oppose') lp*=1.3;
   const win=rnd()<cp/(cp+lp), cap=ri(1,3); let dead=0; const pool=[...F.coup.filter(s=>s!==by),...F.loyal].sort(()=>rnd()-.5);
   for(const s of pool.slice(0,ri(2,5))){ if(!G.settlers.includes(s)) continue; const d=ri(15,45); if(s.health-d<=0&&dead>=cap){ s.health=6; continue; } const was=G.settlers.includes(s); hurtSettler(s,d,'Killed in the coup'); if(was&&!G.settlers.includes(s)) dead++; }
@@ -6653,7 +6653,7 @@ function closeVoting(){ const V=G.vote; if(!V) return; for(const id in V.going){
       G.council=picked; councilFill(); const ctot=Math.max(1,Object.values(V.C).reduce((a,b)=>a+b,0)); res.council=Object.keys(V.C).map(k=>({k,votes:V.C[k],share:V.C[k]/ctot,seats:councilors().filter(s=>s.party===k).length}));
       polNews(`Council elected: ${res.council.filter(x=>x.seats).map(x=>`${PARTIES[x.k].n} ${x.seats}`).join(', ')}. Members: ${councilors().map(s=>s.first).join(', ')}.`); }
     else councilElection(); }
-  G.lastElection=res; G.elHist=(G.elHist||[]).concat(res).slice(-12);
+  musAnthem(); G.lastElection=res; G.elHist=(G.elHist||[]).concat(res).slice(-12);
   if(G.postponed) polNews(`The long-delayed election was finally held after ${G.postponed} postponement${G.postponed>1?'s':''}.`); G.postponed=0; G.pAnger={}; save(); }
 function voteTarget(s){ const V=G.vote; if(!V||V.going[s.id]==null) return null; const r=V.site&&roomById(V.site); if(!r) return null; const ids=Object.keys(V.going).map(Number), i=ids.indexOf(s.id), X=roomX(r.col), w=roomW(r);
   return i===0?{x:X+48,l:r.floor,pose:'desk',face:-1}:{x:X+80+i*20,l:r.floor,pose:'stand',face:-1}; }
@@ -6806,7 +6806,7 @@ function rescueStart(sid,ids){ const h=(G.hostages||[]).find(x=>x.sid===sid); if
 function rescueStep(){ for(const h of (G.hostages||[]).slice()){ const R=h.rescue; if(!R||Date.now()<R.at) continue; h.rescue=null; const team=R.ids.map(byId).filter(Boolean), ok=rnd()<R.odds, dead=[], hurt=[];
   for(const s of team){ s.exp=null; if(!ok&&rnd()<.3||ok&&rnd()<.04){ dead.push(s.first); removeSettler(s,`Killed in a rescue raid against ${h.boss}`); continue; } hurtSettler(s,ri(ok?5:25,ok?20:50),'Rescue raid injuries'); addWear(s,ok?2:5,'rescue raid'); s.intake=Date.now()+ENT_INTAKE; s.waiting=true; if(s.mil) s.milXP=(s.milXP||0)+(ok?6:3); hurt.push(s.first); }
   ammoUse(team.length); const alive=team.filter(s=>!dead.includes(s.first)&&!s.died);
-  if(ok){ hostageEnd(h,'rescued'); if(G.inst.gov>=1) G.apBoost=(G.apBoost||0)+3; log(`✅ Rescue raid SUCCEEDED against ${h.boss}.${dead.length?` ${dead.join(', ')} did not make it back.`:''}${hurt.length?` ${hurt.join(', ')} came home hurt.`:''}`,dead.length?'danger':'family'); }
+  if(ok){ musAnthem(); hostageEnd(h,'rescued'); if(G.inst.gov>=1) G.apBoost=(G.apBoost||0)+3; log(`✅ Rescue raid SUCCEEDED against ${h.boss}.${dead.length?` ${dead.join(', ')} did not make it back.`:''}${hurt.length?` ${hurt.join(', ')} came home hurt.`:''}`,dead.length?'danger':'family'); }
   else { const killed=rnd()<.35; log(`❌ Rescue raid FAILED against ${h.boss}.${dead.length?` ${dead.join(', ')} ${dead.length>1?'were':'was'} killed.`:''}${hurt.length?` ${hurt.join(', ')} came home wounded.`:''}${killed?'':' The hostage is still held.'}`,'danger'); if(G.inst.gov>=1) G.apHit=(G.apHit||0)+2; if(killed) hostageEnd(h,'dead'); }
   if(alive.length) critAftermath(alive); toast(ok?'Rescue raid succeeded':'Rescue raid failed'); save(); } }
 function rescueModal(m){ const h=(G.hostages||[]).find(x=>x.sid===m.sid), hs=h&&byId(h.sid); if(!h||!hs) return `<header><h2>Rescue raid</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd"><p class="lede">This hostage is no longer held.</p></div>`;
@@ -6871,6 +6871,72 @@ function drawDistill(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6; const g=c.crea
   c.fillStyle='#3a2a1a'; c.fillRect(W1-66,top+30,54,3); c.fillRect(W1-66,top+48,54,3);
   if(!distOpen()){ c.strokeStyle='rgba(200,40,40,.85)'; c.lineWidth=3; c.beginPath(); c.moveTo(W0+10,top+10); c.lineTo(W1-10,fl-6); c.moveTo(W1-10,top+10); c.lineTo(W0+10,fl-6); c.stroke(); } }
 PROPS.distill=drawDistill;
+
+/* ===== v10.1: background music (generated live with Web Audio; original, mood follows the vault) ===== */
+const MUS={ctx:null,master:null,bus:null,on:false,vol:.45,mood:null,next:0,step:0,bar:0,timer:null,phrase:null,noise:null};
+try{ const m=JSON.parse(localStorage.getItem('colony-music')||'null'); if(m){ MUS.on=!!m.on; MUS.vol=typeof m.vol==='number'?m.vol:.45; } }catch(e){}
+function musSave(){ try{ localStorage.setItem('colony-music',JSON.stringify({on:MUS.on,vol:MUS.vol})); }catch(e){} }
+const MUS_MOODS={
+  day:{n:'Daytime in the vault',bpm:84,root:50,steps:16,scale:[0,2,4,7,9,12,14,16],prog:[[0,4,7],[9,12,16],[5,9,12],[7,11,14]],lead:'square',drums:1,cut:2200},
+  folk:{n:'Kolo in the corridors',bpm:132,root:52,steps:14,acc:[0,4,8],scale:[0,1,4,5,7,8,10,12,13,16],prog:[[0,4,7],[5,8,12],[3,7,10],[0,4,7]],lead:'sawtooth',drums:2,cut:1900},
+  night:{n:'Night shift',bpm:62,root:45,steps:16,scale:[0,3,5,7,10,12,15],prog:[[0,3,7],[-4,0,3],[3,7,10],[-2,2,5]],lead:'triangle',drums:0,cut:1400,sparse:.55},
+  focus:{n:'Study session focus',bpm:76,root:50,steps:16,scale:[0,2,3,5,7,9,10,12],prog:[[0,3,7,10],[5,9,12,15]],lead:'triangle',drums:0,cut:1600,arp:1},
+  tense:{n:'Under attack',bpm:118,root:45,steps:16,scale:[0,2,3,5,7,8,11,12],prog:[[0,3,7],[-4,0,3],[-2,2,5],[-1,2,5]],lead:'sawtooth',drums:3,cut:2600,ost:1},
+  somber:{n:'Hard times',bpm:58,root:43,steps:16,scale:[0,2,3,5,7,8,10,12],prog:[[0,3,7],[5,8,12],[0,3,7],[7,11,14]],lead:'triangle',drums:0,cut:1200,sparse:.6}};
+function musMood(){ if(typeof FIGHT!=='undefined'&&FIGHT||G.uprising&&G.uprising.stage==='fight'||G.coup&&G.coup.stage==='strike') return 'tense';
+  if(G.plague||(G.hostages||[]).length) return 'somber'; if(G.session) return 'focus'; const f=G.dayFrac||0; if(f>.82||f<.22) return 'night';
+  return MUS.mood==='folk'||MUS.mood==='day'?MUS.mood:(Math.random()<.35?'folk':'day'); }
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function musInit(){ if(MUS.ctx) return true; const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return false; const c=MUS.ctx=new AC();
+  MUS.master=c.createGain(); MUS.master.gain.value=0; MUS.master.connect(c.destination);
+  const comp=c.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=3; comp.connect(MUS.master);
+  MUS.bus=c.createGain(); MUS.bus.gain.value=1.8; MUS.bus.connect(comp);
+  const dl=c.createDelay(1); dl.delayTime.value=.33; const fb=c.createGain(); fb.gain.value=.28; const wet=c.createGain(); wet.gain.value=.22; const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2500;
+  MUS.fx=c.createGain(); MUS.fx.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(comp);
+  const nb=c.createBuffer(1,c.sampleRate*.5,c.sampleRate), d=nb.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; MUS.noise=nb; return true; }
+function tone(t,dur,freq,type,vol,cut,att=.01,rel=.15,send=.3,vib=0){ const c=MUS.ctx, o=c.createOscillator(), g=c.createGain(), f=c.createBiquadFilter(); o.type=type; o.frequency.setValueAtTime(freq,t);
+  if(vib){ const l=c.createOscillator(), lg=c.createGain(); l.frequency.value=5.2; lg.gain.value=freq*.006; l.connect(lg); lg.connect(o.frequency); l.start(t+.08); l.stop(t+dur+rel); }
+  f.type='lowpass'; f.frequency.value=cut; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+att); g.gain.setValueAtTime(vol,t+Math.max(att,dur-.02)); g.gain.exponentialRampToValueAtTime(.0005,t+dur+rel);
+  o.connect(f); f.connect(g); g.connect(MUS.bus); if(send){ const s=c.createGain(); s.gain.value=send; g.connect(s); s.connect(MUS.fx); } o.start(t); o.stop(t+dur+rel+.05); }
+function drum(t,kind,v){ const c=MUS.ctx; if(kind==='k'){ const o=c.createOscillator(), g=c.createGain(); o.frequency.setValueAtTime(110,t); o.frequency.exponentialRampToValueAtTime(38,t+.18); g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.001,t+.25); o.connect(g); g.connect(MUS.bus); o.start(t); o.stop(t+.3); return; }
+  const s=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain(); s.buffer=MUS.noise; f.type=kind==='h'?'highpass':'bandpass'; f.frequency.value=kind==='h'?7000:1800; g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.001,t+(kind==='h'?.05:.14)); s.connect(f); f.connect(g); g.connect(MUS.bus); s.start(t); s.stop(t+.2); }
+function musPhrase(M){ const sc=M.scale, n=M.steps, mk=()=>{ const r=[]; let deg=2+Math.floor(Math.random()*3); for(let i=0;i<n;i++){ const strong=M.acc?M.acc.includes(i):i%4===0; const p=(strong?.75:.35)*(M.sparse?1-M.sparse*.5:1); if(Math.random()<p){ deg=clamp(deg+[-2,-1,-1,1,1,2,0][Math.floor(Math.random()*7)],0,sc.length-1); const len=Math.random()<.3?2:1; r.push({i,deg,len}); } } return r; };
+  const A=mk(), B=mk(), A2=A.map((x,j)=>j>=A.length-2?{...x,deg:clamp(x.deg+(j===A.length-1?-1:0),0,sc.length-1)}:x); return [A,A2,B,A]; }
+function musSchedule(){ const c=MUS.ctx; if(!c||!MUS.on) return; while(MUS.next<c.currentTime+.6){
+    if(MUS.anthem){ const sd=60/ANTHEM.bpm/4; anthemStep(MUS.next,sd); MUS.next+=sd; MUS.step++; if(MUS.step>=16){ MUS.step=0; MUS.anthem.bar++; if(MUS.anthem.bar>=16){ MUS.anthem=null; MUS.lastAnthem=Date.now(); MUS.gap=(25+Math.random()*5)*60000; MUS.bar=0; MUS.phrase=null; } } continue; }
+    if(MUS.step===0&&(MUS.pendingAnthem||Date.now()-MUS.lastAnthem>MUS.gap&&MUS.mood!=='tense')){ MUS.pendingAnthem=false; MUS.anthem={bar:0}; continue; }
+    const t=MUS.next, M=MUS_MOODS[MUS.mood], stepDur=60/M.bpm/(M.steps===14?2:4), s=MUS.step, b=MUS.bar;
+    if(s===0){ if(b%4===0){ const want=musMood(); if(want!==MUS.mood||!MUS.phrase){ MUS.mood=want; MUS.phrase=musPhrase(MUS_MOODS[want]); } else if(b%8===0) MUS.phrase=musPhrase(M); }
+      const M2=MUS_MOODS[MUS.mood], ch=M2.prog[b%M2.prog.length], barDur=stepDur*M2.steps; for(const iv of ch){ tone(t,barDur*.95,mtof(M2.root+12+iv),'triangle',.05,900,.25,.6,.35); tone(t,barDur*.95,mtof(M2.root+12+iv)*1.004,'sawtooth',.015,700,.3,.6,.2); }
+      if(!M2.ost) tone(t,stepDur*M2.steps*.45,mtof(M2.root-12+ch[0]),'sine',.16,400,.02,.2,0); }
+    const M3=MUS_MOODS[MUS.mood], ch=M3.prog[b%M3.prog.length];
+    if(M3.ost&&s%2===0) tone(t,stepDur*1.6,mtof(M3.root-12+ch[0]+(s%8===6?7:0)),'sawtooth',.07,500,.005,.08,0);
+    if(!M3.ost&&!M3.arp&&s===M3.steps/2) tone(t,stepDur*M3.steps*.4,mtof(M3.root-12+ch[0]+(M3.steps===14?7:0)),'sine',.13,400,.02,.2,0);
+    if(M3.arp&&s%2===0) tone(t,stepDur*1.8,mtof(M3.root+24+ch[(s/2)%ch.length]),'triangle',.035,1800,.005,.25,.4);
+    const ph=MUS.phrase&&MUS.phrase[b%4]; if(ph) for(const x of ph) if(x.i===s) tone(t,stepDur*x.len*(M3.steps===14?1.6:1.8),mtof(M3.root+24+M3.scale[x.deg]),M3.lead,M3.lead==='triangle'?.07:.035,M3.cut,.01,.18,.45,1);
+    if(M3.drums){ const acc=M3.acc?M3.acc.includes(s):s%4===0; if(M3.drums>=1&&(M3.acc?acc:s%8===0)) drum(t,'k',M3.drums===3?.5:.35); if(M3.drums>=2&&s%2===1) drum(t,'h',.05); if(M3.drums===1&&s%4===2) drum(t,'h',.04); if(M3.drums===3&&s%8===4) drum(t,'s',.18); if(M3.drums===2&&acc&&s) drum(t,'s',.1); }
+    MUS.next+=stepDur; MUS.step++; if(MUS.step>=M3.steps){ MUS.step=0; MUS.bar++; } } }
+function musStart(){ if(!musInit()) return; const c=MUS.ctx; if(c.state==='suspended') c.resume(); MUS.next=c.currentTime+.1; MUS.step=0; MUS.bar=0; MUS.mood=null; MUS.phrase=null; MUS.mood=musMood(); MUS.phrase=musPhrase(MUS_MOODS[MUS.mood]);
+  MUS.master.gain.cancelScheduledValues(c.currentTime); MUS.master.gain.setValueAtTime(MUS.master.gain.value,c.currentTime); MUS.master.gain.linearRampToValueAtTime(MUS.vol,c.currentTime+1.5);
+  if(!MUS.timer) MUS.timer=setInterval(musSchedule,40); }
+function musStop(){ if(!MUS.ctx) return; const c=MUS.ctx; MUS.master.gain.cancelScheduledValues(c.currentTime); MUS.master.gain.setValueAtTime(MUS.master.gain.value,c.currentTime); MUS.master.gain.linearRampToValueAtTime(0,c.currentTime+.8); clearInterval(MUS.timer); MUS.timer=null; }
+function musToggle(){ MUS.on=!MUS.on; musSave(); if(MUS.on) musStart(); else musStop(); }
+function musVol(v){ MUS.vol=clamp(v,0,1); musSave(); if(MUS.ctx&&MUS.on){ MUS.master.gain.cancelScheduledValues(MUS.ctx.currentTime); MUS.master.gain.setTargetAtTime(MUS.vol,MUS.ctx.currentTime,.1); } }
+if(MUS.on){ const go=()=>{ document.removeEventListener('pointerdown',go,true); document.removeEventListener('keydown',go,true); if(MUS.on&&!MUS.timer) musStart(); }; document.addEventListener('pointerdown',go,true); document.addEventListener('keydown',go,true); }
+function musBox(){ return `<div class="box"><h4>Music</h4><p class="lede" style="font-size:12px">Original background music, played live by the game. The mood follows the vault: day, folk dances, night shifts, study sessions, hard times and attacks. The vault anthem plays at big moments and about every 25–30 minutes.</p><p class="lede" style="font-size:12px"><button class="btn sm" data-a="musAnthem" ${MUS.on?'':'disabled'}>Play the anthem</button>${MUS.on&&MUS.mood?` Now playing: <b>${MUS.anthem?'The vault anthem':MUS_MOODS[MUS.mood].n}</b>.`:''}</p><div class="row" style="gap:10px;align-items:center"><button class="btn ${MUS.on?'pri':''}" data-a="musTog">${MUS.on?'Music on':'Music off'}</button><label style="display:flex;align-items:center;gap:6px;font-size:12px">Volume <input type="range" min="0" max="100" value="${Math.round(MUS.vol*100)}" data-c="musVol" aria-label="Music volume"></label></div></div>`; }
+/* the vault anthem: an original partisan-style march (D minor), for big moments and about every 25–30 minutes */
+const ANTHEM={bpm:100,root:62,mel:[[[0,0,8],[8,3,4],[12,5,4]],[[0,7,6],[6,5,2],[8,3,4],[12,2,4]],[[0,0,4],[4,-5,4],[8,0,4],[12,3,4]],[[0,2,12]],
+  [[0,3,4],[4,5,4],[8,7,6],[14,8,2]],[[0,10,8],[8,8,4],[12,7,4]],[[0,5,4],[4,3,4],[8,2,4],[12,-1,4]],[[0,0,14]],
+  [[0,7,4],[4,7,4],[8,12,8]],[[0,10,6],[6,8,2],[8,7,8]],[[0,5,4],[4,8,4],[8,7,4],[12,5,4]],[[0,3,8],[8,2,8]],
+  [[0,0,4],[4,3,4],[8,7,4],[12,12,4]],[[0,10,6],[6,7,2],[8,8,8]],[[0,7,4],[4,5,4],[8,2,4],[12,-1,4]],[[0,0,14]]],
+  ch:[[0,3,7],[0,3,7],[0,3,7],[7,11,14],[3,7,10],[10,14,17],[7,11,14],[0,3,7],[0,3,7],[3,7,10],[5,8,12],[7,11,14],[0,3,7],[8,12,15],[7,11,14],[0,3,7]]};
+MUS.lastAnthem=Date.now(); MUS.gap=(25+Math.random()*5)*60000;
+function musAnthem(){ if(MUS.on&&!MUS.anthem) MUS.pendingAnthem=true; }
+function anthemStep(t,stepDur){ const A=MUS.anthem, b=A.bar, s=MUS.step, base=ANTHEM.root-12;
+  if(s===0){ for(const iv of ANTHEM.ch[b]){ tone(t,stepDur*15,mtof(base+iv),'triangle',.05,1000,.05,.3,.3); tone(t,stepDur*15,mtof(base+iv)*1.005,'sawtooth',.02,800,.05,.3,.2); } }
+  if(s%4===0) tone(t,stepDur*3,mtof(base-12+ANTHEM.ch[b][0]+(s%8===4?7:0)),'sine',.15,400,.01,.1,0);
+  for(const [i,o,len] of ANTHEM.mel[b]) if(i===s){ const f=mtof(ANTHEM.root+o); tone(t,stepDur*len*.92,f,'sawtooth',.03,2400,.015,.12,.35,1); tone(t,stepDur*len*.92,f*1.006,'square',.018,1800,.015,.12,.25); }
+  if(s%8===0) drum(t,'k',.4); if(s===4||s===12) drum(t,'s',.2); if(s===14&&b%2===1){ drum(t,'s',.1); drum(t+stepDur/2,'s',.12); } if(s%2===1) drum(t,'h',.03); }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -7172,7 +7238,7 @@ function settlerIcons(s){
   if(s.mvp) h+=`<i class="ico" title="${isMythic(s)?'Mythic ':''}Legend: ${esc(s.title||'')}" style="color:${legendCol(s)}">★</i>`;
   return h;
 }
-function renderTop(){
+function renderTop(){ { const mb=$('musBtn'); if(mb) mb.classList.toggle('off',!MUS.on); }
   $('cname').textContent=G.name;
   const hr=Math.floor(G.dayFrac*24), mn=Math.floor((G.dayFrac*24-hr)*60);
   $('cdate').textContent=`Year ${Math.floor(G.day/YEAR)+1} · Day ${(G.day%YEAR)+1} · ${pad2(hr)}:${pad2(mn)}${G.bos?' · Bosnian mode':''}`;
@@ -7557,6 +7623,7 @@ function menuModal(){
   <div class="row"><input type="text" id="colName" value="${esc(G.name)}" maxlength="28" aria-label="Colony name"><button class="btn" data-a="renameColony">Rename colony</button></div>
   <div class="box"><h4>Daily study goal</h4><div class="form"><label>Anki reviews<input type="number" id="gAnki" min="10" value="${g.anki}"></label><label>Questions<input type="number" id="gQ" min="5" value="${g.q}"></label><button class="btn" data-a="saveGoals">Save goals</button></div><p class="lede" style="font-size:12px">Together these fill 24 hours of reactor charge. Changing goals only affects future entries.</p></div>
   <div class="box"><h4>Game speed</h4><p class="lede" style="font-size:12px">The clock sets itself. During a study session a day lasts <b>40 minutes</b> (even while you’re in another tab). Otherwise a day lasts <b>2 hours</b>. A study session ends on its own after 1.5 hours with no activity on the game page (moving the mouse over it, scrolling, tapping or typing all count). Pregnancy, childhood, training, crafting and exploring always run on real time. Right now: 1 day = ${G.session?'40 minutes':'2 hours'}.</p></div>
+  ${musBox()}
   <div class="box"><h4>Vacation mode</h4><p class="lede" style="font-size:12px">Freezes the colony and skips study goals, for exams, travel or sick days. Nothing ages, produces or drains while it’s on.</p><div><button class="btn ${G.vacation?'pri':''}" data-a="vacation">${G.vacation?'End vacation':'Start vacation'}</button></div></div>
   <dl class="kv"><dt>Population</dt><dd>${G.settlers.length} of ${housing()} beds</dd><dt>Born here</dt><dd>${G.stats.births}</dd><dt>Arrived</dt><dd>${G.stats.arrivals}</dd><dt>Lost</dt><dd>${G.stats.deaths} died, ${G.stats.departures} left</dd><dt>Days with goal met</dt><dd>${Object.values(G.study.days).filter(d=>d.rewarded).length}</dd></dl>
   <div class="box"><h4>Bosnian mode</h4><p class="lede" style="font-size:12px">Wanderers carry Bosnian, Croatian and Serbian names. Rarely, famous Bosnians arrive as Legends with stronger stats and gear, and warbands may be led by convicted war criminals you can capture and put on trial.</p><div><button class="btn ${G.bos?'pri':''}" data-a="bosMode">${G.bos?'Bosnian mode is on':'Turn on Bosnian mode'}</button></div>
@@ -7633,6 +7700,8 @@ document.addEventListener('click',e=>{
     case 'bzBuy': { const r=roomById(id), k=el.dataset.v; if(r&&r.stall&&r.stall[k]>0&&G.res.caps>=STALL[k]){ G.res.caps-=STALL[k]; G.mats[k]=(G.mats[k]||0)+1; r.stall[k]--; toast(`Bought 1 ${MATS[k].n.toLowerCase()}.`); save(); } break; }
     case 'distShut': distClose(null,'overseer','On the Overseer’s order, the Rakija Distillery was closed.'); save(); break;
     case 'distOpen': { G.distClosed=null; polNews('On the Overseer’s order, the Rakija Distillery reopened.'); for(const x of G.settlers) if(x.drink===0) x.loy=Math.max(0,(x.loy||50)-1); save(); break; }
+    case 'musTog': musToggle(); break;
+    case 'musAnthem': musAnthem(); break;
     case 'milTree': UI.modal={t:'miltree'}; setTimeout(()=>{ const t=document.querySelector('.miltree'); if(t) t.scrollLeft=(t.scrollWidth-t.clientWidth)/2; },60); break;
     case 'polOpen': UI.modal={t:'pol'}; break;
     case 'polPromo': { const s=byId(id); if(s) polPromote(s); break; }
@@ -7772,7 +7841,7 @@ document.addEventListener('click',e=>{
   }
   renderUI();
 });
-document.addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.ef&&el.dataset.ef!=='1'){ UI.ef[el.dataset.ef]=el.value; return; } if(el.dataset&&el.dataset.f&&!el.dataset.ef){ UI.sform[el.dataset.f]=el.value; const p=$('spreview'); if(p) p.innerHTML=studyPreview(); } });
+document.addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.c==='musVol'){ musVol(+el.value/100); return; } if(el.dataset&&el.dataset.ef&&el.dataset.ef!=='1'){ UI.ef[el.dataset.ef]=el.value; return; } if(el.dataset&&el.dataset.f&&!el.dataset.ef){ UI.sform[el.dataset.f]=el.value; const p=$('spreview'); if(p) p.innerHTML=studyPreview(); } });
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.f==='src'){ if(el.dataset.ef) UI.ef.src=el.value; else UI.sform.src=el.value; }
@@ -7833,7 +7902,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
