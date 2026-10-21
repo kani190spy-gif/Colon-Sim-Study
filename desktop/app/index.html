@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.1</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.2</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1827,6 +1827,7 @@ function targetFor(s,a,t){
         if(!a.pat||a.pat.r!==r.id) a.pat={r:r.id,side:i%2,wait:0}; const P=a.pat; let x=P.side?R:L;
         if(a.l===r.floor&&Math.abs(a.x-x)<3&&!(a.path&&a.path.length)){ if(!P.wait) P.wait=t+2.5+rnd()*4.5; else if(t>P.wait){ P.side^=1; P.wait=0; x=P.side?R:L; } }
         return {x,l:r.floor,pose:'guard',face:P.wait?(P.side?-1:1):(x>a.x?1:-1),slow:true}; }
+      if(r.type==='command'){ const gid=cmdGuardId(r); if(s.id===gid) return {x:roomX(r.col)+44,l:r.floor,pose:'guard',face:1}; const j=Math.max(0,r.workers.filter(id=>id!==gid).indexOf(s.id)); return {x:roomX(r.col)+stationX(r,j),l:r.floor,pose:['point','gesture','type','read'][j%4],face:[1,-1,1,-1][j%4]}; }
       const i=Math.max(0,r.workers.indexOf(s.id)), wide=ROOMS[r.type].wide, li=wide?i:i%perSeg(r), lx=wide?0:stationLocal(r,li,perSeg(r));
       let face=r.type==='generator'?(li===0?-1:lx<WD.roomW/2?1:-1):r.type==='school'?-1:(lx<WD.roomW/2?1:-1);
       let pose=(r.type==='generator'&&li===0)||(r.type==='water'&&li===1)?'type':(r.type==='diner'&&(li===1||li===3))?'gesture':workPose(r);
@@ -4380,6 +4381,10 @@ const RANKS=[
  {n:'Colonel',a:'COL',xp:140,uni:'o_colonel',def:4},
  {n:'General',a:'GEN',xp:220,uni:'o_general',def:4}];
 const cmdRoom=()=>G.rooms.find(r=>r.type==='command');
+// one soldier stands guard at the Command Post door (weapon out); the rest do staff work
+function cmdGuardId(r){ const ws=r.workers.map(byId).filter(x=>x&&isSoldier(x)); if(ws.length<2) return null; if(r.guard&&ws.some(x=>x.id===r.guard)) return r.guard; return ws.slice().sort((a,b)=>(a.rank_m||0)-(b.rank_m||0)||(a.milXP||0)-(b.milXP||0))[0].id; }
+function cmdGuardBox(r){ if(r.type!=='command') return ''; const ws=r.workers.map(byId).filter(x=>x&&isSoldier(x)), gid=cmdGuardId(r);
+  return `<div class="box"><h4>Door guard</h4>${ws.length<2?'<p class="lede" style="font-size:12px">With two or more soldiers posted, one stands guard at the door with weapon drawn while the others plan and run the army.</p>':`<p class="lede" style="font-size:12px">Stands at the door with weapon drawn; everyone else works the maps, radios and reports. ${r.guard?'Chosen by you.':'By default the most junior soldier takes the post.'}</p><select data-c="cmdGuard" data-id="${r.id}" aria-label="Door guard">${ws.map(x=>`<option value="${x.id}" ${x.id===gid?'selected':''}>${esc(fullName(x))}${cmdRoom()?' · '+RANKS[rankOf(x)].n:''}</option>`).join('')}</select>`}</div>`; }
 const rankOf=s=>s&&s.mil&&cmdRoom()?(s.mil==='reserve'?Math.min(3,s.rank_m||0):(s.rank_m||0)):0;
 const armySize=()=>G.settlers.filter(s=>s.mil&&!s.died).length;
 function rankCap(r){ const n=armySize(); if(r<=2) return 999; if(r===3) return Math.max(1,Math.ceil(n/4)); if(r===4) return n>=5?Math.max(1,Math.floor(n/8)):0; if(r===5) return n>=8?1+Math.floor(n/16):0; if(r===6) return n>=12?1+Math.floor((n-12)/24):0; return n>=6?1:0; }
@@ -7062,7 +7067,7 @@ function drawScene(now){
     if(s.bd!=null&&age(s)<1.5){ const ma=AG.get(s.parents[0]), mum=byId(s.parents[0]); if(ma&&!ma.hidden&&mum&&!mum.exp&&!emOf(mum.id)) continue; fillRR(c,a.x-10,a.y-12,20,10,2,'#8a5a32'); c.fillStyle='#5a3a22'; for(let i=0;i<5;i++) c.fillRect(a.x-9+i*4.4,a.y-18,1.2,8); c.fillRect(a.x-10,a.y-19,20,1.6); drawBundle(c,a.x,a.y-13,s,1); continue; }
     if(a.pose==='ride'||(a.lifting&&a.pose==='haulB'&&!(emOf(s.id)&&emOf(s.id).team[1]===s.id))){ fillRR(c,a.x-18,a.y,36,5,2,'#6b625a'); c.strokeStyle='rgba(180,170,150,.5)'; c.lineWidth=1; c.beginPath(); c.moveTo(a.x-16,a.y); c.lineTo(a.x-16,a.y-76); c.lineTo(a.x+16,a.y-76); c.lineTo(a.x+16,a.y); c.stroke(); }
     const rm=s.room&&roomById(s.room);
-    drawPersonCached(c,a,s,t,{mourn:isMourner(s.id)&&a.l===-1,ring:s.id===sel||(HOVER&&HOVER.agent===s.id),hold:!!s.exp||(rm&&(rm.type==='armory'||rm.type==='range')&&!a.path?.length)||(isSoldier(s)&&!s.milLeave&&(!a.path?.length||(rm&&(rm.type==='jail'||rm.type==='office'))))||(isOfficer(s)&&(!rm&&s.id!==G.leader||rm&&(rm.type==='jail'||rm.type==='entrance'||(rm.type==='office'&&s.id!==G.leader)))&&!!gearOf(s,'w'))||(FIGHT&&FIGHT.def.includes(s.id)),angry:!!(FIGHT&&FIGHT.def.includes(s.id)),cradle:s.sex==='F'?babyOf(s):null,ert:ertOn(s),focus:!!emResponder(s.id)});
+    drawPersonCached(c,a,s,t,{mourn:isMourner(s.id)&&a.l===-1,ring:s.id===sel||(HOVER&&HOVER.agent===s.id),hold:!!s.exp||(rm&&(rm.type==='armory'||rm.type==='range')&&!a.path?.length)||(isSoldier(s)&&!s.milLeave&&!(rm&&!a.path?.length&&(rm.type==='command'&&cmdGuardId(rm)!==s.id||rm.type==='workshop'||rm.type==='execc'))&&(!a.path?.length||(rm&&(rm.type==='jail'||rm.type==='office'))))||(isOfficer(s)&&(!rm&&s.id!==G.leader||rm&&(rm.type==='jail'||rm.type==='entrance'||(rm.type==='office'&&s.id!==G.leader)))&&!!gearOf(s,'w'))||(FIGHT&&FIGHT.def.includes(s.id)),angry:!!(FIGHT&&FIGHT.def.includes(s.id)),cradle:s.sex==='F'?babyOf(s):null,ert:ertOn(s),focus:!!emResponder(s.id)});
   }
   if(Math.floor(t)%5===0) sprGC(t);
   drawEmMarkers(c,t);
@@ -7600,7 +7605,7 @@ function assignModal(rid){
     ${tm.length<cap?`<p class="lede" style="font-size:12px;margin-top:8px">Appoint (best rescue rating first):</p><div class="pick">${cand.map(x=>`<button data-a="ert" data-id="${x.id}"><span>${esc(fullName(x))} ${settlerIcons(x)}</span><span class="jb">${jobName(x)}</span><span class="sv">A ${x.s.A} · I ${x.s.I}</span></button>`).join('')}</div>`:''}
     <div class="row"><button class="btn sm" data-a="ertDrill" ${tm.length?'':'disabled'}>Run a drill</button></div></div>`; }
   if(r.type==='surgery') ex+=surgPanel(r);
-  ex+=v93Panel(r)+v98Panel(r)+wfPanel(r)+distPanel(r);
+  ex+=v93Panel(r)+v98Panel(r)+wfPanel(r)+distPanel(r)+cmdGuardBox(r);
   if(r.type==='office') ex+=renoBox(r);
   if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button><button class="btn sm" data-a="milTree">Military tree</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
@@ -7845,6 +7850,7 @@ document.addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.data
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.f==='src'){ if(el.dataset.ef) UI.ef.src=el.value; else UI.sform.src=el.value; }
+  if(el.dataset.c==='cmdGuard'){ const r=roomById(+el.dataset.id); if(r){ r.guard=+el.value; save(); } el.blur(); renderUI(); }
   if(el.dataset.c==='gear'){ const s=byId(+el.dataset.id); if(s){ equip(s,el.dataset.slot,el.value?+el.value:null); } el.blur(); renderUI(); }
   if(el.dataset.c==='assign'){ const s=byId(+el.dataset.id); if(s){ if(!el.value) unassign(s); else assign(s,roomById(+el.value)); } el.blur(); renderUI(); }
   if(el.dataset.c==='enroll'){ const k=byId(+el.dataset.id); if(k){ k.eduRoom=el.value?+el.value:null; k.noAuto=!el.value; k.learn=0; } el.blur(); renderUI(); }
