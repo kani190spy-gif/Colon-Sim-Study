@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.5</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.6</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1288,7 +1288,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); flagLeaderDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -1303,7 +1303,7 @@ const eduHas=(s,k)=>!!k&&(s.edu||[]).includes(k);
 function checkEdu(s){ if(s.track&&!eduHas(s,s.track)&&s.s[s.track]>=10){ s.edu=(s.edu||[]).concat(s.track); s.eduDone=true; log(`${fullName(s)} completed a ${STAT_NAMES[s.track]} education: +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[s.track]} rooms.`,'family'); FX.text(s.id,'Educated!','#7fd38a'); } }
 function lifeStep(mins,frac){
   const nd=nowD();
-  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); voteStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); drinkStep(); hallStaffFix(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
+  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); voteStep(); refStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); drinkStep(); hallStaffFix(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
   if(G.captives&&G.captives.length){ G.captives=G.captives.filter(q=>{ if(roomById(q.room)) return true; prisonEnd(q,'Escaped'); log(`${q.s.first} ${q.s.last} slipped away when the Holding Cells were torn down.`,'danger'); return false; }); }
   { const k=1-Math.exp(-mins/20); for(const s of G.settlers){ if(s.grief) s.grief=Math.max(0,s.grief-mins*.1); s.happy=clamp(s.happy+(happyTarget(s)-s.happy)*k,0,100); } }
   if(LIVE&&G.inst.health>=1&&ertTeam().length) for(const r of G.rooms) if(['generator','workshop','water','diner'].includes(r.type)&&r.workers.length&&rnd()<1-Math.exp(-mins*.0035)){ const v=byId(pick(r.workers)); if(v&&!v.preg&&!emOf(v.id)&&!ertOn(v)){ hurtSettler(v,ri(12,22),'Workplace accident'); if(G.settlers.includes(v)&&!callEmergency(v,'accident')) critAftermath([v]); } }
@@ -1735,6 +1735,7 @@ function stationLocal(r,i,n){
   if(r.type==='medbay') return [140,70,200,110][i]||WD.roomW/2;
   if(r.type==='radio') return [118,92,150,60][i]||WD.roomW/2;
   if(r.type==='water') return [64,WD.roomW-30,104,170][i]||WD.roomW/2;
+  if(r.type==='purifier') return [36,120,196,80][i]||WD.roomW/2;
   if(r.type==='diner') return [36,88,58,110][i]||WD.roomW/2;
   if(r.type==='lab') return [56,140,222,98][i]||WD.roomW/2;
   if(r.type==='classroom') return [132,60,170,210][i]||WD.roomW/2;
@@ -1804,7 +1805,7 @@ function targetFor(s,a,t){
       if(r.type==='command'){ pose=['point','gesture','type','read'][i%4]; face=[1,-1,1,-1][i%4]; }
       if(r.type==='precinct'){ pose=['type','clipboard','read','gesture'][li%4]; face=li%2?-1:1; }
       if(r.type==='surgery'){ const busy=!!r.op; pose=busy?(['care','care','type','clipboard'][i]||'clipboard'):(['clipboard','read','type','clipboard'][i]||'stand'); face=[1,-1,1,-1][i]||(i%2?1:-1); }
-      { const RP={water:['type','clipboard','valve','clipboard'],diner:['chop','gesture','stir','mop'],lab:['flask','type','flask','read'],trade:['count','gesture','count','gesture'],generator:['type','crank','wrench','crank'],clinic:['care','clipboard','care','clipboard'],medbay:['fill','type','fill','clipboard'],radio:['mic','type','mic','type'],tailor:['sew','sew','gesture','sew'],workshop:['type','wrench','gesture','wrench'],classroom:['chalk','read','read','read'],range:['aim','aim','aim','aim'],gameroom:['dart','point','dart','point'],drill:['march','march','march','march']};
+      { const RP={purifier:['fill','valve','clipboard','wrench'],water:['type','clipboard','valve','clipboard'],diner:['chop','gesture','stir','mop'],lab:['flask','type','flask','read'],trade:['count','gesture','count','gesture'],generator:['type','crank','wrench','crank'],clinic:['care','clipboard','care','clipboard'],medbay:['fill','type','fill','clipboard'],radio:['mic','type','mic','type'],tailor:['sew','sew','gesture','sew'],workshop:['type','wrench','gesture','wrench'],classroom:['chalk','read','read','read'],range:['aim','aim','aim','aim'],gameroom:['dart','point','dart','point'],drill:['march','march','march','march']};
         const rp=RP[r.type]; if(rp) pose=rp[(wide?i:li)%4]; if(r.type==='classroom'&&li===0) face=-1; if(r.type==='diner'&&pose==='mop') face=1; }
       return {x:roomX(r.col)+stationX(r,i),l:r.floor,pose,face};
     }
@@ -6504,7 +6505,7 @@ PROPS.execc=(c,x,top,w,fl,t,lit,r)=>{ c.fillStyle='#4a3a2c'; c.fillRect(x+6,fl-4
   c.fillStyle='#3a2e24'; c.fillRect(x+10,top+14,40,fl-top-54); c.fillRect(x+w-50,top+14,40,fl-top-54); const bc=['#7a3a2a','#2a4a6a','#5a6a3a','#8a7a4a','#4a3a6a']; for(const bx of [x+12,x+w-48]) for(let sh=0;sh<3;sh++){ c.fillStyle='#2a2018'; c.fillRect(bx-2,top+22+sh*18,40,2); for(let b=0;b<7;b++){ c.fillStyle=bc[(b+sh)%5]; c.fillRect(bx+b*5,top+10+sh*18,4,12); } }
   c.fillStyle='#7a2a2a'; c.fillRect(x+60,fl-3,w-120,3); };
 function drawExecDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), fl=top+WD.floorH-14; c.save();
-  c.fillStyle='#1f2a4a'; c.fillRect(x+w/2-30,top+10,60,34); c.fillStyle='#f2efe6'; c.fillRect(x+w/2-30,top+21,60,12); c.fillStyle='#b8282a'; c.fillRect(x+w/2-30,top+33,60,11); c.fillStyle='#d9b14a'; c.beginPath(); c.arc(x+w/2,top+27,4,0,TAU); c.fill();
+  c.fillStyle='#c9a24a'; c.fillRect(x+w/2-34,top+8,2,40); flagDraw(c,x+w/2-31,top+10,62,40,null,t);
   for(let i=0;i<6;i++){ const dx=x+30+i*((w-80)/6); c.fillStyle='#4a3424'; c.fillRect(dx,fl-18,44,5); c.fillRect(dx+3,fl-13,3,13); c.fillRect(dx+38,fl-13,3,13); c.fillStyle='#d9c08a'; c.fillRect(dx+30,fl-26,3,8); c.fillStyle='#f2e6b0'; c.beginPath(); c.arc(dx+31,fl-27,4,Math.PI,TAU); c.fill(); c.fillStyle='#e8e2d2'; c.fillRect(dx+8,fl-21,14,3); }
   c.restore(); }
 
@@ -6622,7 +6623,7 @@ function closeVoting(){ const V=G.vote; if(!V) return; for(const id in V.going){
     else councilElection(); }
   musPlay('ceremony'); G.lastElection=res; G.elHist=(G.elHist||[]).concat(res).slice(-12);
   if(G.postponed) polNews(`The long-delayed election was finally held after ${G.postponed} postponement${G.postponed>1?'s':''}.`); G.postponed=0; G.pAnger={}; save(); }
-function voteTarget(s){ const V=G.vote; if(!V||V.going[s.id]==null) return null; const r=V.site&&roomById(V.site); if(!r) return null; const ids=Object.keys(V.going).map(Number), i=ids.indexOf(s.id), X=roomX(r.col), w=roomW(r);
+function voteTarget(s){ const V=G.vote&&G.vote.going[s.id]!=null?G.vote:G.ref&&G.ref.going[s.id]!=null?G.ref:null; if(!V) return null; const r=V.site&&roomById(V.site); if(!r) return null; const ids=Object.keys(V.going).map(Number), i=ids.indexOf(s.id), X=roomX(r.col), w=roomW(r);
   return i===0?{x:X+48,l:r.floor,pose:'desk',face:-1}:{x:X+80+i*20,l:r.floor,pose:'stand',face:-1}; }
 /* ---------- Election Board ---------- */
 const pcol=k=>k?PARTIES[k].c:'#8fb8e8';
@@ -6630,7 +6631,7 @@ function barRows(rows){ const mx=1; return rows.map(r=>`<div style="margin:6px 0
 function pieHTML(parts,size=150){ let a=0; const tot=parts.reduce((x,p)=>x+p.v,0)||1; const seg=parts.filter(p=>p.v>0).map(p=>{ const s=a; a+=p.v/tot*360; return `${p.c} ${s}deg ${a}deg`; }).join(',');
   return `<div class="row" style="gap:14px;align-items:center;flex-wrap:wrap"><div role="img" aria-label="${parts.map(p=>`${p.n} ${Math.round(p.v/tot*100)}%`).join(', ')}" style="width:${size}px;height:${size}px;border-radius:50%;background:${seg?`conic-gradient(${seg})`:'var(--line)'};flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)"></div><div style="font-size:13px">${parts.map(p=>`<div><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${p.c};margin-right:6px"></i>${p.n} <b class="num">${Math.round(p.v/tot*100)}%</b>${p.x?` <span class="lede">${p.x}</span>`:''}</div>`).join('')}</div></div>`; }
 function seatsRow(alloc){ return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${Object.keys(alloc).flatMap(k=>Array(alloc[k]).fill(k)).map(k=>`<i title="${PARTIES[k].n}" style="width:18px;height:18px;border-radius:50%;background:${PARTIES[k].c};display:inline-block"></i>`).join('')}</div>`; }
-function renderElections(){ let h=`<h3 class="sec">Elections</h3>`; const V=G.vote, L=G.leader&&byId(G.leader);
+function renderElections(){ let h=`<h3 class="sec">Elections</h3>`+refBox(); const V=G.vote, L=G.leader&&byId(G.leader);
   if(G.inst.gov<3&&!V&&!G.lastElection) return h+'<p class="lede">Elections begin at Governance 3 (Elections). Until then the council appoints the leader.</p>';
   if(V){ const nd=nowD(), left=Math.max(0,V.end-nd), tot=Math.max(1,V.cast), site=V.site&&roomById(V.site), inLine=Object.keys(V.going).length;
     h+=`<div class="box" style="border-color:var(--accent)"><h4>🗳 Polls are open · closes in ${left>=1?`${left.toFixed(1)} days`:`${Math.ceil(left*24)} hours`}</h4>
@@ -7060,6 +7061,115 @@ function songStep(S,t,sd,b,s){ const ch=S.ch[b%S.ch.length], cr=S.croot, n=S.n16
     if(st==='ilahija'&&!who) inst(t+sd*2,d*.8,f*2,'ney',.035); } }
 const SONG_ORDER=['vault','folkrock','folkpop','ceremony','vault','callresp'];
 function musPlay(id){ if(!MUS.on) return; MUS.pendingSong=id; }
+
+/* ===== v10.6: Water Purifier as a bottling plant (produces water) ===== */
+Object.assign(ROOMS.purifier,{res:'water',base:2.2,desc:'A bottling and filtration plant: rinse carousel, filler heads, sand and carbon filters. Workers produce clean water, and the cleaner supply means outbreaks start less often and spread more slowly. Intelligence runs the chemistry.'});
+function purBottle(c,bx,by,fill,cap){ c.fillStyle='rgba(210,235,245,.55)'; c.fillRect(bx-3,by-14,6,14); c.fillRect(bx-1.5,by-18,3,4); if(fill>0){ c.fillStyle='rgba(70,160,220,.85)'; c.fillRect(bx-2.5,by-1-12*fill,5,12*fill); } c.fillStyle=cap?'#3a6ab0':'rgba(200,220,230,.6)'; c.fillRect(bx-2,by-20,4,2); c.strokeStyle='rgba(30,40,50,.5)'; c.lineWidth=.6; c.strokeRect(bx-3,by-14,6,14); }
+function purPipes(c,x,top,w,fl,on){ const W0=x+6,W1=x+w-6; const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#5a5850'); g.addColorStop(1,'#6e6a60'); c.fillStyle=g; c.fillRect(W0,top+4,W1-W0,fl-top-4);
+  c.fillStyle='rgba(0,0,0,.12)'; for(let px=W0+24;px<W1;px+=48) c.fillRect(px,top+6,2,fl-top-10);
+  const pipe=(y,wd,col)=>{ c.strokeStyle='#15110d'; c.lineWidth=wd+2; c.beginPath(); c.moveTo(W0,y); c.lineTo(W1,y); c.stroke(); c.strokeStyle=col; c.lineWidth=wd; c.stroke(); };
+  pipe(top+14,6,'#3e7f96'); pipe(top+24,3,'#8a8a86'); c.fillStyle='#b9c1c7'; for(let px=W0+20;px<W1;px+=36){ c.fillRect(px-2,top+9,4,10); } c.fillStyle='#c9a24a'; for(let px=W0+38;px<W1;px+=72) c.fillRect(px-3,top+11,6,6);
+  c.fillStyle=on?'#e8f6ff':'#7d8790'; c.fillRect(x+w/2-26,top+6,52,3); }
+function drawPurPlant(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6, run=workers(r).length>0&&!G.flags.power, yC=fl-24; purPipes(c,x,top,w,fl,on||!G.flags.power);
+  // rinse carousel
+  const rx=W0+8; c.fillStyle='#8a9096'; c.fillRect(rx,yC-52,48,6); c.fillRect(rx,yC-4,48,6); c.fillStyle='rgba(190,225,240,.28)'; c.fillRect(rx+2,yC-46,44,42); c.strokeStyle='#9aa2a8'; c.lineWidth=1.2; c.strokeRect(rx+2,yC-46,44,42);
+  for(let k=0;k<4;k++){ purBottle(c,rx+8+k*11,yC-6,0,false); if(run){ c.strokeStyle='rgba(220,240,255,.6)'; c.lineWidth=.8; for(let d=0;d<3;d++){ const yy=yC-44+((t*40+k*13+d*9)%30); c.beginPath(); c.moveTo(rx+8+k*11+d-1,yy); c.lineTo(rx+8+k*11+d-1,yy+3); c.stroke(); } } }
+  // filler tank with nozzles
+  const tx=W0+66, tw=104; c.fillStyle='#b8c0c6'; fillRR(c,tx,top+30,tw,22,10,'#b8c0c6'); c.fillStyle='#5ab8e8'; fillRR(c,tx+18,top+37,tw-36,7,3,run?'#7fd0f8':'#4a8ab0'); c.strokeStyle='#15110d'; c.lineWidth=.8; c.beginPath(); rr(c,tx,top+30,tw,22,10); c.stroke();
+  for(let k=0;k<5;k++){ const nx=tx+12+k*20; c.fillStyle='#9aa2a8'; c.fillRect(nx-3,top+52,6,10); c.fillStyle='#c9a24a'; c.fillRect(nx-3,top+60,6,2); if(run){ c.fillStyle='rgba(90,180,235,.75)'; c.fillRect(nx-1,top+62,2,yC-top-80); } }
+  // conveyor + moving bottles
+  c.fillStyle='#55595c'; c.fillRect(W0+4,yC,W1-W0-8,6); c.fillStyle='#3a3e42'; for(let px=W0+4;px<W1;px+=10) c.fillRect(px+((run?t*12:0)%10),yC+1,2,4); c.fillStyle='#4a4e52'; for(const lx of [W0+10,x+w/2,W1-14]) c.fillRect(lx,yC+6,4,fl-yC-6);
+  const off=run?(t*14)%20:0; for(let bx=W0+62+off;bx<W1-8;bx+=20){ const under=Math.abs(((bx-(tx+12))%20+20)%20-0)<3&&bx<tx+tw; const fill=bx<tx?0:bx>tx+tw?1:clamp((bx-tx)/tw,0,1); purBottle(c,bx,yC,fill,bx>tx+tw); }
+  // filter columns + gauge
+  for(const [fx,fw] of [[W1-46,14],[W1-28,14]]){ fillRR(c,fx,top+34,fw,yC-top-38,5,'#c8ccc8'); c.fillStyle='#a8aca8'; c.fillRect(fx,top+44,fw,2); c.fillRect(fx,yC-14,fw,2); }
+  c.fillStyle='#e8e8e0'; c.beginPath(); c.arc(W1-58,top+40,5,0,TAU); c.fill(); c.strokeStyle='#333'; c.lineWidth=.8; c.stroke(); c.beginPath(); c.moveTo(W1-58,top+40); const a=-1.2+(run?Math.sin(t)*.2+.8:0); c.lineTo(W1-58+Math.cos(a)*4,top+40+Math.sin(a)*4); c.stroke();
+  c.fillStyle=G.plague?'#e05a4a':'#5ad07a'; c.beginPath(); c.arc(W1-58,top+52,2,0,TAU); c.fill(); }
+function drawPurifierExt(c,x,top,w,fl,t,on,r){ const W0=x+6,W1=x+w-6, run=workers(r).length>0&&!G.flags.power, yC=fl-24; purPipes(c,x,top,w,fl,on||!G.flags.power);
+  c.fillStyle='#55595c'; c.fillRect(W0,yC,104,6); const off=run?(t*14)%20:0; for(let bx=W0+6+off;bx<W0+100;bx+=20) purBottle(c,bx,yC,1,true);
+  c.fillStyle='#9aa2a8'; c.beginPath(); c.moveTo(W0+30,top+40); c.lineTo(W0+74,top+40); c.lineTo(W0+60,top+58); c.lineTo(W0+44,top+58); c.fill(); for(let k=0;k<6;k++){ c.fillStyle='#3a6ab0'; c.beginPath(); c.arc(W0+38+k*6,top+40,2.5,Math.PI,TAU); c.fill(); } c.fillStyle='#8a9096'; c.fillRect(W0+48,top+58,8,yC-top-66);
+  c.fillStyle=run?'#f2e6b0':'#8a8470'; fillRR(c,W0+84,yC-34,40,26,2,run?'#f2e6b0':'#8a8470'); c.strokeStyle='#5a5850'; c.lineWidth=1.2; c.strokeRect(W0+84,yC-34,40,26); purBottle(c,W0+104,yC-10,1,true);
+  fillRR(c,W1-62,top+30,30,yC-top-30,8,'#e8e0cc'); c.fillStyle='#8a7a5a'; c.fillRect(W1-60,yC-30,26,26); c.fillStyle='#5ab0e8'; c.fillRect(W1-36,top+40,4,30);
+  c.fillStyle='#2a4a8a'; c.beginPath(); c.arc(W1-90,fl-16,9,0,TAU); c.fill(); c.fillRect(W1-80,fl-20,16,8); c.fillStyle='#8a9096'; c.fillRect(W1-66,fl-26,6,14);
+  for(let k=0;k<2;k++){ const cx2=W0+140+k*30; c.fillStyle='#8a8f92'; c.fillRect(cx2,fl-14,26,14); for(let b=0;b<4;b++) purBottle(c,cx2+4+b*6,fl-13,1,true); } }
+PROPS.purifier=drawPurPlant; PEXT.purifier=drawPurifierExt; MAXW.purifier=2;
+/* ===== v10.6: the vault flag — design, decree, referendum; parties have tastes ===== */
+const FL_COLS=[['#b8282a','red'],['#7a1f24','red'],['#1f3f8a','blue'],['#1f2a4a','blue'],['#5ab0e8','lightblue'],['#2e7a4a','green'],['#1e4a2e','green'],['#d9b14a','gold'],['#f2d04a','gold'],['#f2efe6','white'],['#1a1a1a','black'],['#d97a2a','orange'],['#6a3a8a','purple']];
+const FL_LAYS={solid:{n:'Solid',w:[1]},h2:{n:'Two stripes',w:[.5,.5]},h3:{n:'Three stripes',w:[.34,.33,.33]},v2:{n:'Two bars',w:[.5,.5]},v3:{n:'Three bars',w:[.34,.33,.33]},cross:{n:'Cross',w:[.7,.3]},nordic:{n:'Nordic cross',w:[.7,.3]},diag:{n:'Diagonal',w:[.5,.5]},canton:{n:'Canton',w:[.75,.25]},border:{n:'Border',w:[.7,.3]}};
+const circP=(cx,cy,r)=>`M${cx-r} ${cy} a${r} ${r} 0 1 0 ${2*r} 0 a${r} ${r} 0 1 0 ${-2*r} 0 Z `;
+const starP=(cx,cy,R,r=R*.42)=>{ let s=''; for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, q=i%2?r:R; s+=(i?'L':'M')+(cx+Math.cos(a)*q).toFixed(1)+' '+(cy+Math.sin(a)*q).toFixed(1)+' '; } return s+'Z '; };
+const FL_EM={none:{n:'None',p:''},star:{n:'Star',p:starP(50,52,42)},
+ gear:{n:'Gear',p:(()=>{ let s=''; for(let i=0;i<10;i++){ const a=i*Math.PI/5; const x=50+Math.cos(a)*38, y=50+Math.sin(a)*38; s+=`M${(x-6).toFixed(1)} ${(y-6).toFixed(1)} h12 v12 h-12 Z `; } return s+circP(50,50,32)+circP(50,50,13); })(),rule:'evenodd'},
+ wheat:{n:'Wheat',p:(()=>{ let s='M48 40 L52 40 L52 92 L48 92 Z '; for(let k=0;k<4;k++){ const y=18+k*9; s+=`M50 ${y} C57 ${y+5} 57 ${y+11} 50 ${y+15} C43 ${y+11} 43 ${y+5} 50 ${y} Z `; s+=`M${k%2?38:62} ${y+6} C${k%2?44:56} ${y+9} ${k%2?44:56} ${y+14} ${k%2?40:60} ${y+18} C${k%2?34:66} ${y+14} ${k%2?34:66} ${y+9} ${k%2?38:62} ${y+6} Z `; } return s; })()},
+ sun:{n:'Sun',p:(()=>{ let s=circP(50,50,20); for(let i=0;i<12;i++){ const a=i*Math.PI/6; s+=`M${(50+Math.cos(a-.12)*26).toFixed(1)} ${(50+Math.sin(a-.12)*26).toFixed(1)} L${(50+Math.cos(a)*44).toFixed(1)} ${(50+Math.sin(a)*44).toFixed(1)} L${(50+Math.cos(a+.12)*26).toFixed(1)} ${(50+Math.sin(a+.12)*26).toFixed(1)} Z `; } return s; })()},
+ shield:{n:'Shield',p:'M20 12 L80 12 L80 48 C80 72 64 84 50 92 C36 84 20 72 20 48 Z'},
+ lily:{n:'Lily',p:'M50 8 C61 24 61 44 50 60 C39 44 39 24 50 8 Z M49 60 C36 40 16 40 12 56 C22 50 34 54 44 66 Z M51 60 C64 40 84 40 88 56 C78 50 66 54 56 66 Z M36 66 L64 66 L64 73 L36 73 Z M46 73 L54 73 L54 92 L46 92 Z'},
+ tower:{n:'Fortress',p:'M24 90 L24 40 L18 40 L18 20 L30 20 L30 28 L42 28 L42 20 L58 20 L58 28 L70 28 L70 20 L82 20 L82 40 L76 40 L76 90 Z M43 90 L43 68 C43 58 57 58 57 68 L57 90 Z',rule:'evenodd'},
+ coin:{n:'Coin',p:circP(50,50,40)+circP(50,50,30)+'M50 30 L62 50 L50 70 L38 50 Z',rule:'evenodd'},
+ dove:{n:'Dove',p:'M12 56 C28 34 50 40 60 48 C70 34 86 28 94 30 C84 40 79 50 73 56 C82 60 88 66 90 74 C76 71 64 66 56 62 C46 70 28 70 12 56 Z'},
+ mountain:{n:'Mountains',p:'M4 86 L34 34 L50 56 L66 22 L96 86 Z'},
+ ring:{n:'Ring of stars',p:(()=>{ let s=''; for(let i=0;i<10;i++){ const a=i*Math.PI/5-Math.PI/2; s+=starP(50+Math.cos(a)*34,50+Math.sin(a)*34,8); } return s; })()},
+ cog:{n:'Vault cog',p:(()=>circP(50,50,42)+circP(50,50,32)+circP(50,50,12)+'M47 14 h6 v72 h-6 Z M14 47 v6 h72 v-6 Z')(),rule:'evenodd'}};
+const FL_PREF={col:{com:{red:1,gold:.4,black:.2,white:0,blue:-.3,lightblue:-.2,green:0,orange:.2,purple:-.2},mkt:{gold:1,green:.6,white:.2,black:.2,blue:.1,red:-.6,lightblue:0,orange:.3,purple:.3},nat:{blue:1,white:.6,red:.3,gold:.2,green:-.2,lightblue:.1,black:.1,orange:-.3,purple:-.4},civ:{lightblue:1,green:.7,white:.6,gold:.2,blue:.2,red:-.4,black:-.3,orange:.1,purple:.2}},
+ em:{none:{},star:{com:1,mkt:-.4,nat:.1,civ:-.2},gear:{com:.8,mkt:.4,nat:-.3},wheat:{com:.7,mkt:.1,nat:.3,civ:.3},sun:{com:.1,mkt:.4,nat:.2,civ:.5},shield:{com:-.3,nat:1,civ:-.3},lily:{com:-.4,mkt:.1,nat:.9,civ:.1},tower:{mkt:.3,nat:.6,civ:-.1},coin:{com:-.8,mkt:1,nat:-.1,civ:-.1},dove:{nat:-.4,civ:1},mountain:{com:.2,mkt:.2,nat:.6,civ:.3},ring:{com:-.2,mkt:.3,nat:-.6,civ:1},cog:{com:.3,mkt:.5,nat:.2,civ:.3}},lay:{nat:{h3:.25,v3:.15},com:{solid:.2,canton:.1},mkt:{h2:.15,canton:.15},civ:{border:.2,nordic:.15}}};
+const FL_DEF={lay:'h3',c:['#1f2a4a','#f2efe6','#b8282a'],em:'star',ec:'#d9b14a'};
+const flagOf=()=>G.flag||FL_DEF;
+const colCat=h=>(FL_COLS.find(x=>x[0]===h)||[0,'white'])[1];
+function flagLike(k,F){ if(!F) return 0; const P=FL_PREF, W=FL_LAYS[F.lay].w; let cs=0; W.forEach((w,i)=>{ cs+=w*(P.col[k][colCat(F.c[i]||F.c[0])]||0); }); if(F.em!=='none') cs=cs*.85+.15*(P.col[k][colCat(F.ec)]||0);
+  return clamp(.6*cs+.4*((P.em[F.em]||{})[k]||0)+((P.lay[k]||{})[F.lay]||0),-1,1); }
+function flagShapes(F,w,h){ const c=F.c, S=[], R=(x,y,ww,hh,col)=>S.push({x,y,w:ww,h:hh,c:col});
+  switch(F.lay){ case 'solid': R(0,0,w,h,c[0]); break; case 'h2': R(0,0,w,h/2,c[0]); R(0,h/2,w,h/2,c[1]); break; case 'h3': R(0,0,w,h/3,c[0]); R(0,h/3,w,h/3+.5,c[1]); R(0,2*h/3,w,h/3,c[2]); break;
+   case 'v2': R(0,0,w/2,h,c[0]); R(w/2,0,w/2,h,c[1]); break; case 'v3': R(0,0,w/3,h,c[0]); R(w/3,0,w/3+.5,h,c[1]); R(2*w/3,0,w/3,h,c[2]); break;
+   case 'cross': R(0,0,w,h,c[0]); R(w*.42,0,w*.16,h,c[1]); R(0,h*.38,w,h*.24,c[1]); break; case 'nordic': R(0,0,w,h,c[0]); R(w*.28,0,w*.14,h,c[1]); R(0,h*.42,w,h*.16,c[1]); break;
+   case 'diag': R(0,0,w,h,c[0]); S.push({poly:[[0,0],[w,0],[w,h]],c:c[1]}); break; case 'canton': R(0,0,w,h,c[0]); R(0,0,w*.42,h*.5,c[1]); break;
+   case 'border': R(0,0,w,h,c[1]); R(w*.07,h*.1,w*.86,h*.8,c[0]); break; }
+  return S; }
+function flagEmBox(F,w,h){ const s=h*(F.lay==='canton'?.38:.6); return F.lay==='canton'?{x:w*.21-s/2,y:h*.25-s/2,s}:F.lay==='nordic'?{x:w*.35-s/2,y:h*.5-s/2,s:s*.7}:{x:w/2-s/2,y:h/2-s/2,s}; }
+function flagSVG(F,w=120,h=80){ F=F||flagOf(); const S=flagShapes(F,w,h), E=FL_EM[F.em], b=flagEmBox(F,w,h);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Flag" style="border:1px solid rgba(0,0,0,.4);border-radius:2px;flex:none">${S.map(q=>q.poly?`<polygon points="${q.poly.map(p=>p.join(',')).join(' ')}" fill="${q.c}"/>`:`<rect x="${q.x}" y="${q.y}" width="${q.w}" height="${q.h}" fill="${q.c}"/>`).join('')}${E&&E.p?`<path d="${E.p}" fill="${F.ec}" fill-rule="${E.rule||'nonzero'}" transform="translate(${b.x} ${b.y}) scale(${b.s/100})"/>`:''}</svg>`; }
+const FL_P2D={};
+function flagDraw(c,x,y,w,h,F,t){ F=F||flagOf(); c.save(); c.beginPath(); for(let i=0;i<=8;i++){ const xx=x+w*i/8; c.lineTo(xx,y+Math.sin((t||0)*2+i*.8)*1.2*(i/8)); } for(let i=8;i>=0;i--){ const xx=x+w*i/8; c.lineTo(xx,y+h+Math.sin((t||0)*2+i*.8)*1.2*(i/8)); } c.closePath(); c.clip();
+  c.translate(x,y); for(const q of flagShapes(F,w,h)){ c.fillStyle=q.c; if(q.poly){ c.beginPath(); q.poly.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.fill(); } else c.fillRect(q.x,q.y,q.w,q.h); }
+  const E=FL_EM[F.em]; if(E&&E.p){ const p=FL_P2D[F.em]||(FL_P2D[F.em]=new Path2D(E.p)), b=flagEmBox(F,w,h); c.translate(b.x,b.y); c.scale(b.s/100,b.s/100); c.fillStyle=F.ec; c.fill(p,E.rule||'nonzero'); }
+  c.restore(); c.strokeStyle='rgba(0,0,0,.35)'; c.lineWidth=.8; c.strokeRect(x,y,w,h); }
+const FL_TPL={com:[{lay:'solid',c:['#b8282a'],em:'star',ec:'#d9b14a'},{lay:'canton',c:['#b8282a','#7a1f24'],em:'gear',ec:'#d9b14a'},{lay:'h2',c:['#b8282a','#d9b14a'],em:'wheat',ec:'#f2efe6'}],
+ mkt:[{lay:'h2',c:['#d9b14a','#2e7a4a'],em:'coin',ec:'#f2efe6'},{lay:'canton',c:['#2e7a4a','#d9b14a'],em:'cog',ec:'#1a1a1a'},{lay:'v2',c:['#d9b14a','#1a1a1a'],em:'sun',ec:'#f2efe6'}],
+ nat:[{lay:'h3',c:['#1f3f8a','#f2efe6','#1f3f8a'],em:'shield',ec:'#d9b14a'},{lay:'h3',c:['#1f2a4a','#f2efe6','#b8282a'],em:'lily',ec:'#d9b14a'},{lay:'v3',c:['#1f3f8a','#f2efe6','#1f3f8a'],em:'mountain',ec:'#1f2a4a'}],
+ civ:[{lay:'border',c:['#5ab0e8','#f2efe6'],em:'ring',ec:'#f2d04a'},{lay:'nordic',c:['#2e7a4a','#f2efe6'],em:'none',ec:'#f2efe6'},{lay:'h2',c:['#f2efe6','#5ab0e8'],em:'dove',ec:'#2e7a4a'}]};
+function flagReact(F,prev,mult){ const out={}; for(const k of PK){ const d=flagLike(k,F)-flagLike(k,prev||FL_DEF); out[k]=d; for(const s of partyMembers(k)) s.loy=clamp((s.loy||50)+clamp(d*6*mult,-7,7),0,100); } return out; }
+function flagAdopt(F,how,who){ const prev=flagOf(); G.flagPrev=prev; G.flag=JSON.parse(JSON.stringify(F)); G.flagBy={how,who,d:G.day}; const R=flagReact(F,prev,how==='decree'?1.3:how==='referendum'?.6:1);
+  G.flagHist=(G.flagHist||[]).concat({F:G.flag,d:G.day,how,who}).slice(-12); const mood=PK.map(k=>{ const v=flagLike(k,F); return `${PARTIES[k].s} ${v>.45?'love it':v>.15?'like it':v<-.45?'hate it':v<-.15?'dislike it':'shrug'}`; }).join(', ');
+  polNews(`🏳 New vault flag adopted ${how==='referendum'?'by referendum':how==='decree'?`by decree of ${who}`:'by the Overseer'}. ${mood}.`); if(typeof musPlay==='function') musPlay('ceremony'); save(); }
+function startRef(F,by){ if(G.ref||G.vote) { toast('Wait until the current vote is over.'); return false; } const elig=polAdults().filter(s=>isCitizen(s)&&!s.detained&&s.exp!=='hostage'); const T=clamp(.4+rnd()*.25+(elig.length<25?.1:0),.4,.8), n=Math.round(elig.length*T), start=nowD(), site=pollSite();
+  const order=elig.map(s=>[s,rnd()]).sort((a,b)=>a[1]-b[1]).slice(0,n).map(x=>x[0]);
+  G.ref={F:JSON.parse(JSON.stringify(F)),by,start,end:start+1,elig:elig.length,T,will:order.map(s=>({id:s.id,at:start+rnd()*.92})).sort((a,b)=>a.at-b.at),going:{},yes:0,no:0,cast:0,site:site?site.id:null};
+  polNews(`🗳 Flag referendum called by ${by}: citizens vote yes or no on a new vault flag over the next day${site?` at the ${ROOMS[site.type].name}`:''}. Follow it on the Elections tab.`); save(); return true; }
+function refBallot(s){ const R=G.ref, k=s.party, d=k?flagLike(k,R.F)-flagLike(k,flagOf()):(rnd()-.55)*.4, p=1/(1+Math.exp(-(d*4+.1))); if(rnd()<p) R.yes++; else R.no++; R.cast++; }
+function refStep(){ const R=G.ref; if(!R) return; const nd=nowD(), site=R.site&&roomById(R.site), booth=(.5-Math.min(.2,(site?workers(site).length:0)*.07))/24;
+  for(const id in R.going){ const s=byId(+id); if(!s){ delete R.going[id]; continue; } if(nd>=R.going[id]){ refBallot(s); delete R.going[id]; if(!AWAY) FX.text(s.id,'Voted','#8fb8e8'); } }
+  while(R.will.length&&R.will[0].at<=nd){ const w=R.will.shift(), s=byId(w.id); if(!s||voteBusy(s)) continue; if(AWAY||!site||G.vote){ refBallot(s); continue; } if(Object.keys(R.going).length>=6){ R.will.unshift({id:w.id,at:nd+.02}); break; } R.going[s.id]=nd+booth+.15/24; }
+  if(nd>=R.end){ for(const id in R.going){ const s=byId(+id); if(s) refBallot(s); } for(const w of R.will){ const s=byId(w.id); if(s&&!s.exp&&!s.detained) refBallot(s); } G.ref=null; const pass=R.yes>R.no;
+    G.refHist=(G.refHist||[]).concat({d:G.day,F:R.F,yes:R.yes,no:R.no,by:R.by,pass}).slice(-8);
+    if(pass) flagAdopt(R.F,'referendum',R.by); else { polNews(`🗳 The flag referendum FAILED: ${R.yes} yes, ${R.no} no. The current flag stays.`); if(R.by!=='the Overseer'){ const L=G.leader&&byId(G.leader); if(L) G.apHit=(G.apHit||0)+2; } } } }
+function flagLeaderDay(){ if(G.inst.gov<1||G.ref||G.vote||calm()) return; const L=G.leader&&byId(G.leader); if(!L||!L.party) return; if(G.flagLdr!==G.leader){ G.flagLdr=G.leader; G.flagLdrD=G.day; }
+  const cur=flagLike(L.party,flagOf()); if(cur>-.15) return; const p=.025+(G.day-(G.flagLdrD||0)<10?.08:0); if(rnd()>=p) return;
+  const F=JSON.parse(JSON.stringify(pick(FL_TPL[L.party]))), d=docOf(L);
+  if(d.sec>.25){ flagAdopt(F,'decree',L.first); for(const k of PK) if(k!==L.party) for(const s of partyMembers(k)) s.loy=Math.max(0,(s.loy||50)-2); polNews(`${L.first} replaced the vault flag by decree, without a vote. Rival parties call it a power grab. You can restore the previous flag from the Council tab.`); }
+  else if(G.inst.gov>=3) startRef(F,L.first); }
+function flagBox(){ if(G.inst.gov<1) return ''; const F=flagOf(), B=G.flagBy;
+  return `<div class="box"><h4>Vault flag</h4><div class="row" style="gap:12px;align-items:flex-start;flex-wrap:wrap">${flagSVG(F,120,80)}<div style="flex:1;min-width:180px"><p class="lede" style="font-size:12px">${B?`Adopted ${fdate(B.d)} ${B.how==='referendum'?'by referendum':B.how==='decree'?`by decree of ${esc(B.who)}`:'by the Overseer'}.`:'The original vault flag.'} How the parties feel about it:</p>${PK.map(k=>{ const v=flagLike(k,F); return `<div class="row" style="justify-content:space-between;font-size:11px;flex-wrap:nowrap;gap:6px"><span style="color:${PARTIES[k].c};white-space:nowrap">${PARTIES[k].s}</span><span style="display:inline-block;flex:none;width:80px;height:8px;background:var(--line);border-radius:4px;position:relative"><i style="position:absolute;left:${v<0?50+v*50:50}%;width:${Math.abs(v)*50}%;top:0;bottom:0;background:${v<0?'var(--danger)':'#5ad07a'};border-radius:4px"></i><i style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--muted)"></i></span></div>`; }).join('')}</div></div>
+  <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px"><button class="btn sm pri" data-a="flagEdit">Design a new flag</button>${G.flagPrev&&B&&B.how==='decree'?`<button class="btn sm" data-a="flagRestore">Restore the previous flag</button>`:''}${G.ref?`<span class="lede" style="font-size:12px">Referendum under way (${G.ref.cast} votes so far).</span><button class="btn sm" data-a="refVeto">Cancel the referendum</button>`:''}</div></div>`; }
+function flagModal(m){ const F=m.F;
+  const sw=i=>`<div class="row" style="gap:3px;flex-wrap:wrap">${FL_COLS.map(([h])=>`<button data-a="flCol" data-i="${i}" data-v="${h}" title="${colCat(h)}" style="width:20px;height:20px;border-radius:3px;background:${h};border:2px solid ${F.c[i]===h?'var(--accent)':'rgba(0,0,0,.4)'};padding:0;cursor:pointer"></button>`).join('')}</div>`;
+  const nCol=FL_LAYS[F.lay].w.length; while(F.c.length<3) F.c.push(F.c[F.c.length-1]==='#f2efe6'?'#b8282a':'#f2efe6');
+  return `<header><h2>Design the vault flag</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd"><div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap">${flagSVG(F,210,140)}<div style="flex:1;min-width:200px"><p class="lede" style="font-size:12px">Party reactions to this design:</p>${PK.map(k=>{ const v=flagLike(k,F); return `<div class="row" style="justify-content:space-between;font-size:13px"><span style="color:${PARTIES[k].c}">${PARTIES[k].n}</span><b class="num" style="color:${v>.15?'#5ad07a':v<-.15?'var(--danger)':'var(--muted)'}">${v>.45?'love':v>.15?'like':v<-.45?'hate':v<-.15?'dislike':'neutral'} ${v>=0?'+':''}${Math.round(v*100)}</b></div>`; }).join('')}<p class="lede" style="font-size:11px;margin-top:6px">Communists favor red, stars, gears and wheat; Free Marketeers gold, green and coins; Nationalists blue, white, shields, lilies and stripes; Civic Unity light blue, green, white, doves and rings of stars.</p></div></div>
+  <div class="box"><h4>Layout</h4><div class="seg" style="flex-wrap:wrap">${Object.keys(FL_LAYS).map(k=>`<button class="${F.lay===k?'on':''}" data-a="flLay" data-v="${k}">${FL_LAYS[k].n}</button>`).join('')}</div></div>
+  <div class="box"><h4>Colors</h4>${[0,1,2].slice(0,Math.max(nCol,F.lay==='solid'?1:nCol)).map(i=>`<p class="lede" style="font-size:12px;margin:4px 0 2px">${['Main','Second','Third'][i]}</p>${sw(i)}`).join('')}</div>
+  <div class="box"><h4>Emblem</h4><div class="seg" style="flex-wrap:wrap">${Object.keys(FL_EM).map(k=>`<button class="${F.em===k?'on':''}" data-a="flEm" data-v="${k}">${FL_EM[k].n}</button>`).join('')}</div>${F.em!=='none'?`<p class="lede" style="font-size:12px;margin:6px 0 2px">Emblem color</p><div class="row" style="gap:3px;flex-wrap:wrap">${FL_COLS.map(([h])=>`<button data-a="flEc" data-v="${h}" style="width:20px;height:20px;border-radius:3px;background:${h};border:2px solid ${F.ec===h?'var(--accent)':'rgba(0,0,0,.4)'};padding:0;cursor:pointer"></button>`).join('')}</div>`:''}</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-a="flAdopt">Adopt now (Overseer decree)</button><button class="btn" data-a="flRef" ${G.inst.gov>=3&&!G.ref&&!G.vote?'':'disabled'}>Put it to a referendum</button><span class="lede" style="font-size:12px">${G.inst.gov<3?'Referendums need Governance 3 (Elections).':'A referendum takes a day; citizens vote at the Assembly Hall. A flag won by vote upsets the losing side less.'}</span></div></div>`; }
+function refBox(){ const R=G.ref, H=(G.refHist||[]).slice().reverse(); if(!R&&!H.length) return ''; let h='<div class="box"><h4>Flag referendum</h4>';
+  if(R){ const tot=Math.max(1,R.yes+R.no); h+=`<div class="row" style="gap:12px;align-items:center">${flagSVG(R.F,90,60)}<div style="flex:1"><p class="lede" style="font-size:12px">Called by ${esc(R.by)} · closes in ${Math.max(0,Math.ceil((R.end-nowD())*24))} h · ${R.cast} of ${R.elig} voted</p>${barRows([{label:'Yes',share:R.yes/tot,c:'#5ad07a',extra:`${R.yes}`},{label:'No',share:R.no/tot,c:'#e05a4a',extra:`${R.no}`}])}</div></div>`; }
+  if(H.length) h+=`<ul class="facts" style="font-size:12px">${H.map(x=>`<li>${fdate(x.d)} · ${x.pass?'passed':'failed'} ${x.yes}–${x.no} (called by ${esc(x.by)})</li>`).join('')}</ul>`;
+  return h+'</div>'; }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -7587,7 +7697,7 @@ function renderPanel(){
   renderTabs();
   const el=$('tab'); if(busy(el)){ const p=$('spreview'); if(p) p.innerHTML=studyPreview(); return; }
   const st=el.scrollTop;
-  const html=uprisingBox()+coupBox()+plagueBox()+hostageBox()+(UI.tab==='study'?sprintBox()+obBox()+cmsBox()+renderStudy():UI.tab==='store'?renderStore():UI.tab==='settlers'?renderSettlers():UI.tab==='inst'?renderInst():UI.tab==='council'?renderCouncil():UI.tab==='cab'?renderCabinet():UI.tab==='elect'?renderElections():UI.tab==='exp'?renderExp():renderLog());
+  const html=uprisingBox()+coupBox()+plagueBox()+hostageBox()+(UI.tab==='study'?sprintBox()+obBox()+cmsBox()+renderStudy():UI.tab==='store'?renderStore():UI.tab==='settlers'?renderSettlers():UI.tab==='inst'?renderInst():UI.tab==='council'?flagBox()+renderCouncil():UI.tab==='cab'?renderCabinet():UI.tab==='elect'?renderElections():UI.tab==='exp'?renderExp():renderLog());
   if(el._h===html&&el._tab===UI.tab) return; const same=el._tab===UI.tab; el._h=html; el._tab=UI.tab;
   const inner=same?keepScroll(el):null; el.innerHTML=html; el.scrollTop=st; if(inner) inner();
 }
@@ -7777,6 +7887,7 @@ function renderModal(){
   else if(m.t==='ob') h=obModal();
   else if(m.t==='mil') h=milModal();
   else if(m.t==='rescue') h=rescueModal(m);
+  else if(m.t==='flag') h=flagModal(m);
   else if(m.t==='miltree') h=milTreeModal();
   else if(m.t==='pol') h=polModal();
   else if(m.t==='cit') h=citModal();
@@ -7824,6 +7935,15 @@ document.addEventListener('click',e=>{
     case 'distShut': distClose(null,'overseer','On the Overseer’s order, the Rakija Distillery was closed.'); save(); break;
     case 'distOpen': { G.distClosed=null; polNews('On the Overseer’s order, the Rakija Distillery reopened.'); for(const x of G.settlers) if(x.drink===0) x.loy=Math.max(0,(x.loy||50)-1); save(); break; }
     case 'jailHolds': { const r=roomById(id); if(r){ r.holds=el.dataset.v; save(); } break; }
+    case 'flagEdit': UI.modal={t:'flag',F:JSON.parse(JSON.stringify(flagOf()))}; break;
+    case 'flLay': if(UI.modal&&UI.modal.F) UI.modal.F.lay=el.dataset.v; break;
+    case 'flCol': if(UI.modal&&UI.modal.F) UI.modal.F.c[+el.dataset.i]=el.dataset.v; break;
+    case 'flEm': if(UI.modal&&UI.modal.F) UI.modal.F.em=el.dataset.v; break;
+    case 'flEc': if(UI.modal&&UI.modal.F) UI.modal.F.ec=el.dataset.v; break;
+    case 'flAdopt': if(UI.modal&&UI.modal.F){ flagAdopt(UI.modal.F,'overseer','the Overseer'); UI.modal=null; } break;
+    case 'flRef': if(UI.modal&&UI.modal.F&&startRef(UI.modal.F,'the Overseer')) UI.modal=null; break;
+    case 'flagRestore': if(G.flagPrev){ flagAdopt(G.flagPrev,'overseer','the Overseer'); const L=G.leader&&byId(G.leader); if(L) L.loy=Math.max(0,(L.loy||50)-3); } break;
+    case 'refVeto': if(G.ref){ const by=G.ref.by; G.ref=null; polNews(`The Overseer cancelled the flag referendum called by ${by}.`); const L=G.leader&&byId(G.leader); if(L&&by===L.first) L.loy=Math.max(0,(L.loy||50)-3); save(); } break;
     case 'musTog': musToggle(); break;
     case 'musAnthem': musAnthem(); break;
     case 'musSong': { MUS.anthem=null; MUS.song=null; MUS.step=0; musPlay(el.dataset.v); break; }
@@ -8029,7 +8149,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},musPlay,SONGS,MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},flagLike,flagAdopt,startRef,refStep,flagLeaderDay,flagSVG,FL_TPL,musPlay,SONGS,MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
