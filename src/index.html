@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.2</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.3</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -819,6 +819,7 @@ function newGame(opts){
 }
 function starterBps(g){ const b=new Set(g.bps||[]); for(const it of g.items) b.add(it.k); for(const t of ['w','o']){ const ks=lootKeys().filter(k=>ITEMS[k].t===t&&ITEMS[k].tier===0&&!b.has(k)); for(let i=0;i<2&&ks.length;i++) b.add(ks.splice(Math.floor(rnd()*ks.length),1)[0]); } g.bps=[...b]; }
 function migrate(g){
+  if(!g.eduV){ g.eduV=1; for(const p of [...(g.settlers||[]),...(g.dead||[])]){ if(!p.eduDone||p.edu) continue; const hi=['S','P','E','C','I','A','L'].filter(k=>p.s&&p.s[k]>=10); p.edu=p.track&&p.s&&p.s[p.track]>=10?[p.track]:hi.length?[hi[0]]:p.track?[p.track]:[]; } }
   if(!g.wfV){ g.wfV=1; for(const r of g.rooms||[]) if(r.type==='workshop'&&r.craft&&typeof r.craft==='object') r.craft.old=true; }
   if(!g.citV){ g.citV=1; for(const p of g.settlers||[]) p.cit='citizen'; }
   if(!g.elect2V){ g.elect2V=1; if(g.nextElection!=null&&g.nextElection-g.day>2*YEAR) g.nextElection=g.day+2*YEAR; }
@@ -871,7 +872,7 @@ function effStat(s,stat){
   if(s.sick) m*=.6;
   if(isDrunk(s)) m*=.6; else if(hungOver(s)) m*=.85;
   if(s.chronic) m*=1-(s.chronic.sev/250)*(1-(s._mg||0));
-  if(s.eduDone&&s.track===stat) m*=1+EDU_BONUS;
+  if(eduHas(s,stat)) m*=1+EDU_BONUS;
   return v*m;
 }
 function computeMods(frac){
@@ -1297,7 +1298,8 @@ function dayStep(){
   if(!G.settlers.length){G.over=true;log('The last settler is gone. The shelter falls silent.','death');}
 }
 function schoolSeats(){ return G.rooms.filter(TRAINS).reduce((a,r)=>a+kidSeats(r),0); }
-function checkEdu(s){ if(s.track&&!s.eduDone&&s.s[s.track]>=10){ s.eduDone=true; log(`${fullName(s)} completed a ${STAT_NAMES[s.track]} education: +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[s.track]} rooms.`,'family'); FX.text(s.id,'Educated!','#7fd38a'); } }
+const eduHas=(s,k)=>!!k&&(s.edu||[]).includes(k);
+function checkEdu(s){ if(s.track&&!eduHas(s,s.track)&&s.s[s.track]>=10){ s.edu=(s.edu||[]).concat(s.track); s.eduDone=true; log(`${fullName(s)} completed a ${STAT_NAMES[s.track]} education: +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[s.track]} rooms.`,'family'); FX.text(s.id,'Educated!','#7fd38a'); } }
 function lifeStep(mins,frac){
   const nd=nowD();
   ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); voteStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); drinkStep(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
@@ -7486,7 +7488,7 @@ function settlerModal(id){
   if(s.blind) tags.push(`<span class="tag b">Blind since birth</span>`);
   if(s.preg) tags.push(`<span class="tag a">Expecting · due in ${hm(Math.max(1,Math.round(s.preg.left!=null?s.preg.left:(s.preg.due-nowD())*60)))}</span>`);
   if(alive&&!isAdult(s)) tags.push(`<span class="tag">Child · grows up in ${s.kidMin!=null?hm(Math.max(1,Math.round(KID_MIN-s.kidMin))):'a while'}</span>`);
-  if(alive&&s.eduDone) tags.push(`<span class="tag g">${STAT_NAMES[s.track]} education complete</span>`);
+  if(alive&&(s.edu||[]).length) for(const k of s.edu) tags.push(`<span class="tag g">${STAT_NAMES[k]} education complete</span>`);
   if(alive&&retired(s)) tags.push('<span class="tag g">Pension eligible</span>');
   const best=STATS.reduce((b,k)=>s.s[k]>s.s[b]?k:b,'S');
   const sp=STATS.map(k=>{const e=effStat(s,k);const diff=s.blind&&!accommodated(s,k);const bn=alive?bonusOf(s,k):0;return `<div class="sp${k===best?' best':''}"><span class="k">${k}</span><span class="bar"><i style="height:${Math.min(100,s.s[k]*10)}%"></i></span><span class="v">${s.s[k]}</span>${bn?`<span class="bn">+${bn} gear</span>`:''}${diff?`<span class="e">eff ${Math.round(e)}</span>`:''}<span class="fit">${STAT_FIT[k]}</span></div>`;}).join('');
@@ -7507,8 +7509,8 @@ function settlerModal(id){
       else if(!er) tx=`Not enrolled${s.noAuto?'':': every education room is full'}. Without a seat this child grows up with no head start.`;
       else tx=`Enrolled in the ${ROOMS[er.type].name}, learning ${STAT_NAMES[tr]}. ${lv<10?`${tr} ${lv}→${lv+1}: ${Math.floor(s.learn||0)} of ${TRAIN_MIN[lv-1]} min.`:'Already maxed.'}`;
       if(age(s)>=3&&eduR.length) ctl=`<div class="row"><select data-c="enroll" data-id="${s.id}"><option value="">Not enrolled</option>${eduR.map(r=>{const n=G.settlers.filter(x=>x.eduRoom===r.id&&x.id!==s.id).length, full=n>=kidSeats(r);return `<option value="${r.id}" ${s.eduRoom===r.id?'selected':''} ${full?'disabled':''}>B${r.floor+1} ${ROOMS[r.type].name} · ${TRAINS(r)} (${n}/${kidSeats(r)})${full?' · full':''}</option>`;}).join('')}</select></div>`; }
-    else if(s.eduDone) tx=`Education complete: ${STAT_NAMES[tr]} mastered. +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[tr]} rooms.`;
-    else if(tr) tx=`${STAT_NAMES[tr]} track: ${s.s[tr]} of 10. Keep training it to complete the education (+${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[tr]} rooms).`;
+    else if(eduHas(s,tr)) tx=`Education complete: ${STAT_NAMES[tr]} mastered. +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[tr]} rooms.`;
+    else if(tr) tx=`${STAT_NAMES[tr]} track: ${s.s[tr]} of 10. Keep training it to complete the education (+${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[tr]} rooms).${(s.edu||[]).length?` Already completed: ${s.edu.map(k=>STAT_NAMES[k]).join(', ')}.`:''}`;
     else tx=`No education yet. Assign them to a training room; reaching 10 in that stat completes their education (+${Math.round(EDU_BONUS*100)}% output in matching rooms).`;
     if(rm&&TRAINS(rm)&&isAdult(s)){ const k=TRAINS(rm), v=s.s[k]; tx+=v<10?` <b>Training ${k} ${v}→${v+1}: ${Math.floor(s.trainK===k?s.train||0:0)} of ${TRAIN_MIN[v-1]} min.</b>`:` ${STAT_NAMES[k]} is maxed.`; }
     h+=`<div class="box"><h4>Education</h4>${ctl}<p class="lede" style="font-size:12px;margin-top:6px">${tx}</p></div>`; }
