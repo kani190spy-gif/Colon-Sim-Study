@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.8</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v10.9</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1831,6 +1831,7 @@ function targetFor(s,a,t){
         if(!a.pat||a.pat.r!==r.id) a.pat={r:r.id,side:i%2,wait:0}; const P=a.pat; let x=P.side?R:L;
         if(a.l===r.floor&&Math.abs(a.x-x)<3&&!(a.path&&a.path.length)){ if(!P.wait) P.wait=t+2.5+rnd()*4.5; else if(t>P.wait){ P.side^=1; P.wait=0; x=P.side?R:L; } }
         return {x,l:r.floor,pose:'guard',face:P.wait?(P.side?-1:1):(x>a.x?1:-1),slow:true}; }
+      if(r.type==='execc'){ const i=Math.max(0,r.workers.indexOf(s.id)), ph=(t*.02+s.id*.37)%1; if(ph<.12) return {x:execSeat(r,i)+18,l:r.floor,pose:'read',face:1}; return {x:execSeat(r,i)+51,l:r.floor,pose:'desk',face:-1}; }
       if(r.type==='command'){ const gid=cmdGuardId(r); if(s.id===gid) return {x:roomX(r.col)+44,l:r.floor,pose:'guard',face:1}; const j=Math.max(0,r.workers.filter(id=>id!==gid).indexOf(s.id)); return {x:roomX(r.col)+stationX(r,j),l:r.floor,pose:['point','gesture','type','read'][j%4],face:[1,-1,1,-1][j%4]}; }
       const i=Math.max(0,r.workers.indexOf(s.id)), wide=ROOMS[r.type].wide, li=wide?i:i%perSeg(r), lx=wide?0:stationLocal(r,li,perSeg(r));
       let face=r.type==='generator'?(li===0?-1:lx<WD.roomW/2?1:-1):r.type==='school'?-1:(lx<WD.roomW/2?1:-1);
@@ -3210,9 +3211,7 @@ const PROPS={
     c.strokeStyle='#8a6b4a'; c.lineWidth=1.6; c.beginPath(); c.moveTo(x+108,fl-4); c.lineTo(x+108,fl-22); c.stroke(); box(x+101,fl-5,14,3,'#6b4a32',1);
     c.beginPath(); c.arc(x+108,fl-30,8,0,TAU); c.fillStyle='#4f8fb0'; c.fill(); c.strokeStyle=OLc; c.lineWidth=.8; c.stroke(); c.fillStyle='#7fa86a'; c.beginPath(); c.ellipse(x+106+Math.sin(t*.4)*3,fl-31,3.5,2.6,.4,0,TAU); c.fill(); c.strokeStyle='#c9a24a'; c.lineWidth=1; c.beginPath(); c.arc(x+108,fl-30,10,-2.2,1.2); c.stroke();
     // flags
-    for(const fx of [x+146,x+354]){ c.strokeStyle='#c9a24a'; c.lineWidth=1.6; c.beginPath(); c.moveTo(fx,fl-2); c.lineTo(fx,top+26); c.stroke(); c.beginPath(); c.arc(fx,top+25,2,0,TAU); c.fillStyle='#c9a24a'; c.fill();
-      c.beginPath(); c.moveTo(fx+1,top+28); for(let q=0;q<=10;q++) c.lineTo(fx+1+q*1.6,top+28+Math.sin(t*2+q*.6)*1.2); c.lineTo(fx+17,top+48); for(let q=10;q>=0;q--) c.lineTo(fx+1+q*1.6,top+48+Math.sin(t*2+q*.6)*1.2); c.closePath(); c.fillStyle=TH.flag; c.fill(); c.strokeStyle=OLc; c.lineWidth=.7; c.stroke();
-      c.beginPath(); c.arc(fx+9,top+38,4,0,TAU); c.strokeStyle='#e2b13c'; c.lineWidth=1.3; c.stroke(); }
+    for(const fx of [x+146,x+354]){ c.strokeStyle='#c9a24a'; c.lineWidth=1.6; c.beginPath(); c.moveTo(fx,fl-2); c.lineTo(fx,top+26); c.stroke(); c.beginPath(); c.arc(fx,top+25,2,0,TAU); c.fillStyle='#c9a24a'; c.fill(); flagDraw(c,fx>x+250?fx-25:fx+1,top+28,24,16,null,t); }
     // shelter status board (live minimap)
     box(x+166,top+16,168,60,'#22272e',3); c.fillStyle=on||!pw?'#0d2633':'#141a1e'; c.fillRect(x+172,top+22,156,48);
     c.fillStyle='#7fe0c8'; c.font='6px JetBrains Mono, monospace'; c.textAlign='left'; c.fillText(`${G.name.toUpperCase().slice(0,14)} · POP ${G.settlers.length} · APPROVAL ${Math.round(G.approval)}%`,x+175,top+29);
@@ -4413,7 +4412,7 @@ PROPS.command=function(c,x,top,w,fl,t,on,r){ const K=kit(c,x,top,w,fl,t,on,'#5d6
   c.fillStyle='#4a5038'; c.fillRect(x+6,fl-42,w-12,38); c.strokeStyle='rgba(0,0,0,.18)'; c.lineWidth=.6; for(let xx=x+20;xx<x+w;xx+=26){ c.beginPath(); c.moveTo(xx,fl-42); c.lineTo(xx,fl-4); c.stroke(); }
   for(const lx of [x+120,x+250,x+380]){ K.hang(lx,'#3a3f2a'); }
   // flags
-  for(const fx of [x+22,x+478]){ c.strokeStyle='#c9a24a'; c.lineWidth=1.6; c.beginPath(); c.moveTo(fx,fl-2); c.lineTo(fx,top+30); c.stroke(); c.beginPath(); c.moveTo(fx+1,top+32); for(let q=0;q<=8;q++) c.lineTo(fx+1+q*1.8*(fx>x+250?-1:1),top+32+Math.sin(t*2+q*.6)*1.2); c.lineTo(fx+(fx>x+250?-15:15),top+52); c.lineTo(fx+1,top+52); c.closePath(); c.fillStyle='#4a5a2e'; c.fill(); c.strokeStyle=OLc; c.lineWidth=.6; c.stroke(); gEmblem(c,fx+(fx>x+250?-7:8),top+42,3,{shape:'star',c:'#d9b14a'}); }
+  for(const fx of [x+22,x+478]){ c.strokeStyle='#c9a24a'; c.lineWidth=1.6; c.beginPath(); c.moveTo(fx,fl-2); c.lineTo(fx,top+30); c.stroke(); flagDraw(c,fx>x+250?fx-25:fx+1,top+32,24,16,null,t); }
   // wall map with pins
   box(x+150,top+30,200,44,'#7a6a4a',2); c.fillStyle='#d9cfa8'; c.fillRect(x+154,top+34,192,36); c.strokeStyle='rgba(120,90,50,.55)'; c.lineWidth=.8; c.beginPath(); c.moveTo(x+160,top+60); c.quadraticCurveTo(x+200,top+40,x+240,top+52); c.quadraticCurveTo(x+280,top+64,x+340,top+42); c.stroke();
   c.fillStyle='rgba(79,127,74,.45)'; c.fillRect(x+170,top+38,30,14); c.fillRect(x+290,top+52,34,12);
@@ -5114,7 +5113,7 @@ const fullRate=()=>DESKTOP&&G.settlers.length<180;
 function drawRoomCached(c,r,t,lit){
   if(fullRate()){ drawRoom(c,r,t,lit); return; }
   const S=DPR*SC, m=6, x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), hgt=WD.floorH;
-  const key=[r.type,r.w||1,r.level,r.floor,r.col,lit?1:0,G.flags.power?1:0,HOVER&&HOVER.room===r.id?1:0,S.toFixed(3),r.workers.length,G.officeTheme||'',r.type==='phall'?hallDesign(r)+':'+hallImgReady(r)+':'+(r.party||''):''].join('|');
+  const key=[r.type,r.w||1,r.level,r.floor,r.col,lit?1:0,G.flags.power?1:0,HOVER&&HOVER.room===r.id?1:0,S.toFixed(3),r.workers.length,G.officeTheme||'',r.type==='phall'?hallDesign(r)+':'+hallImgReady(r)+':'+(r.party||''):'',r.type==='execc'?(r.design||'standard'):'',['office','command','precinct'].includes(r.type)?flagVer():''].join('|');
   let E=ROOM_CACHE.get(r.id);
   const W=Math.ceil((w+2*m)*S), H=Math.ceil((hgt+2*m)*S);
   if(!E){ const cv2=document.createElement('canvas'); E={cv:cv2,cx:cv2.getContext('2d'),t:-1,key:''}; ROOM_CACHE.set(r.id,E); }
@@ -6542,13 +6541,31 @@ function renderCabinet(){ let h=`<h3 class="sec">Executive Council</h3>`; const 
     ${un?`<div class="row"><select id="secPick_${k}" aria-label="Appoint ${S.n}"><option value="">Overseer: appoint…</option>${cands(k).map(c=>`<option value="${c.id}">${esc(fullName(c))} · ${secComp(c,k).toFixed(1)}${c.party?' · '+PARTIES[c.party].s.replace(/s$/,''):''}</option>`).join('')}</select><button class="btn sm" data-a="secSet" data-v="${k}">Appoint</button></div>`:''}</div>`; }
   const lg=(G.cabLog||[]).slice(-6).reverse(); if(lg.length) h+=`<div class="box"><h4>Recent appointments</h4><ul class="facts" style="font-size:12px">${lg.map(x=>{ const s=anyById(x.id); return `<li>${fdate(x.d)} · ${s?esc(fullName(s)):'?'} → ${SECS[x.k].n} (by ${esc(x.by)})</li>`; }).join('')}</ul></div>`;
   return h; }
-PROPS.execc=(c,x,top,w,fl,t,lit,r)=>{ c.fillStyle='#4a3a2c'; c.fillRect(x+6,fl-40,w-12,40); c.fillStyle='rgba(255,255,255,.05)'; for(let px=x+10;px<x+w-14;px+=34) c.fillRect(px,fl-36,28,30);
-  c.fillStyle='#3a2e24'; c.fillRect(x+10,top+14,40,fl-top-54); c.fillRect(x+w-50,top+14,40,fl-top-54); const bc=['#7a3a2a','#2a4a6a','#5a6a3a','#8a7a4a','#4a3a6a']; for(const bx of [x+12,x+w-48]) for(let sh=0;sh<3;sh++){ c.fillStyle='#2a2018'; c.fillRect(bx-2,top+22+sh*18,40,2); for(let b=0;b<7;b++){ c.fillStyle=bc[(b+sh)%5]; c.fillRect(bx+b*5,top+10+sh*18,4,12); } }
-  c.fillStyle='#7a2a2a'; c.fillRect(x+60,fl-3,w-120,3); };
-function drawExecDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), fl=top+WD.floorH-14; c.save();
+const EXEC_THEMES={
+ standard:{n:'Council Oak',cost:0,w1:'#2e2a3a',w2:'#3a3446',wain:'#4a3a2c',shelf:'#3a2e24',desk:'#4a3424',chair:'#5a2f28',rug:'#7a2a2a',lamp:'#f2e6b0',d:'Dark walls, oak wainscot and bookcases. The original.'},
+ socialist:{n:'People’s Chamber',cost:200,w1:'#6a5a4a',w2:'#7a6a58',wain:'#8a2a24',shelf:'#4a3424',desk:'#6b4a32',chair:'#8a2a24',rug:'#a8302a',lamp:'#f2d070',d:'Warm wood, red trim and a long runner. Modernist and plain.'},
+ marble:{n:'Marble Hall',cost:350,w1:'#d8d0bc',w2:'#e8e2d2',wain:'#b8ac90',shelf:'#8a7a5a',desk:'#5a3a22',chair:'#1f2a4a',rug:'#1f2a4a',lamp:'#d9b14a',d:'Pale marble, gold trim and navy chairs. Stately.'},
+ brutalist:{n:'Concrete Brutalist',cost:150,w1:'#5a5c5e',w2:'#6c6e70',wain:'#4a4c4e',shelf:'#3a3c3e',desk:'#3a3c40',chair:'#2a2c30',rug:'#3a3c40',lamp:'#d8e2ea',d:'Raw concrete and steel desks. Serious business.'},
+ green:{n:'Green Parliament',cost:250,w1:'#2e4a36',w2:'#3a5a42',wain:'#5a3e26',shelf:'#4a3420',desk:'#5a3e26',chair:'#2a5a3a',rug:'#3f6a4a',lamp:'#f2e6b0',d:'Green walls, leather chairs and banker’s lamps.'},
+ admiral:{n:'Admiralty Blue',cost:300,w1:'#1f2c4a',w2:'#2a3a5e',wain:'#e8e6e0',shelf:'#3a2818',desk:'#4a3424',chair:'#8a1f2a',rug:'#24345a',lamp:'#c9cfd4',d:'Navy walls, white panels and red leather.'}};
+const execTheme=r=>EXEC_THEMES[r&&r.design]||EXEC_THEMES.standard;
+const flagVer=()=>(G.flagHist||[]).length+':'+(G.flagBy?G.flagBy.d:0);
+PROPS.execc=(c,x,top,w,fl,t,lit,r)=>{ const T=execTheme(r); const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,T.w1); g.addColorStop(1,T.w2); c.fillStyle=g; c.fillRect(x+4,top+4,w-8,fl-top-4);
+  c.fillStyle=T.wain; c.fillRect(x+6,fl-40,w-12,40); c.fillStyle='rgba(255,255,255,.06)'; for(let px=x+10;px<x+w-14;px+=34) c.fillRect(px,fl-36,28,30);
+  c.fillStyle=T.shelf; c.fillRect(x+10,top+14,40,fl-top-54); c.fillRect(x+w-50,top+14,40,fl-top-54); const bc=['#7a3a2a','#2a4a6a','#5a6a3a','#8a7a4a','#4a3a6a']; for(const bx of [x+12,x+w-48]) for(let sh=0;sh<3;sh++){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(bx-2,top+22+sh*18,40,2); for(let b=0;b<7;b++){ c.fillStyle=bc[(b+sh)%5]; c.fillRect(bx+b*5,top+10+sh*18,4,12); } }
+  if(r&&r.design==='marble'){ c.fillStyle='rgba(201,162,74,.8)'; c.fillRect(x+6,fl-41,w-12,2); for(const px of [x+w*.3,x+w*.7]){ c.fillStyle='#ece6d6'; c.fillRect(px-7,top+8,14,fl-top-50); c.fillStyle='rgba(0,0,0,.08)'; c.fillRect(px+3,top+8,3,fl-top-50); } }
+  if(r&&r.design==='socialist'){ c.fillStyle='#8a2a24'; c.fillRect(x+w/2-80,top+8,6,44); c.fillRect(x+w/2+74,top+8,6,44); }
+  c.fillStyle=T.rug; c.fillRect(x+60,fl-3,w-120,3); };
+function execSeat(r,i){ const w=roomW(r), per=(w-80)/6; return roomX(r.col)+30+(i%6)*per; }
+function drawExecDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), fl=top+WD.floorH-14, T=execTheme(r); c.save();
   c.fillStyle='#c9a24a'; c.fillRect(x+w/2-34,top+8,2,40); flagDraw(c,x+w/2-31,top+10,62,40,null,t);
-  for(let i=0;i<6;i++){ const dx=x+30+i*((w-80)/6); c.fillStyle='#4a3424'; c.fillRect(dx,fl-18,44,5); c.fillRect(dx+3,fl-13,3,13); c.fillRect(dx+38,fl-13,3,13); c.fillStyle='#d9c08a'; c.fillRect(dx+30,fl-26,3,8); c.fillStyle='#f2e6b0'; c.beginPath(); c.arc(dx+31,fl-27,4,Math.PI,TAU); c.fill(); c.fillStyle='#e8e2d2'; c.fillRect(dx+8,fl-21,14,3); }
+  for(let i=0;i<6;i++){ const dx=execSeat(r,i); c.fillStyle=T.chair; c.fillRect(dx+46,fl-24,12,4); c.fillRect(dx+56,fl-34,3,14); c.fillRect(dx+47,fl-20,2,20); c.fillRect(dx+55,fl-20,2,20);
+    c.fillStyle=T.desk; c.fillRect(dx,fl-18,44,5); c.fillRect(dx+3,fl-13,3,13); c.fillRect(dx+38,fl-13,3,13); c.fillStyle='rgba(0,0,0,.25)'; c.fillRect(dx,fl-13,44,1);
+    c.fillStyle='#8a7a5a'; c.fillRect(dx+6,fl-26,2,8); c.fillStyle=T.lamp; c.beginPath(); c.arc(dx+7,fl-27,4,Math.PI,TAU); c.fill(); c.fillStyle='#e8e2d2'; c.fillRect(dx+16,fl-21,14,3); c.fillStyle='#2a2a2a'; c.fillRect(dx+32,fl-22,8,4); }
   c.restore(); }
+function execDesignBox(r){ if(r.type!=='execc') return ''; const cur=r.design||'standard';
+  return `<div class="box"><h4>Interior design</h4><p class="lede" style="font-size:12px">Current: <b>${EXEC_THEMES[cur].n}</b>.</p><div class="pgrid">${Object.entries(EXEC_THEMES).map(([k,T])=>`<button class="pcard sm" data-a="execDesign" data-id="${r.id}" data-v="${k}" ${k===cur||G.res.caps<T.cost?'disabled':''} title="${esc(T.d)}"><span class="pt" style="display:flex;gap:6px;align-items:center"><i style="display:inline-block;width:22px;height:16px;border-radius:3px;background:linear-gradient(${T.w1},${T.w2});box-shadow:inset 0 -5px 0 ${T.wain}"></i><span class="pn">${T.n}${k===cur?' ✓':''}</span></span><span class="lede" style="font-size:11px">${T.d} ${T.cost?T.cost+' caps':'Free'}</span></button>`).join('')}</div></div>`; }
+function drawPrecinctFlag(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor); c.save(); c.fillStyle='#c9a24a'; c.fillRect(x+134,top+12,2,48); c.beginPath(); c.arc(x+135,top+12,2,0,TAU); c.fill(); flagDraw(c,x+137,top+14,32,21,null,t); c.restore(); }
 
 /* ===== v9.3: food & water rooms + daily job belief pull ===== */
 ROOMS.farm={name:'Hydroponic Farm',stat:'E',res:'food',base:2.4,cost:150,col:'--r-food',hex:'#5f9a3a',desc:'Grow racks under lamps. Grows food on its own, and every farm slot makes the Mess Halls 5% more productive (up to +25%). Endurance for long shifts.'};
@@ -7326,7 +7343,7 @@ function drawScene(now){
   drawShaft(c);
   if(lift2()) drawShaft(c,shaft2X-WD.shaft/2,floorTop(0)-4);
   const lit=G.boost>0&&!G.flags.power;
-  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); else if(r.type==='intel') drawIntelDecor(c,r,t); else if(r.type==='execc') drawExecDecor(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
+  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); else if(r.type==='intel') drawIntelDecor(c,r,t); else if(r.type==='execc') drawExecDecor(c,r,t); else if(r.type==='precinct') drawPrecinctFlag(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
   drawFrame(c);
   G.gate.forEach((v,i)=>{ const a={x:GATEX(i),y:lvlY(-1),dir:-1,ph:0,pose:'stand',off:i}, gg=v.gear||{}; drawPerson(c,a,v.s,t,{noBadge:true,ring:HOVER&&HOVER.gate===i,L:gg.o?Object.assign({},LOOKS[ITEMS[gg.o].look]):undefined,W:gg.w?ITEMS[gg.w]:null}); });
   const VW=(()=>{ const wr=document.getElementById('sceneWrap'); if(!wr) return null; return {x0:wr.scrollLeft/SC-90,x1:(wr.scrollLeft+wr.clientWidth)/SC+90,y0:wr.scrollTop/SC-140,y1:(wr.scrollTop+wr.clientHeight)/SC+60}; })();
@@ -7874,7 +7891,7 @@ function assignModal(rid){
     ${tm.length<cap?`<p class="lede" style="font-size:12px;margin-top:8px">Appoint (best rescue rating first):</p><div class="pick">${cand.map(x=>`<button data-a="ert" data-id="${x.id}"><span>${esc(fullName(x))} ${settlerIcons(x)}</span><span class="jb">${jobName(x)}</span><span class="sv">A ${x.s.A} · I ${x.s.I}</span></button>`).join('')}</div>`:''}
     <div class="row"><button class="btn sm" data-a="ertDrill" ${tm.length?'':'disabled'}>Run a drill</button></div></div>`; }
   if(r.type==='surgery') ex+=surgPanel(r);
-  ex+=v93Panel(r)+v98Panel(r)+wfPanel(r)+distPanel(r)+cmdGuardBox(r)+hallPanel(r)+holdsBox(r);
+  ex+=v93Panel(r)+v98Panel(r)+wfPanel(r)+distPanel(r)+cmdGuardBox(r)+hallPanel(r)+holdsBox(r)+execDesignBox(r);
   if(r.type==='office') ex+=renoBox(r);
   if(MIL_POSTS.includes(r.type)) ex+=`<div class="row"><span class="lede" style="font-size:12px">Only full-time soldiers${r.type==='entrance'?' or police officers':''} can be posted here.</span><button class="btn sm" data-a="milOpen">Military roster</button><button class="btn sm" data-a="milTree">Military tree</button>${r.type==='entrance'&&G.inst.law>=1?'<button class="btn sm" data-a="polOpen">Police roster</button>':''}</div>`;
   if(r.type==='entrance') ex+=entPanel();
@@ -7985,6 +8002,7 @@ document.addEventListener('click',e=>{
     case 'flRef': if(UI.modal&&UI.modal.F&&startRef(UI.modal.F,'the Overseer')) UI.modal=null; break;
     case 'flagRestore': if(G.flagPrev){ flagAdopt(G.flagPrev,'overseer','the Overseer'); const L=G.leader&&byId(G.leader); if(L) L.loy=Math.max(0,(L.loy||50)-3); } break;
     case 'refVeto': if(G.ref){ const by=G.ref.by; G.ref=null; polNews(`The Overseer cancelled the flag referendum called by ${by}.`); const L=G.leader&&byId(G.leader); if(L&&by===L.first) L.loy=Math.max(0,(L.loy||50)-3); save(); } break;
+    case 'execDesign': { const r=roomById(id), T=EXEC_THEMES[el.dataset.v]; if(r&&T&&G.res.caps>=T.cost){ G.res.caps-=T.cost; r.design=el.dataset.v; log(`The Executive Council Building was redecorated: ${T.n}.`); save(); } break; }
     case 'musTog': musToggle(); break;
     case 'musAnthem': musAnthem(); break;
     case 'musSong': { MUS.anthem=null; MUS.song=null; MUS.step=0; musPlay(el.dataset.v); break; }
