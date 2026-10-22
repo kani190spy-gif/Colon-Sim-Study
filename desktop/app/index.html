@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.4</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.5</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -971,6 +971,11 @@ function moveCouple(a,b){
   }
   return false;
 }
+const EXP_ZONES=[
+ {n:'Ruins',ic:'🏚',d:'The usual run. Normal loot, normal danger.',lootP:0,tierS:0,capsM:1,atk:.55,thr:0,dmg:1,guard:true,steal:0,haz:0,hi:0},
+ {n:'Dead Zone',ic:'☢',d:'Better loot and more caps, but fights are frequent and hit harder. Nobody is safe from a killing blow, and raiders can rob the packs.',lootP:.1,tierS:3,capsM:1.8,atk:.75,thr:10,dmg:1.55,guard:false,steal:.25,haz:.03,hi:.1},
+ {n:'The Crater',ic:'💀',d:'The richest ground in the wasteland and the deadliest. Most mistakes start a fight, some hit two people, storms hurt the whole team, and raiders strip the packs. Long streaks dig up legendary caches.',lootP:.18,tierS:6,capsM:3,atk:.86,thr:16,dmg:1.7,guard:false,steal:.4,haz:.07,hi:.22,jack:6}];
+const zoneOf=e=>EXP_ZONES[(e&&e.zone)||0]||EXP_ZONES[0];
 function expById(id){ return G.exps.find(e=>e.id===id); }
 function teamOf(e){ return e.team.map(byId).filter(Boolean); }
 function liveExp(){ return G.exps.find(e=>e.mode==='live'&&e.status==='out'); }
@@ -983,22 +988,22 @@ function startExpedition(ids,mode,src,meds){
   meds=clamp(Math.floor(+meds||0),0,Math.min(EXP_STIMS,Math.floor(G.res.stims))); G.res.stims-=meds;
   const by=G.inst.gov>=1&&G.leader&&byId(G.leader)&&!byId(G.leader).exp?G.leader:null;
   const nm=String((UI.ef&&UI.ef.name)||'').trim().slice(0,40); if(UI.ef) UI.ef.name='';
-  const e={id:G.nextId++,name:nm||opName(),by,team:team.map(s=>s.id),mode,src,start:G.day,n:0,c:0,streak:0,best:0,meds,loot:{caps:0,food:0,water:0,meds:0,research:0,items:[],mats:{},bps:[]},log:[],status:'out',deaths:[]};
+  const e={id:G.nextId++,name:nm||opName(),by,team:team.map(s=>s.id),mode,src,zone:clamp(+(UI.ef&&UI.ef.zone)||0,0,EXP_ZONES.length-1),start:G.day,n:0,c:0,streak:0,best:0,meds,loot:{caps:0,food:0,water:0,meds:0,research:0,items:[],mats:{},bps:[]},log:[],status:'out',deaths:[]};
   for(const s of team){ unassign(s); s.exp=e.id; }
   G.exps.push(e); if(by) sendOff(team,e.name);
-  log(`${e.name}: ${team.map(s=>s.first).join(', ')} set out into the wasteland (${src}${mode==='live'?', live':''})${by?` under orders from ${byId(by).first} ${byId(by).last}`:''}.`,'danger');
+  log(`${e.name}: ${team.map(s=>s.first).join(', ')} set out into ${e.zone?zoneOf(e).n.replace(/^The /,'the '):'the wasteland'} (${src}${mode==='live'?', live':''})${by?` under orders from ${byId(by).first} ${byId(by).last}`:''}.`,'danger');
   return e;
 }
 function rollTier(streak,luck){
   const leg=(streak>=5?.01+.008*Math.min(streak-5,10):.002)+luck*.0015, rare=.12+.025*Math.min(streak,10)+luck*.006, r=rnd();
   return r<leg?2:r<leg+rare?1:0;
 }
-function lootItem(e,band){ const r=rnd(), tier=band===0?(r<.7?0:1):band===1?(r<.7?2:3):(r<.55?3:r<.9?4:5); let keys=lootKeys().filter(k=>ITEMS[k].tier===tier); if(!keys.length) keys=lootKeys().filter(k=>ITEMS[k].tier<=tier); const k=pick(keys); e.loot.items.push(k); return ITEMS[k]; }
+function lootItem(e,band){ const r=rnd(), hi=zoneOf(e).hi, tier=band===0?(r<.7-hi?0:1):band===1?(r<.7-hi?2:3):(r<.55-hi?3:r<.9-hi/2?4:5); let keys=lootKeys().filter(k=>ITEMS[k].tier===tier); if(!keys.length) keys=lootKeys().filter(k=>ITEMS[k].tier<=tier); const k=pick(keys); e.loot.items.push(k); return ITEMS[k]; }
 function addLoot(e,tier,why){
   const L=e.loot; let m;
-  if(tier===2){ const r=rnd(); if(r<.45){const it=lootItem(e,2);m=`a ${TIERS[it.tier].toLowerCase()} ${it.name}`;} else if(r<.8){const it=lootItem(e,1);m=`a ${it.name}`;} else {const c=ri(150,260);L.caps+=c;L.research+=25;m=`a sealed vault cache (${c} caps, 25 research)`;} }
-  else if(tier===1){ const r=rnd(); if(r<.12){const it=lootItem(e,1);m=`a ${it.name}`;} else if(r<.27){const it=lootItem(e,0);m=`a ${it.name}`;} else if(r<.65){const c=ri(40,90);L.caps+=c;m=`${c} caps`;} else if(r<.82){const x=ri(10,20);L.research+=x;m=`old medical journals (+${x} research)`;} else {const x=ri(2,3);L.meds+=x;m=`${x} med kits`;} }
-  else { const r=rnd(); if(r<.04){const it=lootItem(e,0);m=`a ${it.name}`;} else if(r<.36){const c=ri(10,30);L.caps+=c;m=`${c} caps`;} else if(r<.56){const x=ri(30,70);L.food+=x;m=`${x} food`;} else if(r<.74){const x=ri(30,70);L.water+=x;m=`${x} clean water`;} else if(r<.92){const x=ri(3,8);L.research+=x;m=`scrap notes (+${x} research)`;} else {L.meds+=1;m='a med kit';} }
+  if(tier===2){ const r=rnd(); if(r<.45){const it=lootItem(e,2);m=`a ${TIERS[it.tier].toLowerCase()} ${it.name}`;} else if(r<.8){const it=lootItem(e,1);m=`a ${it.name}`;} else {const c=Math.round(zoneOf(e).capsM*ri(150,260));L.caps+=c;L.research+=25;m=`a sealed vault cache (${c} caps, 25 research)`;} }
+  else if(tier===1){ const r=rnd(); if(r<.12){const it=lootItem(e,1);m=`a ${it.name}`;} else if(r<.27){const it=lootItem(e,0);m=`a ${it.name}`;} else if(r<.65){const c=Math.round(zoneOf(e).capsM*ri(40,90));L.caps+=c;m=`${c} caps`;} else if(r<.82){const x=Math.round(zoneOf(e).capsM*ri(10,20));L.research+=x;m=`old medical journals (+${x} research)`;} else {const x=ri(2,3);L.meds+=x;m=`${x} med kits`;} }
+  else { const r=rnd(); if(r<.04){const it=lootItem(e,0);m=`a ${it.name}`;} else if(r<.36){const c=Math.round(zoneOf(e).capsM*ri(10,30));L.caps+=c;m=`${c} caps`;} else if(r<.56){const x=ri(30,70);L.food+=x;m=`${x} food`;} else if(r<.74){const x=ri(30,70);L.water+=x;m=`${x} clean water`;} else if(r<.92){const x=Math.round(zoneOf(e).capsM*ri(3,8));L.research+=x;m=`scrap notes (+${x} research)`;} else {L.meds+=1;m='a med kit';} }
   expLog(e,`${why||'Found'} ${m}.`,'t'+tier+(tier?'':' good'));
 }
 function expAnswer(e,correct){
@@ -1008,21 +1013,26 @@ function expAnswer(e,correct){
   if(correct){
     e.c++; e.streak++; e.best=Math.max(e.best,e.streak);
     const luck=team.reduce((a,s)=>a+effStat(s,'L'),0)/team.length;
-    expFind(e);
-    if(rnd()<Math.min(.7,.3+.03*Math.min(e.streak,12)+luck*.005)) addLoot(e,rollTier(e.streak,luck));
+    const Z=zoneOf(e); expFind(e);
+    if(Z.haz&&rnd()<Z.haz){ const d=ri(3,8)*(e.zone>1?1.5:1)|0; for(const v of team){ v.health-=d; v.lastHurt='Killed on expedition'; } expLog(e,`${e.zone>1?'A radiation storm':'Toxic fog'} swept over the team (everyone −${d}).`,'bad'); for(const v of team) while(v.health<35&&v.health>-15&&e.meds>0){ e.meds--; v.health=Math.min(100,Math.max(v.health,0)+STIM_HEAL); expLog(e,`${v.first} used a stim (+${STIM_HEAL} health). ${e.meds} left.`,'good'); } }
+    if(Z.jack&&e.streak%Z.jack===0) addLoot(e,2,`${e.streak} in a row, deep in ${Z.n.replace(/^The /,'the ')}:`);
+    if(rnd()<Math.min(.85,.3+Z.lootP+.03*Math.min(e.streak,12)+luck*.005)) addLoot(e,rollTier(e.streak+Z.tierS,luck));
     else if(rnd()<.04&&G.gate.length<4){ G.gate.push(mkVisitor(`Met ${team[0].first}’s team on the road.`)); expLog(e,'Met a wanderer who will follow you home.','good'); }
     else expLog(e,pick(['Quiet stretch of road.','Searched an empty house.','Made good time across the flats.','Scouted a ridge. Nothing moved.']));
   } else {
     e.streak=0;
-    if(rnd()<.55){
-      const foe=pick(FOES), threat=8+e.n*.25+rnd()*10, pw=team.reduce((a,s)=>a+memberPow(s),0)/team.length;
+    const Z=zoneOf(e);
+    if(rnd()<Z.atk){
+      const foe=pick(FOES), threat=8+Z.thr+e.n*.25+rnd()*10, pw=team.reduce((a,s)=>a+memberPow(s),0)/team.length;
       if(rnd()<clamp(pw/(pw+threat),.15,.9)){
         const v=pick(team), d=ri(0,6); v.health-=d; expLog(e,`${foe}. The team fought them off${d?` (${v.first} −${d})`:''}.`,'good');
         if(rnd()<.35){ const c=ri(5,20); e.loot.caps+=c; expLog(e,`Picked ${c} caps off the fight.`,'t0'); }
       } else {
-        const v=pick(team), arm=(bonusOf(v,'E')||0); let dmg=Math.round(ri(10,26)*(1-Math.min(.5,arm*.07)));
-        if(v.health>40) dmg=Math.min(dmg,v.health-6); v.health-=dmg; v.lastHurt='Killed on expedition'; expLog(e,`${foe} caught the team off guard. ${v.first} took ${dmg} damage.`,'bad');
-        while(v.health<35&&v.health>-15&&e.meds>0){ e.meds--; v.health=Math.min(100,Math.max(v.health,0)+STIM_HEAL); expLog(e,`${v.first} used a stim (+${STIM_HEAL} health). ${e.meds} left.`,'good'); }
+        const hitN=team.length>1&&e.zone>=2&&rnd()<.3?2:1, vs=team.slice().sort(()=>rnd()-.5).slice(0,hitN);
+        for(const v of vs){ const arm=(bonusOf(v,'E')||0); let dmg=Math.round(ri(10,26)*Z.dmg*(1-Math.min(.5,arm*.07)));
+        if(Z.guard&&v.health>40) dmg=Math.min(dmg,v.health-6); v.health-=dmg; v.lastHurt='Killed on expedition'; expLog(e,`${foe} caught the team off guard. ${v.first} took ${dmg} damage.`,'bad');
+        while(v.health<35&&v.health>-15&&e.meds>0){ e.meds--; v.health=Math.min(100,Math.max(v.health,0)+STIM_HEAL); expLog(e,`${v.first} used a stim (+${STIM_HEAL} health). ${e.meds} left.`,'good'); } }
+        if(Z.steal&&rnd()<.5){ const L=e.loot, c=Math.floor(L.caps*Z.steal); L.caps-=c; let it=null; if(L.items.length&&rnd()<Z.steal) it=L.items.splice(Math.floor(rnd()*L.items.length),1)[0]; if(c||it) expLog(e,`They robbed the packs: ${[c&&c+' caps',it&&ITEMS[it].name].filter(Boolean).join(' and ')} gone.`,'bad'); }
       }
     } else expLog(e,pick(['Took a wrong turn and lost time.','Got turned around in the ruins.','Spent hours on a dead end.','Rain forced the team into cover.']));
   }
@@ -1032,8 +1042,8 @@ function expAnswer(e,correct){
 function endExpedition(e){
   if(e.status!=='out') return;
   const alive=teamOf(e).length>0, pct=e.n?e.c/e.n:0;
-  if(alive&&e.n>=10){ if(pct>=.9) addLoot(e,2,'Strong finish:'); else if(pct>=.8) addLoot(e,1,'Strong finish:'); }
-  if(alive&&e.n>=10&&pct>=.9){ e.loot.bps=e.loot.bps||[]; const k=rollBlueprint(.6); if(k&&!e.loot.bps.includes(k)){ e.loot.bps.push(k); expLog(e,`Strong finish: a blueprint for the ${ITEMS[k].name}.`,'t2'); } }
+  if(alive&&e.n>=10){ const z=e.zone||0; if(pct>=.9){ addLoot(e,2,'Strong finish:'); if(z>=2) addLoot(e,2,'Crater haul:'); } else if(pct>=.8) addLoot(e,z>=1?2:1,'Strong finish:'); }
+  if(alive&&e.n>=10&&pct>=.9){ e.loot.bps=e.loot.bps||[]; const k=rollBlueprint((e.zone||0)>=1?.85:.6); if(k&&!e.loot.bps.includes(k)){ e.loot.bps.push(k); expLog(e,`Strong finish: a blueprint for the ${ITEMS[k].name}.`,'t2'); } }
   if(G.bos&&alive&&e.n>=10&&pct>=.85&&G.gate.length<4&&rnd()<(pct>=.95?.2:.1)){ const v=mkMVP(`Saw ${teamOf(e)[0].first}’s team on the road and followed them home.`); if(v){ G.gate.push(v); expLog(e,`${fullName(v.s)} was impressed and is following the team home.`,'good'); } }
   if(e.n>0) logStudy('q',e.n,e.c,e.src,null,true);
   if(e.name&&!e.polDone){ e.polDone=true; opPolitics(e,pct,alive); }
@@ -7796,9 +7806,9 @@ function renderLive(){
   if(!e){ el.className=''; el.innerHTML=''; return; }
   el.className='live';
   const pct=e.n?Math.round(e.c/e.n*100):0;
-  el.innerHTML=`<div class="lh"><b>${esc(e.name||'Live expedition')} · ${esc(e.src)}</b><div class="stats"><span>Question <b>${e.n+1}</b></span><span>Correct <b>${e.c}/${e.n}</b>${e.n?` (${pct}%)`:''}</span><span>Streak <b>${e.streak}</b></span><span>Best <b>${e.best}</b></span><span>Stims <b>${e.meds}</b></span></div></div>
+  el.innerHTML=`<div class="lh"><b>${esc(e.name||'Live expedition')} · ${esc(e.src)} · ${zoneOf(e).ic} ${zoneOf(e).n}</b><div class="stats"><span>Question <b>${e.n+1}</b></span><span>Correct <b>${e.c}/${e.n}</b>${e.n?` (${pct}%)`:''}</span><span>Streak <b>${e.streak}</b></span><span>Best <b>${e.best}</b></span><span>Stims <b>${e.meds}</b></span></div></div>
   ${teamChips(e)}
-  <div class="lbtns"><button class="btn big okb" data-a="ans" data-v="1">Correct<kbd>C</kbd></button><button class="btn big badb" data-a="ans" data-v="0">Incorrect<kbd>X</kbd></button><button class="btn" data-a="endExp" data-id="${e.id}">Return home</button></div>
+  <div class="lbtns"><button class="btn big okb" data-a="ans" data-v="1">Correct<kbd>C</kbd></button><button class="btn big badb" data-a="ans" data-v="0">Incorrect<kbd>X</kbd></button><button class="btn" data-a="endExp" data-id="${e.id}">Return home</button>${(e.zone||0)<EXP_ZONES.length-1?`<button class="btn" data-a="expDeeper" data-id="${e.id}" title="${esc(EXP_ZONES[(e.zone||0)+1].d)}">Push into ${EXP_ZONES[(e.zone||0)+1].n} ${EXP_ZONES[(e.zone||0)+1].ic}</button>`:''}</div>
   <ul class="feed">${e.log.slice(0,4).map(l=>`<li class="${l.c}">Q${l.n} · ${esc(l.m)}</li>`).join('')||'<li>Answer your first question. Correct answers find loot, and streaks find better loot. Wrong answers can draw an attack.</li>'}</ul>
   <div style="font-size:12px;color:var(--muted)">Carrying: ${lootLine(e)}</div>`;
 }
@@ -7818,7 +7828,7 @@ function renderExp(){
   let h=renderWild()+`<h3 class="sec">Expeditions</h3>`;
   for(const e of G.exps){
     const left=e.status==='returning'?Math.max(0,Math.ceil((e.backAt-Date.now())/1000)):0;
-    h+=`<div class="exp"><div class="hd"><b>${esc(opTitle(e))} · ${esc(e.src)}</b><span class="tag ${e.status==='out'?'b':'g'}">${e.status==='out'?`Q ${e.n} · ${e.c} correct`:`Home in ${Math.floor(left/60)}:${pad2(left%60)}`}</span></div>
+    h+=`<div class="exp"><div class="hd"><b>${esc(opTitle(e))} · ${esc(e.src)}${e.zone?' · '+zoneOf(e).ic+' '+zoneOf(e).n:''}</b><span class="tag ${e.status==='out'?'b':'g'}">${e.status==='out'?`Q ${e.n} · ${e.c} correct`:`Home in ${Math.floor(left/60)}:${pad2(left%60)}`}</span></div>
     ${e.by&&anyById(e.by)?`<div style="font-size:12px;color:var(--muted)">Ordered by ${esc(fullName(anyById(e.by)))}</div>`:''}<div class="row" style="gap:6px"><input type="text" id="opn_${e.id}" maxlength="40" value="${esc(e.name||'')}" style="flex:1;min-width:0" aria-label="Operation name"><button class="btn sm" data-a="opRename" data-id="${e.id}">Rename</button></div>${teamChips(e)}<div style="font-size:12px;color:var(--muted)">Carrying ${lootLine(e)}${e.deaths.length?` · <span style="color:var(--danger)">Lost: ${esc(e.deaths.join(', '))}</span>`:''}</div>
     ${e.log.length?`<ul class="feed">${e.log.slice(0,5).map(l=>`<li class="${l.c}">Q${l.n} · ${esc(l.m)}</li>`).join('')}</ul>`:''}</div>`;
   }
@@ -7827,7 +7837,8 @@ function renderExp(){
   const f=UI.ef;
   h+=`<div class="box"><h4>New expedition · pick up to 5 · ${UI.expSel.length} chosen</h4>${G.inst.gov>=1&&G.leader&&byId(G.leader)?`<p class="lede" style="font-size:12px">Sent under orders from ${esc(fullName(byId(G.leader)))}. Score 70%+ to lift their approval; under 50% or losses on the road will cost them.</p>`:''}
   <div class="picklist">${el.map(s=>{const on=UI.expSel.includes(s.id), w=gearOf(s,'w'), o=gearOf(s,'o');return `<label class="${on?'on':''}"><input type="checkbox" data-a="expPick" data-id="${s.id}" ${on?'checked':''}><span>${esc(fullName(s))}<br><span class="st">${w?esc(w.name):'Unarmed'}${o?' · '+esc(o.name):''}</span></span><span class="st">Power ${Math.round(memberPow(s))} · L ${Math.round(effStat(s,'L'))} · HP ${Math.round(s.health)}${G.inst.gov>=1&&G.leader?willTag(s):''}</span></label>`;}).join('')||'<p class="lede">Nobody is fit to go. Settlers need 50+ health, and blind settlers need Disability Services.</p>'}</div>
-  <div class="form"><label>Operation name (optional)<input type="text" id="ef_name" data-ef="name" maxlength="40" value="${esc(f.name||'')}" placeholder="Auto: Operation …"></label><label>Question bank<select data-f="src" id="ef_src" data-ef="1">${QSRC.map(x=>`<option ${f.src===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Stims to bring (max ${EXP_STIMS}, you have ${Math.floor(G.res.stims)})<input type="number" id="ef_meds" data-ef="meds" min="0" max="${EXP_STIMS}" value="${esc(f.meds)}"></label></div>
+  <div class="form"><label>Operation name (optional)<input type="text" id="ef_name" data-ef="name" maxlength="40" value="${esc(f.name||'')}" placeholder="Auto: Operation …"></label><label>Where to go<select id="ef_zone" data-ef="zone">${EXP_ZONES.map((z,i)=>`<option value="${i}" ${(+f.zone||0)===i?'selected':''}>${z.ic} ${z.n}</option>`).join('')}</select></label><label>Question bank<select data-f="src" id="ef_src" data-ef="1">${QSRC.map(x=>`<option ${f.src===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Stims to bring (max ${EXP_STIMS}, you have ${Math.floor(G.res.stims)})<input type="number" id="ef_meds" data-ef="meds" min="0" max="${EXP_STIMS}" value="${esc(f.meds)}"></label></div>
+  <p class="lede" style="font-size:12px;margin-top:-4px">${EXP_ZONES[+f.zone||0].ic} <b>${EXP_ZONES[+f.zone||0].n}:</b> ${EXP_ZONES[+f.zone||0].d}${(+f.zone||0)?` Loot ×${EXP_ZONES[+f.zone||0].capsM} caps, better gear odds; enemies ${Math.round(EXP_ZONES[+f.zone||0].atk*100)}% likely on a wrong answer (Ruins 55%), hits ×${EXP_ZONES[+f.zone||0].dmg}.`:''}</p>
   <div class="row"><button class="btn pri lg" data-a="startLive" ${UI.expSel.length&&!liveExp()?'':'disabled'}>Start live run</button><span class="lede" style="font-size:12px">Tap Correct or Incorrect after each question as you work through the block.</span></div>
   <div class="form"><label>Questions in block<input type="number" id="ef_n" data-ef="n" min="1" value="${esc(f.n)}" placeholder="40"></label><label>Correct<input type="number" id="ef_c" data-ef="c" min="0" value="${esc(f.c)}" placeholder="28"></label><button class="btn" data-a="startReport" ${UI.expSel.length?'':'disabled'}>Log finished block</button></div>
   <p class="lede" style="font-size:12px">Every correct answer can turn up loot, and each answer in a streak raises the odds of Rare and Legendary finds. A wrong answer can draw an attack. Better weapons win more fights, armor softens hits and stims heal anyone who drops below 35 health, but settlers can die out there. Correct answers can also turn up scrap and blueprints. Finishing 10+ questions at 80% adds a Rare bonus, and at 90% a Legendary roll. Each block also counts toward today’s study goal.</p></div>`;
@@ -8212,6 +8223,7 @@ document.addEventListener('click',e=>{
     case 'expPick': { e.preventDefault&&0; const i=UI.expSel.indexOf(id); if(i>=0) UI.expSel.splice(i,1); else if(UI.expSel.length<5) UI.expSel.push(id); else toast('A team can have at most 5 settlers.'); break; }
     case 'startLive': { const x=startExpedition(UI.expSel,'live',UI.ef.src,UI.ef.meds); if(x){ UI.expSel=[]; toast('The team is out. Mark each question with Correct or Incorrect, or press C and X.'); window.scrollTo&&window.scrollTo({top:0,behavior:'smooth'}); } break; }
     case 'opRename': { const e=expById(id), el=$('opn_'+id), v=el&&el.value.trim().slice(0,40); if(e&&v){ const old=e.name; e.name=v; for(const s of [...G.settlers,...G.dead]) for(const o of s.ops||[]) if(o.id===e.id) o.nm=v; if(old) histAdd(`${old} was renamed ${v}.`); toast(`Renamed to ${v}.`); save(); } if(document.activeElement) document.activeElement.blur(); break; }
+    case 'expDeeper': { const e=expById(id); if(e&&e.status==='out'&&(e.zone||0)<EXP_ZONES.length-1){ e.zone=(e.zone||0)+1; expLog(e,`The team pushed on into ${zoneOf(e).n.replace(/^The /,'the ')}.`,'bad'); log(`${e.name}: the team pushed on into ${zoneOf(e).n.replace(/^The /,'the ')}.`,'danger'); } break; }
     case 'startReport': reportExpedition(UI.expSel,UI.ef.src,UI.ef.meds,UI.ef.n,UI.ef.c); break;
     case 'ans': expAnswer(liveExp(),el.dataset.v==='1'); break;
     case 'endExp': { const x=expById(id); if(x) endExpedition(x); break; }
@@ -8248,7 +8260,7 @@ document.addEventListener('click',e=>{
   }
   renderUI();
 });
-document.addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.c==='musVol'){ musVol(+el.value/100); return; } if(el.dataset&&el.dataset.ef&&el.dataset.ef!=='1'){ UI.ef[el.dataset.ef]=el.value; return; } if(el.dataset&&el.dataset.f&&!el.dataset.ef){ UI.sform[el.dataset.f]=el.value; const p=$('spreview'); if(p) p.innerHTML=studyPreview(); } });
+document.addEventListener('input',e=>{ const el=e.target; if(el.dataset&&el.dataset.c==='musVol'){ musVol(+el.value/100); return; } if(el.dataset&&el.dataset.ef&&el.dataset.ef!=='1'){ UI.ef[el.dataset.ef]=el.value; if(el.dataset.ef==='zone') renderUI(); return; } if(el.dataset&&el.dataset.f&&!el.dataset.ef){ UI.sform[el.dataset.f]=el.value; const p=$('spreview'); if(p) p.innerHTML=studyPreview(); } });
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.f==='src'){ if(el.dataset.ef) UI.ef.src=el.value; else UI.sform.src=el.value; }
@@ -8311,7 +8323,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},holdElection,voterPick,voteUtil,councilPick,electionField,polAdults,isCitizen,polOpenPosts,polVacancyDay,pollDay,campaignPlan,flagLike,flagAdopt,startRef,refStep,flagLeaderDay,flagSVG,FL_TPL,musPlay,SONGS,MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},holdElection,startExpedition,expAnswer,endExpedition,voterPick,voteUtil,councilPick,electionField,polAdults,isCitizen,polOpenPosts,polVacancyDay,pollDay,campaignPlan,flagLike,flagAdopt,startRef,refStep,flagLeaderDay,flagSVG,FL_TPL,musPlay,SONGS,MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,obCodeDecode,obCodeRedeem,obBegin,obClick,obReturn,obTick,obGrade,obBuild,obDanger,obRubric,OB_EX,OB_X,OB_CASES,OB_RF,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
