@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.1</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.2</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -395,7 +395,7 @@ const ROOMS={
 };
 const lvlMult=[0,1,1.4,1.85,2.4], MAXLVL=4, UPSTEP=[0,300,900,2400];
 const COLS=6;
-const MAXW={farm:3,cannery:3,purifier:2,cistern:3,salvage:3,coop:2,bank:2,bazaar:3,refinery:2,mine:3,radio:2,medbay:3,generator:4,water:4,diner:4,lab:3,trade:3,quarters:3,clinic:3,armory:3,training:3,school:3,gym:2,range:2,drill:2,lounge:2,classroom:2,athletics:2,gameroom:2,jail:3};
+const MAXW={squad:3,farm:3,cannery:3,purifier:2,cistern:3,salvage:3,coop:2,bank:2,bazaar:3,refinery:2,mine:3,radio:2,medbay:3,generator:4,water:4,diner:4,lab:3,trade:3,quarters:3,clinic:3,armory:3,training:3,school:3,gym:2,range:2,drill:2,lounge:2,classroom:2,athletics:2,gameroom:2,jail:3};
 const jailCap=r=>2*(r.w||1);
 function jailFree(){ for(const r of G.rooms) if(r.type==='jail'&&(r.holds||'both')!=='in'){ const n=(G.captives||[]).filter(q=>q.room===r.id).length; if(n<jailCap(r)) return r; } return null; }
 const TRAINS=r=>ROOMS[r.type]&&ROOMS[r.type].trains;
@@ -782,8 +782,8 @@ const anyById=id=>byId(id)||G.dead.find(s=>s.id===id);
 const fullName=s=>s?`${s.first} ${s.last}`:'Unknown';
 const roomById=id=>G.rooms.find(r=>r.id===id);
 const pol=k=>G.policies.includes(k);
-const roomCap=r=>r.type==='entrance'?2:r.type==='workshop'?Math.min(8,(1+r.level)*(r.w||1)):(1+r.level)*(r.w||1);
-const perSeg=r=>ROOMS[r.type].wide?roomCap(r):1+r.level;
+const roomCap=r=>r.type==='squad'?3*(r.w||1):r.type==='entrance'?2:r.type==='workshop'?Math.min(8,(1+r.level)*(r.w||1)):(1+r.level)*(r.w||1);
+const perSeg=r=>r.type==='squad'?3:ROOMS[r.type].wide?roomCap(r):1+r.level;
 const mergeBonus=r=>ROOMS[r.type].wide?1:1+.1*((r.w||1)-1);
 const roomStat=r=>ROOMS[r.type].stat||r.train;
 const fdate=d=>`Y${Math.floor(d/YEAR)+1} D${(d%YEAR)+1}`;
@@ -952,13 +952,15 @@ function netRates(){
 /* ---------- actions ---------- */
 function unassign(s){ if(s.room){const r=roomById(s.room); if(r) r.workers=r.workers.filter(x=>x!==s.id);} s.room=null; }
 function assign(s,r){
+  if(r.type==='squad'){ const tm=teamOfS(s); if(!tm){ toast('Only expedition team members live in the Expedition Barracks. Add them to a team on the Expeditions tab.'); return false; } }
+  else if(teamOfS(s)&&!['quarters','office'].includes(r.type)&&!TRAINS(r)){ const tm=teamOfS(s); teamDrop(tm,s); log(`${s.first} left expedition team ${tm.name} for a job in the ${ROOMS[r.type].name}.`,''); }
   if(!canWork(s)){ toast(isAdult(s)?`${s.first} can’t work right now.`:`${s.first} is a child and can’t work until ${ADULT}.`); return false; }
   if(r.type==='phall'&&r.party&&s.party!==r.party){ toast(`Only ${PARTIES[r.party].n} members can work at this hall.`); return false; }
   if(r.type==='precinct'&&!isOfficer(s)){ toast('Only full-time police officers can serve at Police HQ.'); return false; }
   if(r.type==='entrance'&&!isSoldier(s)&&!isOfficer(s)){ toast(`Only soldiers or full-time police officers can guard the Entrance.`); return false; }
   if(MIL_POSTS.includes(r.type)&&r.type!=='entrance'&&!isSoldier(s)){ toast(`Only soldiers can serve in the ${ROOMS[r.type].name}. Enlist ${s.first} from the Military roster first.`); return false; }
-  if(isOfficer(s)&&!POL_OK(r)&&!(r.type==='office'&&s.id===G.leader)){ toast(`${s.first} is a full-time police officer. Make them an auxiliary or take their badge to work in the ${ROOMS[r.type].name}.`); return false; }
-  if(isSoldier(s)&&!MIL_OK(r)&&!(r.type==='office'&&s.id===G.leader)){ toast(`${s.first} is a full-time soldier. Make them a reservist or discharge them to work in the ${ROOMS[r.type].name}.`); return false; }
+  if(isOfficer(s)&&!POL_OK(r)&&r.type!=='squad'&&!(r.type==='office'&&s.id===G.leader)){ toast(`${s.first} is a full-time police officer. Make them an auxiliary or take their badge to work in the ${ROOMS[r.type].name}.`); return false; }
+  if(isSoldier(s)&&!MIL_OK(r)&&r.type!=='squad'&&!(r.type==='office'&&s.id===G.leader)){ toast(`${s.first} is a full-time soldier. Make them a reservist or discharge them to work in the ${ROOMS[r.type].name}.`); return false; }
   if(r.type==='jail'&&guardMode()==='military'&&!isSoldier(s)){ toast(`The Holding Cells are under military guard. Only soldiers can serve there.`); return false; }
   if(r.type==='jail'&&guardMode()==='police'&&!isOfficer(s)){ toast(`The Holding Cells are run by the Vault Police. Only full-time officers can serve there.`); return false; }
   if(r.workers.includes(s.id)){ s.waiting=false; return true; }
@@ -984,7 +986,7 @@ function liveExp(){ return G.exps.find(e=>e.mode==='live'&&e.status==='out'); }
 function memberPow(s){ const w=gearOf(s,'w'); return (w?w.dmg:1)+(effStat(s,'S')+effStat(s,'E')+effStat(s,'A'))/3; }
 function expLog(e,m,c){ e.log.unshift({n:e.n,m,c:c||''}); if(e.log.length>60) e.log.length=60; }
 function startExpedition(ids,mode,src,meds){
-  const team=ids.map(byId).filter(s=>s&&canExplore(s)).slice(0,5);
+  const team=ids.map(byId).filter(s=>s&&canExplore(s)).slice(0,3);
   if(!team.length){ toast('Pick at least one settler who is fit to explore.'); return null; }
   if(mode==='live'&&liveExp()){ toast('Finish the live expedition that’s already out first.'); return null; }
   meds=clamp(Math.floor(+meds||0),0,Math.min(EXP_STIMS,Math.floor(G.res.stims))); G.res.stims-=meds;
@@ -1064,7 +1066,7 @@ function arriveExp(e){
     log(`${e.name?e.name+': ':''}${team.map(s=>s.first).join(', ')} made it home with ${parts.length?parts.join(', '):'nothing'}.${e.deaths.length?` Lost on the road: ${e.deaths.join(', ')}. The team brought ${e.deaths.length>1?'them':'the body'} home; tap ${e.deaths.length>1?'them':'it'} by the door to arrange a burial.`:''}`,L.items.length?'study':'');
     if(L.items.length) toast(`Expedition home with ${L.items.length} item${L.items.length>1?'s':''}: ${L.items.map(k=>ITEMS[k].name).join(', ')}.`);
   }
-  for(const s of team){ addWear(s,2,'expedition'); s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; if(s.mil) s.milXP=(s.milXP||0)+3; }
+  for(const s of team){ addWear(s,2,'expedition'); s.exp=null; s.intake=Date.now()+ENT_INTAKE; s.waiting=true; if(s.mil||isSF(s)) s.milXP=(s.milXP||0)+3; }
   G.exps=G.exps.filter(x=>x!==e);
 }
 function reportExpedition(ids,src,meds,n,c){
@@ -1357,7 +1359,7 @@ const eduHas=(s,k)=>!!k&&(s.edu||[]).includes(k);
 function checkEdu(s){ if(s.track&&!eduHas(s,s.track)&&s.s[s.track]>=10){ s.edu=(s.edu||[]).concat(s.track); s.eduDone=true; log(`${fullName(s)} completed a ${STAT_NAMES[s.track]} education: +${Math.round(EDU_BONUS*100)}% output in ${STAT_NAMES[s.track]} rooms.`,'family'); FX.text(s.id,'Educated!','#7fd38a'); } }
 function lifeStep(mins,frac){
   const nd=nowD();
-  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); chamberStep(); voteStep(); refStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); drinkStep(); hallStaffFix(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
+  ensureEntrance(); regFactionLooks(); traderStep(); leaderSync(); protestStep(); assemblyStep(); chamberStep(); teamStep(mins); voteStep(); refStep(); coupStep(); plotStrike(); craftStep(mins); ammoStep(mins); rescueStep(); wfFix(); drinkStep(); hallStaffFix(); wildStep(mins); surgStep(mins); arrivalStep(nd); careAssign();
   if(G.captives&&G.captives.length){ G.captives=G.captives.filter(q=>{ if(roomById(q.room)) return true; prisonEnd(q,'Escaped'); log(`${q.s.first} ${q.s.last} slipped away when the Holding Cells were torn down.`,'danger'); return false; }); }
   { const k=1-Math.exp(-mins/20); for(const s of G.settlers){ if(s.grief) s.grief=Math.max(0,s.grief-mins*.1); s.happy=clamp(s.happy+(happyTarget(s)-s.happy)*k,0,100); } }
   if(LIVE&&G.inst.health>=1&&ertTeam().length) for(const r of G.rooms) if(['generator','workshop','water','diner'].includes(r.type)&&r.workers.length&&rnd()<1-Math.exp(-mins*.0035)){ const v=byId(pick(r.workers)); if(v&&!v.preg&&!emOf(v.id)&&!ertOn(v)){ hurtSettler(v,ri(12,22),'Workplace accident'); if(G.settlers.includes(v)&&!callEmergency(v,'accident')) critAftermath([v]); } }
@@ -1528,8 +1530,8 @@ function colonyPower(){ const ad=G.settlers.filter(s=>isAdult(s)&&!s.exp); let g
 function mkRaider(tier){ const sex=rnd()<.75?'M':'F'; const s={id:-1-Math.floor(rnd()*1e6),first:'Raider',last:'',sex,born:G.day-ri(20,40)*YEAR,s:randStats(),health:100,happy:20,look:mkLook(sex),gear:{},parents:[],children:[],rank:0};
   Object.assign(s.look,{style:pick(sex==='M'?['mohawk','buzz','shaggy','bald','manbun']:['mohawk','pixie','ponytail','shaggy']),custom:true,hair:pick(['#2b1d14','#8a3b22','#161616','#c9b25a','#a8452a']),beard:sex==='M'&&rnd()<.4,glasses:false}); s.L='raider'+tier; return s; }
 /* v12.0: raid duty rotation — soldiers and police share the load instead of the strongest always going */
-const raidSvc=s=>isSoldier(s)||isOfficer(s)||isReserve(s)||isAux(s);
-const raidGrp=s=>isSoldier(s)||isOfficer(s)?0:isReserve(s)||isAux(s)?1:2;
+const raidSvc=s=>isSoldier(s)||isOfficer(s)||isReserve(s)||isAux(s)||isSF(s);
+const raidGrp=s=>isSoldier(s)||isOfficer(s)||isSF(s)?0:isReserve(s)||isAux(s)?1:2;
 function raidOrder(a,b){ if((G.raidMode||'rotate')==='strongest') return milRank(a)-milRank(b)||memberPow(b)-memberPow(a);
   return raidGrp(a)-raidGrp(b)||(raidGrp(a)<2?((a.raidD??-999)-(b.raidD??-999))||((a.wear||0)-(b.wear||0))||(b.health-a.health):memberPow(b)-memberPow(a)); }
 function raidDutyLine(s){ if(!raidSvc(s)) return ''; return `<div class="row" style="justify-content:space-between;margin-top:6px"><span class="lede" style="font-size:12px">Raid duty: <b>${s.raidOff?'stood down':'on rotation'}</b>${s.raidN?` · ${s.raidN} raid${s.raidN===1?'':'s'}, last on day ${s.raidD}`:' · no raids yet'}</span><button class="btn sm" data-a="raidOff" data-id="${s.id}">${s.raidOff?'Return to raid duty':'Stand down from raids'}</button></div>`; }
@@ -1783,6 +1785,7 @@ function lookOf(s){
   return L;
 }
 function stationX(r,i){
+  if(r.type==='squad'){ const id=r.workers[i], tm=(G.teams||[]).find(t=>t.room===r.id&&t.ids.includes(id)); const seg=tm?tm.seg:Math.min((r.w||1)-1,Math.floor(i/3)), j=tm?tm.ids.indexOf(id):i%3; return seg*WD.roomW+[36,130,112][j]; }
   if(r.type==='entrance') return [58,448][i]||250;
   if(r.type==='command') return [230,280,90,420,170,330,60,250][i]||250;
   if(r.type==='tailor') return [70,180,250,318,400,110,440,210][i]||250;
@@ -1871,7 +1874,7 @@ function targetFor(s,a,t){
       if(r.type==='precinct'){ pose=['type','clipboard','read','gesture'][li%4]; face=li%2?-1:1; }
       if(r.type==='surgery'){ const busy=!!r.op; pose=busy?(['care','care','type','clipboard'][i]||'clipboard'):(['clipboard','read','type','clipboard'][i]||'stand'); face=[1,-1,1,-1][i]||(i%2?1:-1); }
       { const RP={purifier:['fill','valve','clipboard','wrench'],water:['type','clipboard','valve','clipboard'],diner:['chop','gesture','stir','mop'],lab:['flask','type','flask','read'],trade:['count','gesture','count','gesture'],generator:['type','crank','wrench','crank'],clinic:['care','clipboard','care','clipboard'],medbay:['fill','type','fill','clipboard'],radio:['mic','type','mic','type'],tailor:['chop','crank','sew','wrench'],workshop:['type','wrench','gesture','wrench'],classroom:['chalk','read','read','read'],range:['aim','aim','aim','aim'],gameroom:['dart','point','dart','point'],drill:['march','march','march','march']};
-        const rp=RP[r.type]; if(rp) pose=rp[(wide?i:li)%4]; if(r.type==='tailor'&&i>=4) pose=['gesture','clipboard','gesture','type'][i-4]||'gesture'; if(r.type==='classroom'&&li===0) face=-1; if(r.type==='diner'&&pose==='mop') face=1; }
+        const rp=RP[r.type]; if(rp) pose=rp[(wide?i:li)%4]; if(r.type==='squad'){ const id=r.workers[i], tm=(G.teams||[]).find(q=>q.room===r.id&&q.ids.includes(id)), j=tm?tm.ids.indexOf(id):i%3; pose=['sit','read','point'][j]||'stand'; face=j===0?1:-1; } if(r.type==='tailor'&&i>=4) pose=['gesture','clipboard','gesture','type'][i-4]||'gesture'; if(r.type==='classroom'&&li===0) face=-1; if(r.type==='diner'&&pose==='mop') face=1; }
       return {x:roomX(r.col)+stationX(r,i),l:r.floor,pose,face};
     }
   }
@@ -4288,8 +4291,8 @@ function enlist(s,kind){ if(!s||!isAdult(s)||!milAge(s)){ toast('Recruits must b
 function discharge(s){ if(!s||!s.mil) return; const r=s.room&&roomById(s.room); if(r&&MIL_POSTS.includes(r.type)) unassign(s); s.mil=null; log(`${fullName(s)} was discharged from the military.`,'gov'); }
 function milUpkeep(){ const S=G.settlers.filter(s=>s.mil&&!s.died&&!s.milLeave); if(!S.length) return; let food=0,caps=0; for(const s of S){ const u=MIL_UP[s.mil]; food+=u.food; caps+=u.caps; }
   G.res.food=Math.max(0,G.res.food-food); const paid=G.res.caps>=caps; G.res.caps=Math.max(0,G.res.caps-caps); G.flags.unpaid=!paid; if(!paid&&!G.flags.unpaidLog){ G.flags.unpaidLog=1; log('The treasury could not cover soldiers’ pay. Morale in the ranks is slipping.','danger'); } if(paid) G.flags.unpaidLog=0; }
-function milCost(){ let f=0,c=0; for(const s of G.settlers) if(s.mil){ f+=MIL_UP[s.mil].food; c+=MIL_UP[s.mil].caps; } return {f,c}; }
-function milDef(){ let d=0; for(const s of G.settlers){ if(s.exp||s.waiting||s.milLeave) continue; const r=s.room&&roomById(s.room); if(isSoldier(s)&&!(r&&MIL_POSTS.includes(r.type))) d+=2.5; else if(isReserve(s)) d+=1.5; } return d; }
+function milCost(){ let f=0,c=0; for(const s of G.settlers){ if(s.mil){ f+=MIL_UP[s.mil].food; c+=MIL_UP[s.mil].caps; } else if(isSF(s)){ f+=1; c+=2; } } return {f,c}; }
+function milDef(){ let d=0; for(const s of G.settlers){ if(s.exp||s.waiting||s.milLeave) continue; const r=s.room&&roomById(s.room); if(!s.mil&&isSF(s)) d+=2.5; else if(isSoldier(s)&&!(r&&MIL_POSTS.includes(r.type))) d+=2.5; else if(isReserve(s)) d+=1.5; } return d; }
 // order defenders go up: posted soldiers, other soldiers, reservists, then civilians
 const milRank=s=>isSoldier(s)?0:isReserve(s)||isOfficer(s)?1:isAux(s)?1.5:2;
 function milModal(){ const sol=G.settlers.filter(isSoldier), res=G.settlers.filter(isReserve), cand=G.settlers.filter(s=>!s.mil&&isAdult(s)&&milAge(s)&&!s.exp).sort((a,b)=>memberPow(b)-memberPow(a)), up=milCost();
@@ -4297,7 +4300,7 @@ function milModal(){ const sol=G.settlers.filter(isSoldier), res=G.settlers.filt
   const row=(s,btns)=>`<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:5px"><span><button class="link" data-a="open" data-id="${s.id}">${esc(fullName(s))}</button> <span class="lede" style="font-size:12px">${s.mil&&cmdRoom()?`<b style="color:#e2c46a">${RANKS[rankOf(s)].n}</b> · `:''}${s.mil?post(s)+' · ':jobName(s)+' · '}power ${Math.round(memberPow(s))}${s.mil?` · ${Math.floor(s.milXP||0)} service pts`:''}</span></span><span class="row">${s.mil&&cmdRoom()&&(s.rank_m||0)<RANKS.length-1?(promoWhy(s)?`<span class="why" style="font-size:11px">${esc(promoWhy(s))}</span>`:`<button class="btn sm pri" data-a="milPromo" data-id="${s.id}">Promote to ${RANKS[(s.rank_m||0)+1].n}</button>`):''}${btns}</span></div>`;
   return `<header><h2>Military</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
   <p class="lede">${sol.length} soldier${sol.length===1?'':'s'} · ${res.length} reservist${res.length===1?'':'s'} · upkeep ${up.f} food and ${up.c} caps per day${G.flags.unpaid?' · <b style="color:var(--danger)">unpaid</b>':''}. Defense ${Math.round(defense())}.</p>
-  <div class="row"><button class="btn sm pri" data-a="milTree">Military tree</button></div>${vacancyBox()}${raidModeBox()}
+  <div class="row"><button class="btn sm pri" data-a="milTree">Military tree</button></div>${vacancyBox()}${raidModeBox()}${sfBox()}
   ${cmdRoom()?`<div class="box"><h4>Chain of command</h4>${RANKS.slice(3).map((R,i)=>{ const r=i+3, L=G.settlers.filter(x=>x.mil&&(x.rank_m||0)===r); return `<div class="row" style="justify-content:space-between"><span><b>${R.n}</b> <span class="lede" style="font-size:11px">${R.xp} pts · ${ITEMS[R.uni].name}${R.def?` · Defense ${R.def}+`:''}</span></span><span class="lede" style="font-size:12px">${L.map(x=>esc(x.first+' '+x.last)).join(', ')||'—'} (${L.length}${rankCap(r)<99?'/'+rankCap(r):''})</span></div>`; }).join('')}<p class="lede" style="font-size:12px">Service points come from days on duty, training, raids and expeditions. Promotion needs the points, the Defense level (no limit on how many hold a rank, except one General), and the rank's uniform in storage, which is issued at the ceremony. Officers posted at the Command Post boost the whole army: +${Math.round(cmdBonus()*100)}% right now.</p></div>`:`<div class="box"><h4>Chain of command</h4><p class="lede" style="font-size:12px">Build a Command Post (Defense level 1, 800 caps) to establish ranks and promotions. Service points are already being earned.</p></div>`}
   <div class="box"><h4>Soldiers (full-time)</h4><p class="lede" style="font-size:12px">Only soldiers can guard the Armory, the Entrance and the Command Post. They can also train in the Weight Room, Firing Range, Drill Hall and similar rooms, and go on leave to Quarters to start a family (they return to their post once a pregnancy begins, or after the birth for mothers), but they cannot work civilian jobs. Soldiers without a post still add defense and are first up the stairs in a raid. Each costs 1 food and 2 caps a day.</p>${sol.length?sol.map(s=>row(s,`${raidTog(s)}<button class="btn sm" data-a="milRes" data-id="${s.id}">Make reservist</button><button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button>`)).join(''):'<p class="lede">None yet.</p>'}</div>
   <div class="box"><h4>Reservists</h4><p class="lede" style="font-size:12px">Reservists keep their civilian jobs and are called up when raiders come, before untrained settlers. Each costs 1 cap a day.</p>${res.length?res.map(s=>row(s,`${raidTog(s)}<button class="btn sm" data-a="milSol" data-id="${s.id}">Make soldier</button><button class="btn sm" data-a="milOff" data-id="${s.id}">Discharge</button>`)).join(''):'<p class="lede">None yet.</p>'}</div>
@@ -6648,6 +6651,53 @@ function drawChamberDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w
   else if(LG){ c.fillStyle='#7fe0a0'; c.fillText(`YES ${LG.yes}`,W1-38,top+26); c.fillStyle='#f08a7a'; c.fillText(`NO ${LG.n-LG.yes}`,W1-38,top+36); }
   else { c.fillStyle='#8a8076'; c.fillText('NO VOTES',W1-38,top+31); } c.restore(); }
 
+/* ===== v12.2: Expedition teams + Expedition Barracks (1 slot = 1 team of 3, merges up to 3) ===== */
+ROOMS.squad={name:'Expedition Barracks',stat:'E',cost:250,col:'--r-def',hex:'#5a6a4a',req:{},
+  desc:'One slot houses one expedition team of up to 3 (merge up to 3 slots for 3 teams). Team members rest here between runs and heal faster; deploy them from the Expeditions tab. Tick "Special Forces" to make a team part of the military without military uniforms.'};
+const TEAM_MAX=3, TEAM_SIZE=3;
+const sqRooms=()=>G.rooms.filter(r=>r.type==='squad');
+const teamSlots=()=>{ const out=[]; for(const r of sqRooms()) for(let g=0;g<(r.w||1);g++) out.push({room:r.id,seg:g}); return out.slice(0,TEAM_MAX); };
+const teamOfS=s=>(G.teams||[]).find(t=>t.ids.includes(s.id))||null;
+const teamById=id=>(G.teams||[]).find(t=>t.id===id);
+const isSF=s=>!!(s&&s.sf&&teamOfS(s));
+function teamsFix(){ G.teams=(G.teams||[]).filter(t=>roomById(t.room)); const free=teamSlots().filter(sl=>!G.teams.some(t=>t.room===sl.room&&t.seg===sl.seg));
+  for(const t of G.teams){ const r=roomById(t.room); if(t.seg>=(r.w||1)){ const f=free.shift(); if(f){ t.room=f.room; t.seg=f.seg; } } t.ids=t.ids.filter(id=>{ const s=byId(id); return s&&!s.died; }); for(const id of t.ids){ const s=byId(id); s.sf=!!t.sf; } }
+  for(const s of G.settlers) if(s.sf&&!teamOfS(s)) s.sf=false; }
+function teamCreate(){ teamsFix(); const used=G.teams.map(t=>t.room+':'+t.seg), sl=teamSlots().find(x=>!used.includes(x.room+':'+x.seg)); if(!sl){ toast(sqRooms().length?'Every barracks slot already has a team. Build or merge another Expedition Barracks slot.':'Build an Expedition Barracks first.'); return; }
+  const n=G.teams.length+1; G.teams.push({id:G.nextId++,name:['Alpha','Bravo','Charlie'][n-1]||'Team '+n,ids:[],room:sl.room,seg:sl.seg,sf:false}); }
+function teamAdd(t,s){ if(!t||!s) return; if(t.ids.length>=TEAM_SIZE){ toast(`A team holds ${TEAM_SIZE}.`); return; } if(s.id===G.leader){ toast('The leader can’t join an expedition team.'); return; } if(!isAdult(s)||age(s)<16){ toast('Only adults can join.'); return; }
+  const o=teamOfS(s); if(o) o.ids=o.ids.filter(x=>x!==s.id); t.ids.push(s.id); s.sf=!!t.sf; if(!s.exp){ const r=roomById(t.room); unassign(s); s.waiting=false; if(r&&!r.workers.includes(s.id)) r.workers.push(s.id); s.room=r?r.id:null; } log(`${fullName(s)} joined expedition team ${t.name}.`,''); }
+function teamDrop(t,s){ if(!t||!s) return; t.ids=t.ids.filter(x=>x!==s.id); s.sf=false; if(s.room&&roomById(s.room)?.type==='squad') unassign(s); }
+function teamStep(mins){ if(!G.teams||!G.teams.length) return; for(const t of G.teams){ const r=roomById(t.room); if(!r) continue; for(const id of t.ids){ const s=byId(id); if(!s||s.exp||s.detained) continue;
+    if(s.waiting&&(!s.intake||Date.now()>=s.intake)){ s.waiting=false; s.intake=null; }
+    if(!s.waiting&&s.room!==r.id&&!s.protest&&!s.strike&&!s.rebel){ unassign(s); if(!r.workers.includes(s.id)) r.workers.push(s.id); s.room=r.id; }
+    if(s.room===r.id&&s.health<100) s.health=Math.min(100,s.health+mins*.35*(1+effStat(s,'E')*.05)); } } }
+function teamDeploy(t,mode){ const ids=t.ids.filter(id=>{ const s=byId(id); return s&&canExplore(s)&&!s.exp; }); if(!ids.length){ toast(`Nobody in ${t.name} is fit to go (50+ health needed).`); return; }
+  if(mode==='live'){ UI.ef.name=UI.ef.name||`Team ${t.name}`; const x=startExpedition(ids,'live',UI.ef.src,UI.ef.meds); if(x){ x.squad=t.id; UI.expSel=[]; toast(`Team ${t.name} is out. Mark each question with Correct or Incorrect, or press C and X.`); } }
+  else { UI.expSel=ids.slice(0,TEAM_SIZE); toast(`Team ${t.name} selected. Enter the block below and press "Log finished block".`); } }
+function teamsBox(){ teamsFix(); const T=G.teams, slots=teamSlots().length;
+  let h=`<div class="box"><h4>Expedition teams · ${T.length}/${Math.min(TEAM_MAX,slots)||0}</h4>`;
+  if(!slots) return h+`<p class="lede" style="font-size:12px">Build an <b>Expedition Barracks</b> to form standing teams. Each slot houses one team of up to 3; merge up to 3 slots for 3 teams. Members rest there between runs, heal faster, and deploy with one tap.</p></div>`;
+  const pool=G.settlers.filter(s=>isAdult(s)&&age(s)>=16&&s.id!==G.leader&&!teamOfS(s)&&!s.detained).sort((a,b)=>memberPow(b)-memberPow(a));
+  for(const t of T){ const M=t.ids.map(byId).filter(Boolean), out=M.some(s=>s.exp);
+    h+=`<div style="border-top:1px solid var(--line);padding:8px 0"><div class="row" style="justify-content:space-between;gap:6px;flex-wrap:wrap"><span class="row" style="gap:6px"><input type="text" id="tmn_${t.id}" value="${esc(t.name)}" maxlength="24" style="width:120px" aria-label="Team name"><button class="btn sm" data-a="teamRename" data-id="${t.id}">Rename</button></span>
+      <label class="row" style="gap:4px;font-size:12px"><input type="checkbox" data-a="teamSF" data-id="${t.id}" ${t.sf?'checked':''}> Special Forces (part of the military)</label></div>
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:6px">${M.map(s=>`<span class="row" style="gap:4px;align-items:center">${faceHTML(s,26)}<button class="link" data-a="open" data-id="${s.id}">${esc(s.first)}</button><span class="lede" style="font-size:11px">HP ${Math.round(s.health)} · power ${Math.round(memberPow(s))}${s.exp?' · out':''}</span>${s.exp?'':`<button class="btn sm" data-a="teamDrop" data-id="${t.id}" data-v="${s.id}" title="Remove">×</button>`}</span>`).join('')||'<span class="lede" style="font-size:12px">No members yet.</span>'}
+      ${M.length<TEAM_SIZE?`<select data-c="teamAdd" data-id="${t.id}" aria-label="Add member"><option value="">+ Add member…</option>${pool.slice(0,40).map(s=>`<option value="${s.id}">${esc(fullName(s))} · power ${Math.round(memberPow(s))}${isSoldier(s)?' · soldier':isOfficer(s)?' · officer':''}</option>`).join('')}</select>`:''}</div>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm pri" data-a="teamLive" data-id="${t.id}" ${out||!M.length||liveExp()?'disabled':''}>Deploy · live run</button><button class="btn sm" data-a="teamPick" data-id="${t.id}" ${out||!M.length?'disabled':''}>Select for a logged block</button><button class="btn sm" data-a="teamDisband" data-id="${t.id}">Disband</button></div></div>`; }
+  h+=`${T.length<Math.min(TEAM_MAX,slots)?`<button class="btn sm" data-a="teamNew">+ New team</button>`:''}<p class="lede" style="font-size:12px">Deploys use the zone, question bank and stims chosen in the form below. Members return to their barracks after each run and rest there until called. Special Forces count as part of the military (upkeep, defense, raid rotation, service points) but keep their own gear, such as power armor, instead of military uniforms.</p></div>`;
+  return h; }
+function sfBox(){ const T=(G.teams||[]).filter(t=>t.sf&&t.ids.length); if(!T.length) return ''; return `<div class="box"><h4>Special Forces</h4>${T.map(t=>`<div><b>${esc(t.name)}</b> <span class="lede" style="font-size:12px">${t.ids.map(byId).filter(Boolean).map(s=>esc(fullName(s))).join(', ')}</span></div>`).join('')}<p class="lede" style="font-size:12px">Expedition teams marked Special Forces. They wear their own gear, rest in the Expedition Barracks, and join the raid rotation. 1 food and 2 caps a day each.</p></div>`; }
+PROPS.squad=(c,x,top,w,fl,t,on,r)=>{ const g=c.createLinearGradient(0,top,0,fl); g.addColorStop(0,'#3a4034'); g.addColorStop(1,'#4a5040'); c.fillStyle=g; c.fillRect(x+4,top+4,w-8,fl-top-4);
+  for(let sg=0;sg<(r&&r.w||1);sg++){ const X=x+sg*WD.roomW; c.fillStyle='#2a2e26'; c.fillRect(X+6,fl-3,WD.roomW-12,3);
+    c.fillStyle='#5a4a32'; c.fillRect(X+12,fl-42,46,4); c.fillRect(X+12,fl-20,46,4); c.fillStyle='#6a7a5a'; c.fillRect(X+13,fl-48,44,6); c.fillRect(X+13,fl-26,44,6); c.fillStyle='#3a3a30'; c.fillRect(X+12,fl-48,2,48); c.fillRect(X+56,fl-48,2,48);
+    c.fillStyle='#4a5560'; for(let i=0;i<3;i++){ c.fillRect(X+WD.roomW-62+i*16,fl-56,14,56); c.fillStyle='#2a3038'; c.fillRect(X+WD.roomW-58+i*16,fl-48,6,2); c.fillStyle='#4a5560'; }
+    c.fillStyle='#6a5236'; c.fillRect(X+92,fl-30,70,5); c.fillStyle='#4a3a26'; c.fillRect(X+96,fl-25,3,25); c.fillRect(X+155,fl-25,3,25); c.fillStyle='#d9c9a0'; c.fillRect(X+104,fl-34,46,5); c.strokeStyle='#8a5a3a'; c.lineWidth=.8; c.beginPath(); c.moveTo(X+108,fl-32); c.lineTo(X+120,fl-33); c.lineTo(X+132,fl-31); c.lineTo(X+146,fl-33); c.stroke();
+    c.fillStyle='#3a3226'; c.fillRect(X+80,top+16,90,4); for(let i=0;i<4;i++){ c.fillStyle='#2a2a2a'; c.fillRect(X+86+i*20,top+20,3,24); c.fillStyle='#4a4038'; c.fillRect(X+84+i*20,top+36,7,6); }
+    c.fillStyle='#8a6a42'; c.fillRect(X+178,top+12,52,34); c.fillStyle='#d9cfa8'; c.fillRect(X+182,top+16,26,20); c.strokeStyle='#7a5a3a'; c.lineWidth=.7; c.beginPath(); c.moveTo(X+184,top+30); c.lineTo(X+192,top+22); c.lineTo(X+200,top+27); c.lineTo(X+206,top+19); c.stroke(); c.fillStyle='#f2efe6'; c.fillRect(X+211,top+16,15,9); c.fillRect(X+212,top+28,13,12); for(const [px,py,pc] of [[192,22,'#c8282a'],[206,19,'#2a6ab0'],[218,17,'#e2c46a']]){ c.fillStyle=pc; c.beginPath(); c.arc(X+px,top+py,1.6,0,TAU); c.fill(); } } };
+function drawSquadDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor); c.save(); c.font='bold 8px Archivo, sans-serif'; c.textAlign='left';
+  for(const tm of (G.teams||[]).filter(q=>q.room===r.id)){ const X=x+tm.seg*WD.roomW; c.fillStyle=tm.sf?'#1a1a1a':'#3a4a2a'; c.fillRect(X+10,top+12,64,16); c.fillStyle=tm.sf?'#d9b14a':'#e8e2d0'; c.fillText((tm.sf?'SF ':'')+tm.name.toUpperCase().slice(0,12),X+14,top+23); } c.restore(); }
+
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
   c.fillStyle='#211d19'; c.fillRect(x,top,w,h);
@@ -6762,7 +6812,7 @@ function drawScene(now){
   drawShaft(c);
   if(lift2()) drawShaft(c,shaft2X-WD.shaft/2,floorTop(0)-4);
   const lit=G.boost>0&&!G.flags.power;
-  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); else if(r.type==='intel') drawIntelDecor(c,r,t); else if(r.type==='execc') drawExecDecor(c,r,t); else if(r.type==='chamber') drawChamberDecor(c,r,t); else if(r.type==='precinct') drawPrecinctFlag(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
+  for(let f=0;f<G.floors;f++) for(let col=0;col<COLS;col++){ const r=roomAt(f,col); if(r&&r.col!==col) continue; if(r){ try{ c.save(); drawRoomCached(c,r,t,lit); if(r.type==='phall') drawHallDecor(c,r,t); else if(r.type==='intel') drawIntelDecor(c,r,t); else if(r.type==='execc') drawExecDecor(c,r,t); else if(r.type==='chamber') drawChamberDecor(c,r,t); else if(r.type==='squad') drawSquadDecor(c,r,t); else if(r.type==='precinct') drawPrecinctFlag(c,r,t); if(r.dmgUntil&&r.dmgUntil>G.day) drawRoomDamage(c,r,t); }catch(err){ if(!drawScene.err){drawScene.err=1;console.error(err);} } finally{ c.restore(); } } else drawEmpty(c,f,col); }
   drawFrame(c);
   G.gate.forEach((v,i)=>{ const a={x:GATEX(i),y:lvlY(-1),dir:-1,ph:0,pose:'stand',off:i}, gg=v.gear||{}; drawPerson(c,a,v.s,t,{noBadge:true,ring:HOVER&&HOVER.gate===i,L:gg.o?Object.assign({},LOOKS[ITEMS[gg.o].look]):undefined,W:gg.w?ITEMS[gg.w]:null}); });
   const VW=(()=>{ const wr=document.getElementById('sceneWrap'); if(!wr) return null; return {x0:wr.scrollLeft/SC-90,x1:(wr.scrollLeft+wr.clientWidth)/SC+90,y0:wr.scrollTop/SC-140,y1:(wr.scrollTop+wr.clientHeight)/SC+60}; })();
@@ -6899,7 +6949,7 @@ if(ctxOK){
     if(DRAG){
       const s=byId(DRAG.id), h=hitTest(p);
       if(s){ if(h.room){ const r=roomById(h.room); if(assign(s,r)&&r.type!=='quarters') toast(`${s.first} now works in the ${ROOMS[r.type].name}.`); else if(r.type==='quarters'&&s.room===r.id) toast(`${s.first} moved into the quarters.`); }
-        else if(h.surface){ if(canExplore(s)){ if(!UI.expSel.includes(s.id)&&UI.expSel.length<5) UI.expSel.push(s.id); UI.tab='exp'; toast(`${s.first} joined the expedition team. Pick the rest in the Expeditions tab.`); } else toast(`${s.first} can’t explore: ${exploreWhy(s).toLowerCase()}.`); } }
+        else if(h.surface){ if(canExplore(s)){ if(!UI.expSel.includes(s.id)&&UI.expSel.length<3) UI.expSel.push(s.id); UI.tab='exp'; toast(`${s.first} joined the expedition team. Pick the rest in the Expeditions tab.`); } else toast(`${s.first} can’t explore: ${exploreWhy(s).toLowerCase()}.`); } }
       DRAG=null; PT=null; renderUI(); return;
     }
     if(PT){ const h=hitTest(p);
@@ -7133,7 +7183,7 @@ function renderWild(){
   return h;
 }
 function renderExp(){
-  let h=renderWild()+`<h3 class="sec">Expeditions</h3>`;
+  let h=renderWild()+`<h3 class="sec">Expeditions</h3>`+teamsBox();
   for(const e of G.exps){
     const left=e.status==='returning'?Math.max(0,Math.ceil((e.backAt-Date.now())/1000)):0;
     h+=`<div class="exp"><div class="hd"><b>${esc(opTitle(e))} · ${esc(e.src)}${e.zone?' · '+zoneOf(e).ic+' '+zoneOf(e).n:''}</b><span class="tag ${e.status==='out'?'b':'g'}">${e.status==='out'?`Q ${e.n} · ${e.c} correct`:`Home in ${Math.floor(left/60)}:${pad2(left%60)}`}</span></div>
@@ -7143,7 +7193,7 @@ function renderExp(){
   const el=G.settlers.filter(s=>canExplore(s)).sort((a,b)=>memberPow(b)-memberPow(a));
   UI.expSel=UI.expSel.filter(id=>el.some(s=>s.id===id));
   const f=UI.ef;
-  h+=`<div class="box"><h4>New expedition · pick up to 5 · ${UI.expSel.length} chosen</h4>${G.inst.gov>=1&&G.leader&&byId(G.leader)?`<p class="lede" style="font-size:12px">Sent under orders from ${esc(fullName(byId(G.leader)))}. Score 70%+ to lift their approval; under 50% or losses on the road will cost them.</p>`:''}
+  h+=`<div class="box"><h4>New expedition · pick up to 3 · ${UI.expSel.length} chosen</h4>${G.inst.gov>=1&&G.leader&&byId(G.leader)?`<p class="lede" style="font-size:12px">Sent under orders from ${esc(fullName(byId(G.leader)))}. Score 70%+ to lift their approval; under 50% or losses on the road will cost them.</p>`:''}
   <div class="picklist">${el.map(s=>{const on=UI.expSel.includes(s.id), w=gearOf(s,'w'), o=gearOf(s,'o');return `<label class="${on?'on':''}"><input type="checkbox" data-a="expPick" data-id="${s.id}" ${on?'checked':''}><span>${esc(fullName(s))}<br><span class="st">${w?esc(w.name):'Unarmed'}${o?' · '+esc(o.name):''}</span></span><span class="st">Power ${Math.round(memberPow(s))} · L ${Math.round(effStat(s,'L'))} · HP ${Math.round(s.health)}${G.inst.gov>=1&&G.leader?willTag(s):''}</span></label>`;}).join('')||'<p class="lede">Nobody is fit to go. Settlers need 50+ health, and blind settlers need Disability Services.</p>'}</div>
   <div class="form"><label>Operation name (optional)<input type="text" id="ef_name" data-ef="name" maxlength="40" value="${esc(f.name||'')}" placeholder="Auto: Operation …"></label><label>Where to go<select id="ef_zone" data-ef="zone">${EXP_ZONES.map((z,i)=>`<option value="${i}" ${(+f.zone||0)===i?'selected':''}>${z.ic} ${z.n}</option>`).join('')}</select></label><label>Question bank<select data-f="src" id="ef_src" data-ef="1">${QSRC.map(x=>`<option ${f.src===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Stims to bring (max ${EXP_STIMS}, you have ${Math.floor(G.res.stims)})<input type="number" id="ef_meds" data-ef="meds" min="0" max="${EXP_STIMS}" value="${esc(f.meds)}"></label></div>
   <p class="lede" style="font-size:12px;margin-top:-4px">${EXP_ZONES[+f.zone||0].ic} <b>${EXP_ZONES[+f.zone||0].n}:</b> ${EXP_ZONES[+f.zone||0].d}${(+f.zone||0)?` Loot ×${EXP_ZONES[+f.zone||0].capsM} caps, better gear odds; enemies ${Math.round(EXP_ZONES[+f.zone||0].atk*100)}% likely on a wrong answer (Ruins 55%), hits ×${EXP_ZONES[+f.zone||0].dmg}.`:''}</p>
@@ -7498,6 +7548,13 @@ document.addEventListener('click',e=>{
     case 'endEmerg': if(G.emergency){ G.emergency.until=G.day; emergencyDay(); const r=G.leader&&byId(G.leader); if(r) r.loy=Math.max(0,(r.loy||50)-15); save(); } break;
     case 'intelOv': G.intelOversight=!G.intelOversight; { const L=G.leader&&byId(G.leader); if(L&&G.intelOversight&&docOf(L).sec>.3) L.loy=Math.max(0,(L.loy||50)-5); } polNews(G.intelOversight?'The Overseer placed the Intelligence Bureau under oversight: no political use.':'The Overseer lifted oversight of the Intelligence Bureau.'); save(); break;
     case 'secSet': { const k=el.dataset.v, sel=document.getElementById('secPick_'+k), s=sel&&byId(+sel.value); if(s){ cabSeat(k,s,'the Overseer'); const L=G.leader&&byId(G.leader); if(L) L.loy=Math.max(0,(L.loy||50)-3); save(); } break; }
+    case 'teamNew': teamCreate(); break;
+    case 'teamRename': { const t=teamById(id), v=($('tmn_'+id)||{}).value; if(t&&v&&v.trim()) t.name=v.trim().slice(0,24); break; }
+    case 'teamSF': { const t=teamById(id); if(t){ t.sf=!t.sf; for(const x of t.ids.map(byId).filter(Boolean)) x.sf=t.sf; log(`Team ${t.name} ${t.sf?'is now Special Forces, part of the military':'is no longer Special Forces'}.`,'gov'); } break; }
+    case 'teamDrop': { const t=teamById(id), x=byId(+el.dataset.v); if(t&&x){ teamDrop(t,x); toast(`${x.first} left team ${t.name}.`); } break; }
+    case 'teamDisband': { const t=teamById(id); if(t){ for(const x of t.ids.map(byId).filter(Boolean)) teamDrop(t,x); G.teams=G.teams.filter(q=>q!==t); toast(`Team ${t.name} disbanded.`); } break; }
+    case 'teamLive': { const t=teamById(id); if(t) teamDeploy(t,'live'); break; }
+    case 'teamPick': { const t=teamById(id); if(t) teamDeploy(t,'pick'); break; }
     case 'raidOff': { const x=byId(id); if(x){ x.raidOff=!x.raidOff; toast(x.raidOff?`${x.first} is stood down from raid response.`:`${x.first} is back on the raid rotation.`); } break; }
     case 'raidMode': G.raidMode=el.dataset.v==='strongest'?'strongest':'rotate'; break;
     case 'sessCall': { if(sessStart('regular')){ G.sess.what='called by the Overseer'; polNews('🏛 The Overseer called the council into session.'); } else toast('The council cannot sit right now.'); break; }
@@ -7531,8 +7588,8 @@ document.addEventListener('click',e=>{
     case 'walkToggle': G.walk=G.walk||{}; G.walk.on=!G.walk.on; polNews(G.walk.on?'The leader will walk the halls and meet the people.':'The leader will stay in the office.'); break;
     case 'motionOk': if(G.motion) toast('The vote will go ahead.'); break;
     case 'motionStop': if(G.motion&&!G.motion.stopped){ G.motion.stopped=true; G.motion.d=G.day+3; G.approval=Math.max(0,G.approval-5); polNews('The Overseer intervened and postponed the no-confidence vote by 3 days.'); } break;
-    case 'explore': { const s=byId(id); if(s&&canExplore(s)){ if(!UI.expSel.includes(s.id)&&UI.expSel.length<5) UI.expSel.push(s.id); UI.tab='exp'; closeModal(); toast(`${s.first} joined the expedition team. Pick the rest in the Expeditions tab.`);} break; }
-    case 'expPick': { e.preventDefault&&0; const i=UI.expSel.indexOf(id); if(i>=0) UI.expSel.splice(i,1); else if(UI.expSel.length<5) UI.expSel.push(id); else toast('A team can have at most 5 settlers.'); break; }
+    case 'explore': { const s=byId(id); if(s&&canExplore(s)){ if(!UI.expSel.includes(s.id)&&UI.expSel.length<3) UI.expSel.push(s.id); UI.tab='exp'; closeModal(); toast(`${s.first} joined the expedition team. Pick the rest in the Expeditions tab.`);} break; }
+    case 'expPick': { e.preventDefault&&0; const i=UI.expSel.indexOf(id); if(i>=0) UI.expSel.splice(i,1); else if(UI.expSel.length<3) UI.expSel.push(id); else toast('A team can have at most 3 settlers.'); break; }
     case 'startLive': { const x=startExpedition(UI.expSel,'live',UI.ef.src,UI.ef.meds); if(x){ UI.expSel=[]; toast('The team is out. Mark each question with Correct or Incorrect, or press C and X.'); window.scrollTo&&window.scrollTo({top:0,behavior:'smooth'}); } break; }
     case 'opRename': { const e=expById(id), el=$('opn_'+id), v=el&&el.value.trim().slice(0,40); if(e&&v){ const old=e.name; e.name=v; for(const s of [...G.settlers,...G.dead]) for(const o of s.ops||[]) if(o.id===e.id) o.nm=v; if(old) histAdd(`${old} was renamed ${v}.`); toast(`Renamed to ${v}.`); save(); } if(document.activeElement) document.activeElement.blur(); break; }
     case 'expDeeper': { const e=expById(id); if(e&&e.status==='out'&&(e.zone||0)<EXP_ZONES.length-1){ e.zone=(e.zone||0)+1; expLog(e,`The team pushed on into ${zoneOf(e).n.replace(/^The /,'the ')}.`,'bad'); log(`${e.name}: the team pushed on into ${zoneOf(e).n.replace(/^The /,'the ')}.`,'danger'); } break; }
@@ -7577,6 +7634,7 @@ document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.f==='src'){ if(el.dataset.ef) UI.ef.src=el.value; else UI.sform.src=el.value; }
   if(el.dataset.c==='hallDesign'){ const r=roomById(+el.dataset.id); if(r){ r.design=+el.value; save(); } el.blur(); renderUI(); }
+  if(el.dataset.c==='teamAdd'){ const t=teamById(+el.dataset.id), x=byId(+el.value); if(t&&x) teamAdd(t,x); save(); el.blur(); renderUI(); return; }
   if(el.dataset.c==='cmdGuard'){ const r=roomById(+el.dataset.id); if(r){ r.guard=+el.value; save(); } el.blur(); renderUI(); }
   if(el.dataset.c==='gear'){ const s=byId(+el.dataset.id); if(s){ equip(s,el.dataset.slot,el.value?+el.value:null); } el.blur(); renderUI(); }
   if(el.dataset.c==='assign'){ const s=byId(+el.dataset.id); if(s){ if(!el.value) unassign(s); else assign(s,roomById(+el.value)); } el.blur(); renderUI(); }
@@ -7635,7 +7693,7 @@ function start(data){
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
-  window.__colony={get G(){return G;},PROPS,startFight,sessStart,sessEnd,chamberDay,ambDay,legendDay,motionStep,promoWhy,wearDay,dayStep,itemTier:k=>ITEMS[k]?ITEMS[k].tier:0,holdElection,startExpedition,expAnswer,endExpedition,voterPick,voteUtil,councilPick,electionField,polAdults,isCitizen,polOpenPosts,polVacancyDay,pollDay,campaignPlan,flagLike,flagAdopt,startRef,refStep,flagLeaderDay,flagSVG,FL_TPL,musPlay,SONGS,MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
+  window.__colony={get G(){return G;},PROPS,teamCreate,teamAdd,teamDeploy,teamStep,milCost,milDef,startFight,sessStart,sessEnd,chamberDay,ambDay,legendDay,motionStep,promoWhy,wearDay,dayStep,itemTier:k=>ITEMS[k]?ITEMS[k].tier:0,holdElection,startExpedition,expAnswer,endExpedition,voterPick,voteUtil,councilPick,electionField,polAdults,isCitizen,polOpenPosts,polVacancyDay,pollDay,campaignPlan,flagLike,flagAdopt,startRef,refStep,flagLeaderDay,flagSVG,FL_TPL,musPlay,SONGS,MUS,musStart,musToggle,musAnthem,drinkDay,drinkStep,distClose,distOpen,isDrunk,drunkDisorder,wfSpeed,craftNeed,rescueStart,rescueStep,rescOdds,ammoStep,startCraft,canCraft,econDay,vacancyDay,openPosts,coopNear,startVoting,voteStep,closeVoting,pollNow,renderElections,holdElection,nowD,reservesDay,jobDriftDay,purifyQ,farmBoost,rationCap,tankCap,jobPull,produce,reservesDraw,cabinetDay,renderCabinet,secOf,secB,cabSeat,intelDay,intelPower,agents,startCoup,coupStep,resolveCoup,coupDay,topCommander,coupForces,startUprising,uprisingStep,endUprising,uprDecide,upraiseDay,openInquiry,inquiryDay,suspendParty,partyPlotDay,startPartyPlot,plotDay,plotStrike,arrest,electionDue,postponeOdds,holdElection,hallDay,startAssembly,assemblyStep,endAssembly,hallsAssign,build,partyElection,chairsDay,partyApproval,election,partyDay,partyBox,PARTIES,startBreach,bossRetreat,bossInsideStep,entRoom,startPlague,plagueDay,bossRaidOffline,damageRooms,takeHostage,hostagePay,hostageRescue,hostageDay,bossAftermath,startFight,dayStep,addWear,wearDay,sprintDone,makeResident,citDay,detain,lootKeys,equip,addItem,renderUI,get UI(){return UI;},drawScene:(...a)=>drawScene(...a),isCitizen,makeResident,grantCit,denyCit,citDay,arrestNC,citModal,citRec,election,renovate,renoDay,moveSpots,moveOffice,OFFICE_THEMES,drawPerson,runSpan,catchUp,get AWAY(){return AWAY;},calm:()=>calm(),polPromote,polPromoWhy,patrolPower,forcesDay,hallPatrol,swearIn,unswear,polModal,investigate,protestChoice,startProtest,mkDoctrine,docOf,docLabel,guardDecide,guardDay,immigRec,immigDecide,immigFacts,setGuard,MIL_OK,assign,apRecord,midDay,pardonCaptive,pardonSettler,detain,apSpark,leaderChart,willing,startExplore,arriveExplorer,startExpedition,reportExpedition,opBand,lifeBox,historyPage,escapeTry,removeSettler,unrestDay,protestStep,plotStrike,arrest,protestChoice,leaderSync,councilDay,councilFill,motionStep,leaderPolicy,polDay,lifeStepT:(m)=>lifeStep(m,1),promote,promoWhy,cmdBonus,traderStep,birthRisk,tSell,tBuy,enlist,discharge,milUpkeep,migrate,cmsStart,cmsFinish,updateBurial,prisonDay,joinFromPrison,pickFaction,winFight,ensureEntrance,entRoom,defense,routeVia,vaultStress,ertCap,bedFor,surgReady,surgRefer,surgStep,surgTeam,surgSpeed,surgRisk,surgPrio,critAftermath,roomX,ACUTE,OPS,drawPerson,LOOKS,ITEMS,drawWeapon,mkVisitor,startFight,get FIGHT(){return FIGHT;},floorFill,digReq,build,upgrade,assign,roomAt,advance,dayStep,renderUI,logStudy,drawScene,syncAgents,checkDates,closeDay,callEmergency,ertDrill,AG,UI,raidHit,rollArrivals,removeSettler,startBurial,lootRaider,expAnswer,startExpedition,endExpedition,mkMVP,MVPS,WARLORDS,startFight,CLOUD,cloudPush,cloudPull,get LIVE(){return LIVE;},set LIVE(v){LIVE=v;},updateEmergencies,newGame:o=>{newGame(o);AG.clear();syncAgents(true);}};
   { const db=$('deskBtns'); if(db&&DESKTOP) db.hidden=false; }
   try{ for(const s of [...G.settlers,...G.dead]) relOf(s); }catch(e){}
   syncAgents(true);
