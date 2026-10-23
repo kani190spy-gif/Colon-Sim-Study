@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.0</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.1</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1301,7 +1301,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); ambDay(); legendDay(); chamberDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); flagLeaderDay(); polVacancyDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); ambDay(); trustDay(); legendDay(); chamberDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); flagLeaderDay(); polVacancyDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -5463,7 +5463,7 @@ function partyElection(){ const C=polAdults().filter(s=>isCitizen(s)&&s.party&&!
   if(K.length<2||C.length<6) return false; const L=G.leader&&byId(G.leader);
   const cands=K.map(k=>chairOf(k)); if(L&&isCitizen(L)&&L.party&&!cands.includes(L)){ const i=K.indexOf(L.party); if(i>=0) cands[i]=L; }
   const votes=cands.map(()=>0);
-  for(const v of C){ let best=0,bu=-1e9; cands.forEach((c,i)=>{ const u=-Math.hypot(v.ec-PARTIES[c.party].ec,v.idn-PARTIES[c.party].idn)*3+(G.rally&&G.rally[c.party]!=null&&G.day-G.rally[c.party]<=6?.5:0)+effStat(c,'C')*.15+(c.id===G.leader?(v.loy-50)/25:0)+(v.party===c.party?.8:0)+rnd()*.8; if(u>bu){ bu=u; best=i; } }); votes[best]+=1; }
+  for(const v of C){ let best=0,bu=-1e9; cands.forEach((c,i)=>{ const u=incBonus(c)-Math.hypot(v.ec-PARTIES[c.party].ec,v.idn-PARTIES[c.party].idn)*3+(G.rally&&G.rally[c.party]!=null&&G.day-G.rally[c.party]<=6?.5:0)+effStat(c,'C')*.15+(c.id===G.leader?(v.loy-50)/25:0)+(v.party===c.party?.8:0)+rnd()*.8; if(u>bu){ bu=u; best=i; } }); votes[best]+=1; }
   const tot=votes.reduce((a,b)=>a+b,0), sh=votes.map(x=>x/tot); let wi=0; sh.forEach((v,i)=>{ if(v>sh[wi]) wi=i; });
   const win=cands[wi], prev=G.leader; if(prev&&prev!==win.id) G.ldrEndWhy='Lost the election'; G.leader=win.id;
   G.lastElection={d:G.day,party:true,results:cands.map((x,i)=>({id:x.id,name:fullName(x),share:sh[i],party:x.party}))};
@@ -5519,7 +5519,7 @@ function postponeOdds(L){ if(!L) return 0; const d=docOf(L), crisis=!!(G.plague|
   let p=.04+Math.max(0,d.sec)*.3-Math.max(0,d.open)*.12+(G.approval<45?.22:G.approval<55?.08:0)+(crisis?.2:0)+(pa<.3?.12:0)+Math.min(.15,(G.postponed||0)*.04)+(L.s.C<=4?.05:0);
   return clamp(p,0,.85); }
 function electionDue(){ if(G.emergency&&G.emergency.until>G.day&&G.leader===G.emergency.by){ G.nextElection=G.emergency.until; return; } const L=G.leader&&byId(G.leader); if(!L||G.forceElect){ G.forceElect=false; holdElection(); return; }
-  if(rnd()<postponeOdds(L)){ const n=G.postponed=(G.postponed||0)+1, d=docOf(L), crisis=G.plague?'the outbreak':(G.hostages||[]).length?'the hostage crisis':vaultStress()>.5?'the state of the vault':null;
+  if(rnd()<postponeOdds(L)){ trustHit(L,8,'postponed an election'); const n=G.postponed=(G.postponed||0)+1, d=docOf(L), crisis=G.plague?'the outbreak':(G.hostages||[]).length?'the hostage crisis':vaultStress()>.5?'the state of the vault':null;
     G.nextElection=G.day+ri(6,12); G.apHit=(G.apHit||0)+2+n;
     for(const s of polAdults()) if(s.party&&s.party!==L.party) s.loy=Math.max(0,(s.loy||50)-(4+2*Math.min(n,5)));
     for(const k of PK) if(k!==L.party&&hallOf(k)&&!hallClosed(k)) { /* angry parties more likely to rally or march */ G.pAnger=G.pAnger||{}; G.pAnger[k]=(G.pAnger[k]||0)+1; }
@@ -5681,7 +5681,7 @@ function intelDay(){ const ip=intelPower(); if(!ip||calm()) return; const L=G.le
       G.intelAbuse=(G.intelAbuse||[]).concat({d:G.day,k,frame,caught}).slice(-20);
       if(frame){ const ch=chairOf(k); if(ch&&!ch.detained) detain(ch,'Accused of sedition on Bureau evidence',ri(10,20)); suspendParty(k,ri(8,12),'the Bureau produced evidence of sedition'); }
       if(caught){ G.apHit=(G.apHit||0)+(frame?8:4); for(const s of polAdults()) if(s.party!==L.party) s.loy=Math.max(0,(s.loy||50)-(frame?8:4)); if(L.party) for(const s of partyMembers(L.party)) s.loy=Math.max(0,(s.loy||50)-3);
-        polNews(`📰 SCANDAL: ${dir?`${fullName(dir)}, head of the Intelligence Bureau,`:'A Bureau agent'} revealed that ${L.first} ordered the Bureau to ${frame?`FRAME the ${PARTIES[k].n}`:`spy on the ${PARTIES[k].n}`}. Every rival party is outraged.${frame?' You can lift the suspension from the Council tab.':''}`); }
+        trustHit(L,18,'Intelligence Bureau scandal'); polNews(`📰 SCANDAL: ${dir?`${fullName(dir)}, head of the Intelligence Bureau,`:'A Bureau agent'} revealed that ${L.first} ordered the Bureau to ${frame?`FRAME the ${PARTIES[k].n}`:`spy on the ${PARTIES[k].n}`}. Every rival party is outraged.${frame?' You can lift the suspension from the Council tab.':''}`); }
       else if(frame) intelNote(`(Hidden from the public) ${L.first} had the Bureau plant evidence against the ${PARTIES[k].n}.`,'abuse');
       else intelNote(`(Hidden from the public) ${L.first} had the Bureau spy on the ${PARTIES[k].n}.`,'abuse'); } } }
 function intelBox(){ const r=intelRoom(); if(G.inst.gov<2) return ''; const A=agents(), dir=intelDirector(), N=(G.intelLog||[]).slice(-6).reverse();
@@ -5844,8 +5844,14 @@ function electionField(raw,planIn){ const C=polAdults().filter(s=>isCitizen(s)&&
   if(K.length>=2&&C.length>=6){ const L=G.leader&&byId(G.leader); const plan=planIn||(raw?null:G.vote&&G.vote.runK?{run:G.vote.runK,endorse:G.vote.endorse}:campaignPlan()); if(plan&&plan.run){ const K2=K.filter(k=>plan.run.includes(k)); if(K2.length>=2) K=K2; } const cands=K.map(k=>chairOf(k)); if(L&&isCitizen(L)&&L.party&&!cands.includes(L)){ const i=K.indexOf(L.party); if(i>=0) cands[i]=L; }
     const lists=PK.filter(k=>partyMembers(k).filter(isCitizen).length>=2&&!partySusp(k)); return {party:true,cands,lists,runK:K,endorse:plan&&plan.endorse||{},why:plan&&plan.why||{}}; }
   const sc=s=>s.s.C*2+s.s.I+s.happy/20; return {party:false,cands:G.settlers.filter(s=>isAdult(s)&&!s.exp&&isCitizen(s)).sort((a,b)=>sc(b)-sc(a)).slice(0,3),lists:[]}; }
-function voteUtil(v,c,noise){ if(c.party) return -Math.hypot(v.ec-PARTIES[c.party].ec,v.idn-PARTIES[c.party].idn)*3+(G.rally&&G.rally[c.party]!=null&&G.day-G.rally[c.party]<=6?.5:0)+effStat(c,'C')*.15+(c.id===G.leader?((v.loy||50)-50)/25:0)+(v.party===c.party?.8*((G.vote&&G.vote.coh&&G.vote.coh[v.party])??1):0)+(curEndorse()[v.party]===c.party?.7:0)+noise*.8;
-  const PW=polStrength(); return Math.log(Math.pow(c.s.C*3+c.s.I+c.happy/15+(PW[c.lean||'loyal']||0)*20,2)+1)*.6+(c.id===G.leader?((v.loy||50)-50)/40:0)+noise*1.2; }
+/* v12.1: US-style incumbency — approval and trust carry into the ballot box */
+const trustBase=c=>clamp(50+(effStat(c,'C')-5)*3,20,80);
+const trustOf=c=>clamp(c.trust??trustBase(c),0,100);
+function trustHit(c,v,why){ if(!c) return; c.trust=clamp(trustOf(c)-v,0,100); if(why) c.trustWhy=why; }
+function trustDay(){ for(const s of G.settlers) if(s.trust!=null){ const b=trustBase(s); s.trust+=(b-s.trust)*.03; if(Math.abs(s.trust-b)<.5) delete s.trust; } }
+const incBonus=c=>(c.id===G.leader?(G.approval-50)/22-Math.max(0,tenureYrs()-2)*.25:0)+(trustOf(c)-50)/25;
+function voteUtil(v,c,noise){ if(c.party) return incBonus(c)+-Math.hypot(v.ec-PARTIES[c.party].ec,v.idn-PARTIES[c.party].idn)*3+(G.rally&&G.rally[c.party]!=null&&G.day-G.rally[c.party]<=6?.5:0)+effStat(c,'C')*.15+(c.id===G.leader?((v.loy||50)-50)/25:0)+(v.party===c.party?.8*((G.vote&&G.vote.coh&&G.vote.coh[v.party])??1):0)+(curEndorse()[v.party]===c.party?.7:0)+noise*.8;
+  const PW=polStrength(); return incBonus(c)+Math.log(Math.pow(c.s.C*3+c.s.I+c.happy/15+(PW[c.lean||'loyal']||0)*20,2)+1)*.6+(c.id===G.leader?((v.loy||50)-50)/40:0)+noise*1.2; }
 function voterPick(v,cands,noise=true){ const me=cands.indexOf(v); if(me>=0) return me; let best=0,bu=-1e9; cands.forEach((c,i)=>{ const u=voteUtil(v,c,noise?rnd():.5); if(u>bu){ bu=u; best=i; } }); return best; }
 function councilPick(v,lists,leaderParty){ if(!lists.length) return null; if(v.party&&lists.includes(v.party)&&G.vote&&G.vote.cparty&&!G.vote.cparty.includes(v.party)&&rnd()<.85) return v.party; if(leaderParty&&lists.includes(leaderParty)&&rnd()<.85) return leaderParty; if(v.party&&lists.includes(v.party)) return v.party; return lists.slice().sort((a,b)=>pDist(v,a)-pDist(v,b))[0]; }
 function turnoutTarget(F,elig){ const p=pollNow(F), sh=p.L.map(x=>x.share).sort((a,b)=>b-a), margin=sh.length>1?sh[0]-sh[1]:1;
@@ -5908,7 +5914,7 @@ function renderElections(){ let h=`<h3 class="sec">Elections</h3>`+refBox(); con
     ${V.log.length?`<p class="lede" style="font-size:12px;margin-top:10px">Just voted: ${V.log.slice().reverse().slice(0,6).map(x=>{ const s=anyById(x[0]); return s?esc(s.first):''; }).filter(Boolean).join(', ')}</p>`:''}</div>`; }
   else if(G.inst.gov>=3){ const em=G.emergency&&G.emergency.until>G.day; h+=`<div class="box"><h4>Next election</h4><p class="lede">${em?`<b style="color:var(--danger)">Elections are suspended under the emergency government</b> for ${G.emergency.until-G.day} more days.`:G.nextElection!=null?`${G.postponed?`<b style="color:var(--danger)">Postponed ${G.postponed} time${G.postponed>1?'s':''}.</b> `:''}Due in ${Math.max(0,G.nextElection-G.day)} days. Voting lasts 1–2 days.`:'Not scheduled yet.'}${L&&!em?` Chance ${esc(L.first)} postpones it: about ${Math.round(postponeOdds(L)*100)}%.`:''}</p>${!em?`<div class="row"><button class="btn sm" data-a="electNow">${G.forceElect?'✓ Election ordered for tomorrow':'Order the election held'}</button></div>`:''}</div>`;
     const F=electionField(), p=pollNow(F), ph=(G.pollHist||[]), prev=ph.length>=8?ph[ph.length-8]:null;
-    h+=`<div class="box"><h4>Opinion poll · ${p.n} citizens</h4><p class="lede" style="font-size:12px">Who citizens would vote for if the election were held today${F.party?' (party chairs)':''}. Arrows compare with about a week ago. Real results swing with turnout and the mood on the day.</p>${F.party?endorseHTML(F.endorse,F.why):''}
+    h+=`<div class="box"><h4>Opinion poll · ${p.n} citizens</h4><p class="lede" style="font-size:12px">Who citizens would vote for if the election were held today${F.party?' (party chairs)':''}. Arrows compare with about a week ago. Real results swing with turnout and the mood on the day.</p>${(()=>{ const L=G.leader&&byId(G.leader); return `<p class="lede" style="font-size:12px">${L?`Incumbent ${esc(L.first)}: approval <b>${Math.round(G.approval)}%</b> (${G.approval>=60?'a popular incumbent gets a real edge':G.approval<45?'voters want change':'a modest edge'}) · trust <b>${Math.round(trustOf(L))}</b>${L.trustWhy&&trustOf(L)<trustBase(L)-3?` (dented: ${esc(L.trustWhy)})`:''}. `:''}Candidate trust: ${F.cands.map(c=>`${esc(c.first)} ${Math.round(trustOf(c))}`).join(' · ')}. Trust starts from Charisma, falls with scandals and broken promises, and slowly recovers.</p>`; })()}${F.party?endorseHTML(F.endorse,F.why):''}
     ${barRows(p.L.map(x=>{ const o=prev&&prev.L.find(y=>y[0]===x.id), dv=o?x.share-o[2]:0; return {label:`${esc(x.name)}${x.party?` · <span style="color:${pcol(x.party)}">${PARTIES[x.party].n}</span>`:''}${x.id===G.leader?' ★':''}`,share:x.share,c:pcol(x.party),extra:o&&Math.abs(dv)>=.01?(dv>0?`▲${Math.round(dv*100)}`:`▼${Math.round(-dv*100)}`):''}; }))}
     ${F.party&&p.C.length?`<h4 style="margin-top:12px">Council · party lists</h4>${pieHTML(p.C.map(x=>({n:PARTIES[x.k].n,v:x.share,c:PARTIES[x.k].c})))}<p class="lede" style="font-size:12px;margin-top:6px">Projected seats (${seatsN()}):</p>${seatsRow(dhondt(Object.fromEntries(p.C.map(x=>[x.k,x.share])),seatsN()))}`:''}</div>`; }
   const E=G.lastElection; if(E){ const tt=E.turnout; h+=`<div class="box"><h4>Last election · ${fdate(E.d)}${tt?` · turnout ${Math.round(tt.cast/Math.max(1,tt.elig)*100)}% (${tt.cast}/${tt.elig})`:''}</h4>${barRows(E.results.map(r=>({label:`${esc(r.name)}${r.party?` · <span style="color:${pcol(r.party)}">${PARTIES[r.party].n}</span>`:''}`,share:r.share,c:pcol(r.party),extra:r.votes!=null?`${r.votes} vote${r.votes===1?'':'s'}`:''})))}
@@ -6528,7 +6534,7 @@ function polVacancyBox(){ const O=polOpenPosts(); if(!O.length) return ''; retur
 
 /* ===== v11.7: legends lost on authorized operations · Tito's road to the Communist chair · Council Chamber ===== */
 function legendLoss(s,cause){ if(!s||!s.mvp||G.inst.gov<1) return; const L=G.leader&&anyById(G.leader); if(!L||L.id===s.id) return;
-  const myth=isMythic(s), hit=myth?14:9; G.apHit=(G.apHit||0)+hit; G.legendMourn={id:s.id,name:fullName(s),title:s.title||'',until:G.day+(myth?7:5),ldr:L.id};
+  const myth=isMythic(s), hit=myth?14:9; trustHit(L,myth?6:4,`${s.first}’s death`); G.apHit=(G.apHit||0)+hit; G.legendMourn={id:s.id,name:fullName(s),title:s.title||'',until:G.day+(myth?7:5),ldr:L.id};
   G.pAnger=G.pAnger||{}; if(s.party&&s.party!==L.party) G.pAnger[s.party]=(G.pAnger[s.party]||0)+1;
   for(const x of G.settlers){ if(x.id===L.id) continue; x.happy=Math.max(0,x.happy-(myth?5:3)); const kin=(s.parents||[]).includes(x.id)||(x.parents||[]).includes(s.id)||x.partner===s.id||s.partner===x.id;
     x.loy=Math.max(0,(x.loy||50)-(kin?15:s.party&&x.party===s.party?5:x.party&&x.party!==L.party?3:1.5)); if(kin) x.grief=Math.max(x.grief||0,80); }
@@ -6572,7 +6578,7 @@ function sessEnd(){ const S=G.sess; if(!S) return; G.sess=null; const L=G.leader
   if(S.k==='motion'&&G.motion){ G.motion.held=true; motionStep(); return; }
   if(S.k==='censure'){ const s=secOf(S.post); if(!s){ sessLog('Censure dropped (post vacant)',null,null,null); return; } let yes=0; for(const c of C){ const v=(c.loy||50)<50||(c.party&&s.party&&c.party!==s.party&&rnd()<.5)||rnd()<.15; if(c.id!==s.id&&v) yes++; }
     const n=C.filter(c=>c.id!==s.id).length, pass=yes*2>n; sessLog(`Censure of ${fullName(s)} (${SECS[S.post].n})`,yes,n,pass);
-    if(pass){ const hawk=L&&docOf(L).sec>.25&&rnd()<.35; if(hawk){ G.apHit=(G.apHit||0)+4; polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}, but ${L.first} refused to dismiss them. Approval fell.`); }
+    if(pass){ const hawk=L&&docOf(L).sec>.25&&rnd()<.35; if(hawk){ G.apHit=(G.apHit||0)+4; trustHit(L,6,'defied a council censure'); polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}, but ${L.first} refused to dismiss them. Approval fell.`); }
       else { G.cab[S.post]=null; G.cabHold=G.cabHold||{}; G.cabHold[S.post]=G.day+1; s.loy=Math.max(0,(s.loy||50)-12); polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}; they were removed as ${SECS[S.post].n}.`); } }
     else polNews(`🏛 The censure of ${fullName(s)} failed (${yes} of ${n}). They keep their post.`); return; } }
 function chamberDay(){ if(G.inst.gov<1||!chamberRoom()||AWAY) return; if(!G.sess&&G.day>=(G.sessNext||0)) sessStart(G.plague||(G.hostages||[]).length||G.uprising?'emergency':'regular'); }
