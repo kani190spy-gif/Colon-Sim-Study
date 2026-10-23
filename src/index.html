@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.2</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.3</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -709,7 +709,7 @@ function mkMVP(note){
   return {s,expires:G.day+45,gear:{w,o:key==='tito'?'o_marshal':ok.length?pick(ok):undefined},mvp:true};
 }
 function bosVisitor(note){ if(G.bos&&rnd()<.035+.025*(typeof radioPull==='function'?radioPull():0)){ const v=mkMVP(); if(v) return v; } return mkVisitor(note); }
-function mvpJoined(s){ if(!s.mvp) return; G.mvpUsed=G.mvpUsed||[]; if(!G.mvpUsed.includes(s.mvp)) G.mvpUsed.push(s.mvp); G.legends=G.legends||[]; G.legends.push({key:s.mvp,id:s.id,name:fullName(s),title:s.title,joined:G.day}); mvpIdeo(s); log(`${fullName(s)} (${s.title}) joined the shelter. ${isMythic(s)?'A mythic legend walks the halls!':'A legend walks the halls.'}`,'family'); }
+function mvpJoined(s){ if(!s.mvp) return; standHit(isMythic(s)?4:2,`${s.first} ${s.last.split(' ').slice(-1)[0]} joined the shelter`); G.mvpUsed=G.mvpUsed||[]; if(!G.mvpUsed.includes(s.mvp)) G.mvpUsed.push(s.mvp); G.legends=G.legends||[]; G.legends.push({key:s.mvp,id:s.id,name:fullName(s),title:s.title,joined:G.day}); mvpIdeo(s); log(`${fullName(s)} (${s.title}) joined the shelter. ${isMythic(s)?'A mythic legend walks the halls!':'A legend walks the halls.'}`,'family'); }
 function mvpDied(s){ const L=(G.legends||[]).find(x=>x.id===s.id); if(L){ L.died=G.day; L.cause=s.cause; L.age=ageY(s); } log(`${fullName(s)} has died. Their name is kept in the Hall of Legends.`,'death'); }
 function bloodline(s){ return s.line?MVPK[s.line]:null; }
 // warlord leaders
@@ -1114,7 +1114,7 @@ function setPartner(a,b){
   log(`${a.first} and ${b.first} became partners.`,'family');
   FX.heart(a.id); FX.heart(b.id);
 }
-function removeSettler(s,cause,departed){ if(!departed&&s&&s.mvp&&/rescue raid|on expedition|in the wasteland/i.test(cause||'')) try{ legendLoss(s,cause); }catch(e){} if(!departed&&isAdult(s)&&MUS.on&&Date.now()-(MUS.lastMourn||0)>8*60000){ MUS.lastMourn=Date.now(); musPlay(relOf(s)==='M'?'ilahija':'ballad'); }
+function removeSettler(s,cause,departed){ if(!departed) try{ standDeath(s,cause); }catch(e){} if(!departed&&s&&s.mvp&&/rescue raid|on expedition|in the wasteland/i.test(cause||'')) try{ legendLoss(s,cause); }catch(e){} if(!departed&&isAdult(s)&&MUS.on&&Date.now()-(MUS.lastMourn||0)>8*60000){ MUS.lastMourn=Date.now(); musPlay(relOf(s)==='M'?'ilahija':'ballad'); }
   unassign(s);
   G.settlers=G.settlers.filter(x=>x!==s);
   if((cause==='Killed on expedition'||cause==='Killed in the wasteland'||cause==='Died in the ruined hospital')&&s.gear){ const ids=[s.gear.o,s.gear.w,s.gear.a].filter(Boolean); G.items=G.items.filter(i=>!ids.includes(i.id)); }
@@ -1303,7 +1303,7 @@ function dayStep(){
     }
   }
   for(const s of G.settlers) if(!s.rel) relOf(s);
-  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); ambDay(); trustDay(); legendDay(); chamberDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); flagLeaderDay(); polVacancyDay(); unrestDay();
+  moodStep(); apRecord(); prisonDay(); escapeDay(); guardDay(); renoDay(); citDay(); hostageDay(); plagueDay(); milUpkeep(); polUpkeep(); forcesDay(); milDay(); polDay(); councilDay(); partyDay(); chairsDay(); ambDay(); trustDay(); standDay(); legendDay(); chamberDay(); hallDay(); partyPlotDay(); inquiryDay(); upraiseDay(); coupDay(); emergencyDay(); intelDay(); cabinetDay(); reservesDay(); jobDriftDay(); pollDay(); econDay(); vacancyDay(); drinkDay(); flagLeaderDay(); polVacancyDay(); unrestDay();
   if(d>=G.nextRaid&&(G.burial||G.trader)) G.nextRaid=d+1; else if(d>=G.nextRaid){ raid(); G.nextRaid=d+150+ri(0,120); }
   G.gate=G.gate.filter(v=>{ if(d>=v.expires){log(`${fullName(v.s)} waited at the gate, then walked on.`);return false;} return true; });
   if(G.inst.gov>=3&&G.nextElection!=null&&d>=G.nextElection&&!AWAY) electionDue();
@@ -1421,10 +1421,18 @@ function happyTarget(s){ return clamp(50+happyFactors(s).reduce((a,x)=>a+x[1],0)
 // people tire of a leader who stays too long: after a year in office a penalty starts and grows
 function tenureYrs(){ if(!(G.inst.gov>=1&&G.leader)) return 0; const T=(G.terms||[]).slice().reverse().find(t=>t.id===G.leader&&t.to==null); return T?Math.max(0,(nowD()-T.from-(T.away||0))/YEAR):0; }
 function tenurePen(){ const y=tenureYrs(); return y<=1?0:Math.min(15,1+(y-1)*3.5); }
+/* v12.3: the leader's standing — lingering political capital that events move; approval = mood ×.55 + standing ×.45 */
+function standHit(v,why){ if(!(G.inst.gov>=1&&G.leader)) return; G.stand=clamp((G.stand??avgHappy())+v,0,100); G.standLog=G.standLog||[]; G.standLog.unshift({d:Math.floor(G.day),v:Math.round(v*10)/10,why}); G.standLog.length=Math.min(G.standLog.length,10); }
+function standDeath(s,cause){ if(!(G.inst.gov>=1&&G.leader)||!s||s.id===G.leader||!isAdult(s)) return; const c=cause||'';
+  const v=/expedition|wasteland|rescue/i.test(c)?-3:/dehydrat|starv/i.test(c)?-3:/prisoner|escaped/i.test(c)?-2.5:/raid/i.test(c)?-2:/plague|outbreak|fever|infection/i.test(c)?-1.5:0;
+  if(v) standHit(v,`${s.first} ${s.last.split(' ').slice(-1)[0]} died (${c.toLowerCase()})`); }
+function standDay(){ if(!(G.inst.gov>=1&&G.leader)||G.stand==null) return; if(G.flags.food||G.flags.water) standHit(-1,'shortages'); else if(avgHappy()>70) G.stand=Math.min(100,G.stand+.25);
+  G.stand+=(58-G.stand)*.04; }
 function moodStep(){
   const sh=G.flags.food||G.flags.water, ldr=G.inst.gov>=1&&G.leader?byId(G.leader):null;
   let pmod=0; if(pol('ration'))pmod-=6; if(pol('mandate'))pmod-=8; if(pol('ucare'))pmod+=5; if(pol('curfew'))pmod-=5; if(pol('access'))pmod+=3;
-  let ap=avgHappy();
+  if(ldr&&G.standLdr!==G.leader){ G.standLdr=G.leader; if(G.stand==null){ G.stand=Math.min(avgHappy(),70); const M=G.legendMourn; if(M&&M.ldr===G.leader&&G.day<=M.until) standHit(-12,`legend ${M.name} killed on an operation ${ldr.first} authorized`); } else { G.stand=G.ldrElected?70:55; G.standLog=[]; } G.ldrElected=false; }
+  let ap=ldr&&G.stand!=null?avgHappy()*.55+G.stand*.45:avgHappy();
   if(ldr) ap+=(ldr.s.C-5)*2;
   if(G.inst.social>=3) ap+=4;
   if(G.inst.gov>=4) ap+=5;
@@ -1440,11 +1448,11 @@ function raid(){
   const home=G.settlers.filter(s=>!s.exp&&!s.preg&&isAdult(s));
   FX.raid();
   if(def>=str){
-    const loot=ri(20,60); G.res.caps+=loot;
+    const loot=ri(20,60); G.res.caps+=loot; standHit(.5,'raid repelled');
     log(`${fac.name} (strength ${Math.round(str)}) hit the door and were driven off by a defense of ${Math.round(def)}. Guards recovered ${loot} caps.`,'danger');
     for(const r of G.rooms) if(r.type==='armory') for(const s of workers(r)) if(rnd()<.3){s.health-=ri(3,10);s.lastHurt='Raid injuries';}
   } else {
-    const f=Math.min(.5,(str-def)/str);
+    const f=Math.min(.5,(str-def)/str); standHit(-3,'raiders broke through');
     const lc=Math.round(G.res.caps*f*.6), lf=Math.round(G.res.food*f*.5), lw=Math.round(G.res.water*f*.5);
     G.res.caps-=lc; G.res.food-=lf; G.res.water-=lw;
     const n=Math.min(home.length,ri(1,3)), mul=G.inst.def>=2?.6:1, hurt=[];
@@ -1553,7 +1561,7 @@ function winFight(){ CHEER=performance.now()+4500;
   const hurt=Object.keys(F.hurt).map(id=>byId(+id)).filter(Boolean).map(s=>s.first);
   log(`${F.name} driven off. ${capt===F.foes.length?`All ${capt} were captured and locked in the Holding Cells.`:capt?`${capt===1?'Their leader was':`${capt} were`} captured and locked up; the rest were killed.`:G.rooms.some(r=>r.type==='jail')?'The Holding Cells were full, so they fought to the end.':'With no Holding Cells to hold them, they fought to the end.'}${nb?` ${nb} bod${nb>1?'ies lie':'y lies'} outside the door. Tap ${nb>1?'them':'it'} to search for caps and loot.`:''}${hurt.length?` Hurt: ${hurt.join(', ')}.`:''}${warNote}`,'danger');
   toast(nb?`Raid repelled! Tap the ${nb>1?'bodies':'body'} outside to collect loot.`:'Raid repelled!');
-  if(F.boss){ log(`☠ ${F.boss} was defeated! Spoils: ${bossLoot()}.`,'study'); bossAftermath(F.boss,true); }
+  if(F.boss){ log(`☠ ${F.boss} was defeated! Spoils: ${bossLoot()}.`,'study'); bossAftermath(F.boss,true); standHit(6,`${F.boss} defeated`); } else standHit(.5,'raid repelled');
   if(G.session) G.session.fights=(G.session.fights||0)+1; raidCasualties(F); save();
 }
 function loseFight(){ if(FIGHT&&FIGHT.boss) bossAftermath(FIGHT.boss,false); const F=FIGHT, f=[.06,.1,.15][F.tier], lc=Math.round(G.res.caps*f), lf=Math.round(G.res.food*f*.6); G.res.caps-=lc; G.res.food-=lf; log(`${F.name} got past the defenders and ran off with ${lc} caps and ${lf} food.`,'danger'); if(F.foes.some(f=>f.war)) log('Their leader is still out there and may return.','danger'); toast('Raiders got through.'); { const nb2=raiderBodies(F); if(F.fac) factionLoss(F.fac,nb2,0); milFightXP(F,false); } raidCasualties(F); save(); }
@@ -4755,6 +4763,7 @@ function opPolitics(e,pct,alive){ const p=Math.round(pct*100);
   let [d,what]=opBand(p); if(!alive) { d=Math.min(d,-5); what='a disaster'; }
   d-=2*e.deaths.length; d*=damp;
   if(d>0) G.apBoost=(G.apBoost||0)+d; else if(d<0) G.apHit=(G.apHit||0)-d;
+  if(p>=80&&alive&&!e.deaths.length) standHit(2,`${e.name||'expedition'} brought home a strong haul (${p}%)`); else if(p<50) standHit(-1.5,`${e.name||'expedition'} went badly (${p}%)`);
   const T=(G.terms||[]).slice().reverse().find(t=>t.id===ldr.id&&t.to==null); if(T){ T.ops=(T.ops||0)+1; T.opsP=(T.opsP||0)+p; }
   // mild factional reactions; loyalty moves a little, never enough on its own to topple a leader
   const A=polAdults(); const nudge=(b,v)=>{ for(const s of A) if(s.lean===b) s.loy=clamp((s.loy||50)+v,0,100); };
@@ -5305,7 +5314,7 @@ function drawRoomDamage(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor), w=r
   c.fillStyle='rgba(180,40,30,.9)'; c.fillRect(x+w-112,top+6,104,16); c.fillStyle='#fff'; c.font='bold 10px Archivo, sans-serif'; c.textAlign='center'; c.fillText(`DAMAGED · ${r.dmgUntil-G.day}d`,x+w-60,top+17); c.restore(); }
 function bossLoot(){ const c=ri(150,320); G.res.caps+=c; const t=rnd()<.25?4:3; const ks=lootKeys().filter(k=>ITEMS[k].tier===t&&k!=='o_zmaj'); const k=ks.length?pick(ks):null; if(k) addItem(k); G.res.stims=Math.min(stimCap(),G.res.stims+2); return `${c} caps, 2 stims${k?`, a ${TIERS[t].toLowerCase()} ${ITEMS[k].name}`:''}`; }
 function takeHostage(bn,pool0){ const pool=pool0||G.settlers.filter(s=>isAdult(s)&&!s.exp&&!s.preg&&s.id!==G.leader&&!s.detained); if(!pool.length) return null; const s=pick(pool);
-  unassign(s); s.exp='hostage'; const ransom=Math.max(150,Math.round(G.res.caps*.3)); G.hostages=G.hostages||[]; G.hostages.push({sid:s.id,boss:bn,since:G.day,until:G.day+8,ransom});
+  unassign(s); s.exp='hostage'; const ransom=Math.max(150,Math.round(G.res.caps*.3)); G.hostages=G.hostages||[]; G.hostages.push({sid:s.id,boss:bn,since:G.day,until:G.day+8,ransom}); standHit(-4,`${s.first} taken hostage`);
   const L=G.leader&&byId(G.leader); let sug=''; if(L&&G.inst.gov>=1){ const d=docOf(L); sug=d.sec>.25?`${L.first} wants a rescue mission.`:d.open>.25||d.sec<-.25?`${L.first} wants to pay the ransom.`:`${L.first} is weighing ransom against a rescue.`; }
   polNews(`${bn} dragged ${fullName(s)} out of the shelter as a hostage. Ransom: ${ransom} caps within 8 days. ${sug}`); return s; }
 function hostageBox(){ const H=G.hostages||[]; if(!H.length) return ''; return `<div class="box" style="border-color:var(--danger)"><h4>⛓ Hostages</h4>${H.map(h=>{ const s=byId(h.sid); if(!s) return ''; const ok=G.res.caps>=h.ransom;
@@ -5323,7 +5332,7 @@ function hostageRescue(sid){ const h=(G.hostages||[]).find(x=>x.sid===sid); if(!
   else { log(`The rescue team (${team.map(s=>s.first).join(', ')}) was driven back.`,'danger'); if(rnd()<.35) hostageEnd(h,'dead'); }
   critAftermath(team); save(); }
 function hostageDay(){ for(const h of (G.hostages||[]).slice()){ if(h.rescue) continue; if(rnd()<.04){ hostageEnd(h,'escaped'); continue; } if(G.day>=h.until){ if(rnd()<.6) hostageEnd(h,'dead'); else { const s=byId(h.sid); G.hostages=G.hostages.filter(x=>x!==h); if(s){ s.exp=null; removeSettler(s,`Taken away by ${h.boss}`,true); log(`Nobody came for ${fullName(s)}. ${h.boss} took them away for good.`,'death'); } } } } }
-function bossAftermath(bn,won){ G.lastBoss=G.day; if(!won) cabBlame('def','the boss raid'); G.defDmg={m:won?.25:.5,until:G.day+(won?4:8)};
+function bossAftermath(bn,won){ G.lastBoss=G.day; if(!won){ cabBlame('def','the boss raid'); standHit(-6,`${bn}’s horde broke through`); } G.defDmg={m:won?.25:.5,until:G.day+(won?4:8)};
   log(`Defenses were badly damaged by ${bn}: ${won?'−25%':'−50%'} for ${won?4:8} days.`,'danger'); if(!won) takeHostage(bn); }
 /* ===== Phase 2: plagues ===== */
 const PLAGUES=['Red cough','Dust fever','Vault flu','Rat fever','Grey pox','Sweating sickness'];
@@ -5353,7 +5362,7 @@ function plagueDay(){ const P=G.plague; if(!P){ plagueCheck(); return; }
   if(P.quar) for(const s of G.settlers) s.happy=Math.max(0,s.happy-1.2);
   if(died.length){ log(`🦠 ${P.name} claimed ${died.join(', ')}.`,'death'); if(G.inst.gov>=1) G.apHit=(G.apHit||0)+died.length*(P.quar||P.treat?.6:1.2); }
   if(newC||rec) log(`🦠 ${P.name}: ${newC} new case${newC===1?'':'s'}, ${rec} recovered, ${G.settlers.filter(s=>s.sick).length} still sick.`,'health');
-  if(!G.settlers.some(s=>s.sick)){ G.lastPlague=G.day; G.plagueLog=G.plagueLog||[]; G.plagueLog.unshift({name:P.name,sev:P.sev,d0:P.day0,d1:G.day,total:P.total,dead:P.dead}); polNews(`🦠 The ${P.name} outbreak is over: ${P.total} fell ill, ${P.dead} died.`); if(P.dead>=3) cabBlame('hea','the deadly outbreak'); histAdd(`${P.name} outbreak (${SEV[P.sev].toLowerCase()}): ${P.total} sick, ${P.dead} dead.`); G.plague=null; } }
+  if(!G.settlers.some(s=>s.sick)){ G.lastPlague=G.day; G.plagueLog=G.plagueLog||[]; G.plagueLog.unshift({name:P.name,sev:P.sev,d0:P.day0,d1:G.day,total:P.total,dead:P.dead}); polNews(`🦠 The ${P.name} outbreak is over: ${P.total} fell ill, ${P.dead} died.`); if(P.dead<=1) standHit(4,`the ${P.name} outbreak was contained`); if(P.dead>=3) cabBlame('hea','the deadly outbreak'); histAdd(`${P.name} outbreak (${SEV[P.sev].toLowerCase()}): ${P.total} sick, ${P.dead} dead.`); G.plague=null; } }
 function plagueBox(){ const P=G.plague; if(!P) return ''; const sick=G.settlers.filter(s=>s.sick);
   return `<div class="box" style="border-color:#7fc96a"><h4>🦠 Outbreak · ${esc(P.name)} · ${SEV[P.sev]}</h4><p class="lede" style="font-size:12px">${sick.length} sick now (${sick.slice(0,8).map(s=>s.first).join(', ')}${sick.length>8?'…':''}) · ${P.total} total · ${P.dead} dead · day ${G.day-P.day0+1}. Sick settlers work at 60%. Preparedness ${plaguePrep()}/4 (staffed clinic, Health level 2+, 10+ stims, a Medbay).</p>
   <div class="row"><button class="btn sm ${P.quar?'pri':''}" data-a="plQuar">${P.quar?'✓ Quarantine on':'Quarantine'}</button><button class="btn sm ${P.treat?'pri':''}" data-a="plTreat">${P.treat?'✓ Treating with meds':'Treat with meds'}</button></div><p class="lede" style="font-size:11px">Quarantine cuts spread a lot but lowers everyone’s mood. Treatment uses meds each day and speeds recovery.</p></div>`; }
@@ -5522,7 +5531,7 @@ function postponeOdds(L){ if(!L) return 0; const d=docOf(L), crisis=!!(G.plague|
   let p=.04+Math.max(0,d.sec)*.3-Math.max(0,d.open)*.12+(G.approval<45?.22:G.approval<55?.08:0)+(crisis?.2:0)+(pa<.3?.12:0)+Math.min(.15,(G.postponed||0)*.04)+(L.s.C<=4?.05:0);
   return clamp(p,0,.85); }
 function electionDue(){ if(G.emergency&&G.emergency.until>G.day&&G.leader===G.emergency.by){ G.nextElection=G.emergency.until; return; } const L=G.leader&&byId(G.leader); if(!L||G.forceElect){ G.forceElect=false; holdElection(); return; }
-  if(rnd()<postponeOdds(L)){ trustHit(L,8,'postponed an election'); const n=G.postponed=(G.postponed||0)+1, d=docOf(L), crisis=G.plague?'the outbreak':(G.hostages||[]).length?'the hostage crisis':vaultStress()>.5?'the state of the vault':null;
+  if(rnd()<postponeOdds(L)){ trustHit(L,8,'postponed an election'); standHit(-8,'postponed the election'); const n=G.postponed=(G.postponed||0)+1, d=docOf(L), crisis=G.plague?'the outbreak':(G.hostages||[]).length?'the hostage crisis':vaultStress()>.5?'the state of the vault':null;
     G.nextElection=G.day+ri(6,12); G.apHit=(G.apHit||0)+2+n;
     for(const s of polAdults()) if(s.party&&s.party!==L.party) s.loy=Math.max(0,(s.loy||50)-(4+2*Math.min(n,5)));
     for(const k of PK) if(k!==L.party&&hallOf(k)&&!hallClosed(k)) { /* angry parties more likely to rally or march */ G.pAnger=G.pAnger||{}; G.pAnger[k]=(G.pAnger[k]||0)+1; }
@@ -5684,7 +5693,7 @@ function intelDay(){ const ip=intelPower(); if(!ip||calm()) return; const L=G.le
       G.intelAbuse=(G.intelAbuse||[]).concat({d:G.day,k,frame,caught}).slice(-20);
       if(frame){ const ch=chairOf(k); if(ch&&!ch.detained) detain(ch,'Accused of sedition on Bureau evidence',ri(10,20)); suspendParty(k,ri(8,12),'the Bureau produced evidence of sedition'); }
       if(caught){ G.apHit=(G.apHit||0)+(frame?8:4); for(const s of polAdults()) if(s.party!==L.party) s.loy=Math.max(0,(s.loy||50)-(frame?8:4)); if(L.party) for(const s of partyMembers(L.party)) s.loy=Math.max(0,(s.loy||50)-3);
-        trustHit(L,18,'Intelligence Bureau scandal'); polNews(`📰 SCANDAL: ${dir?`${fullName(dir)}, head of the Intelligence Bureau,`:'A Bureau agent'} revealed that ${L.first} ordered the Bureau to ${frame?`FRAME the ${PARTIES[k].n}`:`spy on the ${PARTIES[k].n}`}. Every rival party is outraged.${frame?' You can lift the suspension from the Council tab.':''}`); }
+        trustHit(L,18,'Intelligence Bureau scandal'); standHit(-12,'Intelligence Bureau scandal'); polNews(`📰 SCANDAL: ${dir?`${fullName(dir)}, head of the Intelligence Bureau,`:'A Bureau agent'} revealed that ${L.first} ordered the Bureau to ${frame?`FRAME the ${PARTIES[k].n}`:`spy on the ${PARTIES[k].n}`}. Every rival party is outraged.${frame?' You can lift the suspension from the Council tab.':''}`); }
       else if(frame) intelNote(`(Hidden from the public) ${L.first} had the Bureau plant evidence against the ${PARTIES[k].n}.`,'abuse');
       else intelNote(`(Hidden from the public) ${L.first} had the Bureau spy on the ${PARTIES[k].n}.`,'abuse'); } } }
 function intelBox(){ const r=intelRoom(); if(G.inst.gov<2) return ''; const A=agents(), dir=intelDirector(), N=(G.intelLog||[]).slice(-6).reverse();
@@ -5886,7 +5895,7 @@ function voteStep(){ const V=G.vote; if(!V) return; const nd=nowD(), site=V.site
 function dhondt(votes,seats){ const out={}; for(const k in votes) out[k]=0; for(let i=0;i<seats;i++){ let bk=null,bq=-1; for(const k in votes){ const q=votes[k]/(out[k]+1); if(q>bq){ bq=q; bk=k; } } if(bk==null) break; out[bk]++; } return out; }
 function closeVoting(){ const V=G.vote; if(!V) return; for(const id in V.going){ const s=byId(+id); if(s) castBallot(s); } for(const w of V.will){ const s=byId(w.id); if(s&&!s.exp&&!s.detained) castBallot(s); } G.vote=null;
   const cands=V.cands.map(anyById), tot=Math.max(1,V.L.reduce((a,b)=>a+b,0)), sh=V.L.map(x=>x/tot); let wi=-1; V.L.forEach((v,i)=>{ const c=byId(V.cands[i]); if(c&&(wi<0||v>V.L[wi])) wi=i; }); if(wi<0) return;
-  const win=byId(V.cands[wi]), prev=G.leader; if(prev&&prev!==win.id) G.ldrEndWhy='Lost the election'; G.leader=win.id; G.council=(G.council||[]).filter(x=>x!==win.id);
+  const win=byId(V.cands[wi]), prev=G.leader; if(prev&&prev!==win.id) G.ldrEndWhy='Lost the election'; if(prev===win.id){ G.stand=Math.min(100,(G.stand??60)+6); } else G.ldrElected=true; G.leader=win.id; G.council=(G.council||[]).filter(x=>x!==win.id);
   const res={d:G.day,party:V.party,results:cands.map((x,i)=>({id:V.cands[i],name:x?fullName(x):'?',share:sh[i],votes:V.L[i],party:V.cparty[i]})),turnout:{cast:V.cast,elig:V.elig},council:null};
   const line=`Election results: ${cands.map((x,i)=>`${x?x.first:'?'}${V.cparty[i]?` (${PARTIES[V.cparty[i]].s.replace(/s$/,'')})`:''} ${Math.round(sh[i]*100)}%`).join(', ')} on ${Math.round(V.cast/Math.max(1,V.elig)*100)}% turnout. ${fullName(win)} ${prev===win.id?'was re-elected':'takes office'}.`;
   log('🗳 '+line,'gov'); histAdd(line);
@@ -6049,8 +6058,8 @@ function rescueStart(sid,ids){ const h=(G.hostages||[]).find(x=>x.sid===sid); if
 function rescueStep(){ for(const h of (G.hostages||[]).slice()){ const R=h.rescue; if(!R||Date.now()<R.at) continue; h.rescue=null; const team=R.ids.map(byId).filter(Boolean), ok=rnd()<R.odds, dead=[], hurt=[];
   for(const s of team){ s.exp=null; if(!ok&&rnd()<.3||ok&&rnd()<.04){ dead.push(s.first); removeSettler(s,`Killed in a rescue raid against ${h.boss}`); continue; } hurtSettler(s,ri(ok?5:25,ok?20:50),'Rescue raid injuries'); addWear(s,ok?2:5,'rescue raid'); s.intake=Date.now()+ENT_INTAKE; s.waiting=true; if(s.mil) s.milXP=(s.milXP||0)+(ok?6:3); hurt.push(s.first); }
   ammoUse(team.length); const alive=team.filter(s=>!dead.includes(s.first)&&!s.died);
-  if(ok){ musPlay('folkpop'); hostageEnd(h,'rescued'); if(G.inst.gov>=1) G.apBoost=(G.apBoost||0)+3; log(`✅ Rescue raid SUCCEEDED against ${h.boss}.${dead.length?` ${dead.join(', ')} did not make it back.`:''}${hurt.length?` ${hurt.join(', ')} came home hurt.`:''}`,dead.length?'danger':'family'); }
-  else { const killed=rnd()<.35; log(`❌ Rescue raid FAILED against ${h.boss}.${dead.length?` ${dead.join(', ')} ${dead.length>1?'were':'was'} killed.`:''}${hurt.length?` ${hurt.join(', ')} came home wounded.`:''}${killed?'':' The hostage is still held.'}`,'danger'); if(G.inst.gov>=1) G.apHit=(G.apHit||0)+2; if(killed) hostageEnd(h,'dead'); }
+  if(ok){ musPlay('folkpop'); hostageEnd(h,'rescued'); if(G.inst.gov>=1) G.apBoost=(G.apBoost||0)+3; standHit(5,'successful rescue'); log(`✅ Rescue raid SUCCEEDED against ${h.boss}.${dead.length?` ${dead.join(', ')} did not make it back.`:''}${hurt.length?` ${hurt.join(', ')} came home hurt.`:''}`,dead.length?'danger':'family'); }
+  else { const killed=rnd()<.35; log(`❌ Rescue raid FAILED against ${h.boss}.${dead.length?` ${dead.join(', ')} ${dead.length>1?'were':'was'} killed.`:''}${hurt.length?` ${hurt.join(', ')} came home wounded.`:''}${killed?'':' The hostage is still held.'}`,'danger'); if(G.inst.gov>=1) G.apHit=(G.apHit||0)+2; standHit(-4,'failed rescue'); if(killed) hostageEnd(h,'dead'); }
   if(alive.length) critAftermath(alive); toast(ok?'Rescue raid succeeded':'Rescue raid failed'); save(); } }
 function rescueModal(m){ const h=(G.hostages||[]).find(x=>x.sid===m.sid), hs=h&&byId(h.sid); if(!h||!hs) return `<header><h2>Rescue raid</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd"><p class="lede">This hostage is no longer held.</p></div>`;
   m.team=(m.team||[]).filter(id=>{ const s=byId(id); return s&&!s.exp; }); const team=m.team.map(byId), C=rescCands();
@@ -6537,7 +6546,7 @@ function polVacancyBox(){ const O=polOpenPosts(); if(!O.length) return ''; retur
 
 /* ===== v11.7: legends lost on authorized operations · Tito's road to the Communist chair · Council Chamber ===== */
 function legendLoss(s,cause){ if(!s||!s.mvp||G.inst.gov<1) return; const L=G.leader&&anyById(G.leader); if(!L||L.id===s.id) return;
-  const myth=isMythic(s), hit=myth?14:9; trustHit(L,myth?6:4,`${s.first}’s death`); G.apHit=(G.apHit||0)+hit; G.legendMourn={id:s.id,name:fullName(s),title:s.title||'',until:G.day+(myth?7:5),ldr:L.id};
+  const myth=isMythic(s), hit=myth?14:9; trustHit(L,myth?6:4,`${s.first}’s death`); standHit(myth?-16:-12,`legend ${fullName(s)} killed on an operation ${L.first} authorized`); G.apHit=(G.apHit||0)+hit; G.legendMourn={id:s.id,name:fullName(s),title:s.title||'',until:G.day+(myth?7:5),ldr:L.id};
   G.pAnger=G.pAnger||{}; if(s.party&&s.party!==L.party) G.pAnger[s.party]=(G.pAnger[s.party]||0)+1;
   for(const x of G.settlers){ if(x.id===L.id) continue; x.happy=Math.max(0,x.happy-(myth?5:3)); const kin=(s.parents||[]).includes(x.id)||(x.parents||[]).includes(s.id)||x.partner===s.id||s.partner===x.id;
     x.loy=Math.max(0,(x.loy||50)-(kin?15:s.party&&x.party===s.party?5:x.party&&x.party!==L.party?3:1.5)); if(kin) x.grief=Math.max(x.grief||0,80); }
@@ -6581,7 +6590,7 @@ function sessEnd(){ const S=G.sess; if(!S) return; G.sess=null; const L=G.leader
   if(S.k==='motion'&&G.motion){ G.motion.held=true; motionStep(); return; }
   if(S.k==='censure'){ const s=secOf(S.post); if(!s){ sessLog('Censure dropped (post vacant)',null,null,null); return; } let yes=0; for(const c of C){ const v=(c.loy||50)<50||(c.party&&s.party&&c.party!==s.party&&rnd()<.5)||rnd()<.15; if(c.id!==s.id&&v) yes++; }
     const n=C.filter(c=>c.id!==s.id).length, pass=yes*2>n; sessLog(`Censure of ${fullName(s)} (${SECS[S.post].n})`,yes,n,pass);
-    if(pass){ const hawk=L&&docOf(L).sec>.25&&rnd()<.35; if(hawk){ G.apHit=(G.apHit||0)+4; trustHit(L,6,'defied a council censure'); polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}, but ${L.first} refused to dismiss them. Approval fell.`); }
+    if(pass){ const hawk=L&&docOf(L).sec>.25&&rnd()<.35; if(hawk){ G.apHit=(G.apHit||0)+4; trustHit(L,6,'defied a council censure'); standHit(-5,'defied a council censure'); polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}, but ${L.first} refused to dismiss them. Approval fell.`); }
       else { G.cab[S.post]=null; G.cabHold=G.cabHold||{}; G.cabHold[S.post]=G.day+1; s.loy=Math.max(0,(s.loy||50)-12); polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}; they were removed as ${SECS[S.post].n}.`); } }
     else polNews(`🏛 The censure of ${fullName(s)} failed (${yes} of ${n}). They keep their post.`); return; } }
 function chamberDay(){ if(G.inst.gov<1||!chamberRoom()||AWAY) return; if(!G.sess&&G.day>=(G.sessNext||0)) sessStart(G.plague||(G.hostages||[]).length||G.uprising?'emergency':'regular'); }
@@ -7093,7 +7102,7 @@ function renderCouncil(){
   if(gv<1) return h+`<p class="lede">The shelter has no government yet. Develop Governance (Elder Council) to appoint a leader, then a Charter to enact policies. Elections and an Assembly come later.</p>`;
   const ap=G.approval, col=ap<20?'--danger':ap<35?'--warn':'--ok';
   h+=`<div class="box"><h4>Approval ${Math.round(ap)}%</h4><div class="meter"><i style="width:${ap}%;background:var(${col})"></i><span class="mk" style="left:35%"></span><span class="mk" style="left:20%"></span></div>
-    <p class="lede">${ap<20?(gv>=4?'Deep unrest. Production is down 20%.':'Deep unrest. Production is down 20% and settlers may leave.'):ap<35?'Workers are striking. Production is down 20%.':'The shelter is broadly content.'} Approval follows average mood, the leader’s Charisma and recent deeds. It is checked twice each game day.${G.leader&&tenureYrs()>0?` ${byId(G.leader)?esc(byId(G.leader).first):'The leader'} has been in office ${tenureYrs().toFixed(1)} year${tenureYrs()>=1&&tenureYrs()<1.05?'':'s'}${tenurePen()>0?`; people are tiring of them (−${tenurePen().toFixed(1)})`:'; after a year, people start to tire of a long-serving leader'}.`:''}</p>${apSpark()}</div>`;
+    <p class="lede">${ap<20?(gv>=4?'Deep unrest. Production is down 20%.':'Deep unrest. Production is down 20% and settlers may leave.'):ap<35?'Workers are striking. Production is down 20%.':'The shelter is broadly content.'} Approval blends average mood (55%) with the leader’s standing (45%), plus Charisma and recent deeds. It is checked twice each game day.${G.leader&&G.stand!=null?` Standing <b>${Math.round(G.stand)}</b>${(G.standLog||[]).length?`: ${(G.standLog||[]).slice(0,5).map(x=>`${esc(x.why)} ${x.v>0?'+':''}${x.v}`).join(' · ')}`:''}. Standing slowly drifts back toward the middle (about a year to fade).`:''}${G.leader&&tenureYrs()>0?` ${byId(G.leader)?esc(byId(G.leader).first):'The leader'} has been in office ${tenureYrs().toFixed(1)} year${tenureYrs()>=1&&tenureYrs()<1.05?'':'s'}${tenurePen()>0?`; people are tiring of them (−${tenurePen().toFixed(1)})`:'; after a year, people start to tire of a long-serving leader'}.`:''}</p>${apSpark()}</div>`;
   h+=polBox()+partyBox()+partyBox2()+intelBox();
   const ldr=G.leader?byId(G.leader):null;
   h+=`<div class="box"><h4>Leader</h4>`;
