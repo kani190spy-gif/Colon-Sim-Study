@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.8</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.9</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -5484,7 +5484,7 @@ function startAssembly(k,kind,M){ const h=hallOf(k), ch=chairOf(k); if(!h||!ch) 
   const P=PARTIES[k]; polNews(kind==='march'?`⚠ ${fullName(ch)} called the ${P.n} to its hall. Members are angry and talking about marching on the leadership.`:kind==='rally'?`${fullName(ch)} is holding a ${P.n} rally in the party hall (${ids.length} attending).`:`${fullName(ch)} called a ${P.n} strategy meeting (${ids.length} attending).`); }
 function assemblyStep(){ const A=G.assembly; if(!A) return; if(AWAY){ G.assembly=null; return; } if(nowD()<A.end) return; G.assembly=null; endAssembly(A); }
 function endAssembly(A){ const k=A.party, P=PARTIES[k], M=A.ids.map(byId).filter(s=>s&&s.party===k); const ch=chairOf(k);
-  if(A.kind==='rally'){ for(const s of M){ s.ec+=(P.ec-s.ec)*.25; s.idn+=(P.idn-s.idn)*.25; } let rec=[]; for(const s of polAdults()){ if(!isCitizen(s)||s.party===k||rnd()>.35) continue; if(pDist(s,k)<pDist(s,s.party)+.12){ s.ec+=(P.ec-s.ec)*.3; s.idn+=(P.idn-s.idn)*.3; if(pDist(s,k)<pDist(s,s.party)){ const o=s.party; s.party=k; s.partyD=G.day; rec.push(s.first); } } if(rec.length>=2) break; }
+  if(A.kind==='rally'){ for(const s of M){ s.ec+=(P.ec-s.ec)*.25; s.idn+=(P.idn-s.idn)*.25; } let rec=[]; for(const s of polAdults()){ if(!isCitizen(s)||s.party===k||rnd()>.35) continue; if(pDist(s,k)<(s.party?pDist(s,s.party):9)+.12){ s.ec+=(P.ec-s.ec)*.3; s.idn+=(P.idn-s.idn)*.3; if(pDist(s,k)<(s.party?pDist(s,s.party):9)){ const o=s.party; s.party=k; s.partyD=G.day; rec.push(s.first); } } if(rec.length>=2) break; }
     G.rally=G.rally||{}; G.rally[k]=G.day; polNews(`The ${P.n} rally ended.${rec.length?` ${rec.join(' and ')} joined the party.`:''}`); }
   else if(A.kind==='meeting'){ const ap=partyApproval(k)??50; for(const s of M) s.loy=clamp((s.loy||50)+(ap>=55?3:ap<40?-4:0),0,100); if(G.day-((G.pChairD||{})[k]||0)>=YEAR-2) chairElect(k,'chosen at a strategy meeting'); else polNews(`The ${P.n} strategy meeting ended. Members came away ${ap>=55?'backing':ap<40?'more opposed to':'unsure about'} the leader.`); }
   else if(A.kind==='march'){ const L=G.leader&&byId(G.leader), d=L?docOf(L):null;
@@ -6563,7 +6563,7 @@ function sessEnd(){ const S=G.sess; if(!S) return; G.sess=null; const L=G.leader
   if(S.k==='motion'&&G.motion){ G.motion.held=true; motionStep(); return; }
   if(S.k==='censure'){ const s=secOf(S.post); if(!s){ sessLog('Censure dropped (post vacant)',null,null,null); return; } let yes=0; for(const c of C){ const v=(c.loy||50)<50||(c.party&&s.party&&c.party!==s.party&&rnd()<.5)||rnd()<.15; if(c.id!==s.id&&v) yes++; }
     const n=C.filter(c=>c.id!==s.id).length, pass=yes*2>n; sessLog(`Censure of ${fullName(s)} (${SECS[S.post].n})`,yes,n,pass);
-    if(pass){ const hawk=L&&docOf(L)==='sec'&&rnd()<.35; if(hawk){ G.apHit=(G.apHit||0)+4; polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}, but ${L.first} refused to dismiss them. Approval fell.`); }
+    if(pass){ const hawk=L&&docOf(L).sec>.25&&rnd()<.35; if(hawk){ G.apHit=(G.apHit||0)+4; polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}, but ${L.first} refused to dismiss them. Approval fell.`); }
       else { G.cab[S.post]=null; G.cabHold=G.cabHold||{}; G.cabHold[S.post]=G.day+1; s.loy=Math.max(0,(s.loy||50)-12); polNews(`🏛 The council censured ${fullName(s)} ${yes}–${n-yes}; they were removed as ${SECS[S.post].n}.`); } }
     else polNews(`🏛 The censure of ${fullName(s)} failed (${yes} of ${n}). They keep their post.`); return; } }
 function chamberDay(){ if(G.inst.gov<1||!chamberRoom()||AWAY) return; if(!G.sess&&G.day>=(G.sessNext||0)) sessStart(G.plague||(G.hostages||[]).length||G.uprising?'emergency':'regular'); }
