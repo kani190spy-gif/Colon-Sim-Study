@@ -279,7 +279,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.7</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v11.8</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -4354,8 +4354,8 @@ const RANKS=[
  {n:'Sergeant',a:'SGT',xp:30,uni:'o_infsgt',def:1},
  {n:'Lieutenant',a:'LT',xp:55,uni:'o_fieldlt',def:2},
  {n:'Captain',a:'CPT',xp:90,uni:'o_captain',def:3},
- {n:'Colonel',a:'COL',xp:140,uni:'o_colonel',def:4},
- {n:'General',a:'GEN',xp:220,uni:'o_general',def:4}];
+ {n:'Colonel',a:'COL',xp:140,uni:'o_colonel',def:3},
+ {n:'General',a:'GEN',xp:220,uni:'o_general',def:3}];
 const cmdRoom=()=>G.rooms.find(r=>r.type==='command');
 // one soldier stands guard at the Command Post door (weapon out); the rest do staff work
 function cmdGuardId(r){ const ws=r.workers.map(byId).filter(x=>x&&isSoldier(x)); if(ws.length<2) return null; if(r.guard&&ws.some(x=>x.id===r.guard)) return r.guard; return ws.slice().sort((a,b)=>(a.rank_m||0)-(b.rank_m||0)||(a.milXP||0)-(b.milXP||0))[0].id; }
