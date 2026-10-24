@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.3</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.4</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -348,6 +348,11 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 (function(){
 'use strict';
 const KEY='colony-sim-live';
+try{ document.head.insertAdjacentHTML('beforeend','<style>body.free #sessBtn,body.free button[data-a=tab][data-v=study]{display:none}</style>'); }catch(e){}
+const SLOT=(()=>{ try{ const n=+localStorage.getItem('colony-slot'); return n>=0&&n<=2?n:0; }catch(e){ return 0; } })();
+const slotKey=n=>n?KEY+'-'+n:KEY;
+const FREE=()=>!!(G&&G.mode==='free');
+const FREE_DAY=30;
 const YEAR=18, ADULT=16, PREG=18;
 const KID_LEARN=5, KID_MIN=120, PREG_MIN=[45,75], TRAIN_MIN=[17,54,107,179,269,376,501,645,806], EDU_BONUS=.15;
 const nowD=()=>G.day+G.dayFrac, kidDays=()=>KID_MIN/G.dayLen;
@@ -830,7 +835,7 @@ function related(a,b){ if(a.parents.includes(b.id)||b.parents.includes(a.id)) re
 
 /* ---------- new game ---------- */
 function newGame(opts){
-  const now=Date.now(), bos=!!(opts&&opts.bos);
+  const now=Date.now(), bos=!!(opts&&opts.bos), md=opts&&opts.mode==='free'?'free':'study';
   G={v:3,bos,mvpUsed:[],legends:[],warCaught:[],items:[],exps:[],name:'Shelter 7',day:0,dayFrac:.35,dayLen:60,lastReal:now,boost:6*60,vacation:false,
     res:{food:600,water:600,power:500,meds:4,stims:5,caps:600,research:10},mats:{cloth:6,plastic:6,iron:6,wire:2},bps:[],wild:[],bodies:[],graves:[],rooms:[],floors:3,settlers:[],dead:[],nextId:1,
     inst:{health:0,gov:0,edu:0,def:0,econ:0,social:0,law:0},yearV:18,leader:null,ert:[],emerg:[],policies:[],gate:[],log:[],
@@ -854,7 +859,8 @@ function newGame(opts){
   const free=()=>G.settlers.filter(s=>!s.room);
   const fill=(r,n)=>{ for(let i=0;i<n;i++){ const st=roomStat(r); const c=free().sort((x,y)=>y.s[st]-x.s[st])[0]; if(c){r.workers.push(c.id);c.room=r.id;} } };
   fill(din,2); fill(wat,2); fill(lab,1); fill(tr,1); fill(gen,2);
-  log('The shelter door seals behind ten settlers. The study reactor holds 6 hours of charge. Log Anki reviews and questions to keep it running.','study');
+  G.mode=md; if(opts&&opts.name) G.name=String(opts.name).slice(0,28); if(md==='free'){ G.res.food=800; G.res.water=800; G.res.power=700; G.boost=0; }
+  log(md==='free'?'The shelter door seals behind ten settlers. Keep the generators, water plant and Mess Hall staffed: in a survival vault, power, water and food are everything.':'The shelter door seals behind ten settlers. The study reactor holds 6 hours of charge. Log Anki reviews and questions to keep it running.','study');
   log(`${fullName(elder)} complains of chest tightness on the stairs. Without healthcare, nobody can say why.`,'health');
   log('Amir and Lejla share the quarters. Couples in quarters may start a family.','family');
 }
@@ -919,10 +925,10 @@ function effStat(s,stat){
   return v*m;
 }
 function computeMods(frac){
-  let g=(.8+avgHappy()/250)*(PASSIVE+(1-PASSIVE)*frac);
+  let g=(.8+avgHappy()/250)*(PASSIVE+(1-PASSIVE)*frac)*(FREE()?.85:1);
   if(pol('mandate')) g*=1.12;
   if(G.approval<35) g*=.8;
-  const np=G.flags.power?.5:1, I=G.inst;
+  const np=G.flags.power?(FREE()?.35:.5):1, I=G.inst;
   return {power:g,water:g*np,food:g*np,meds:g*np,stims:g*np,caps:g*np*(1+[0,.15,.35,.6][I.econ])*(1+secB('eco')*.03),
     research:g*np*(1+(I.edu>=3?.25:0)+(I.edu>=4?.25:0)+(pol('grants')?.2:0))};
 }
@@ -943,7 +949,7 @@ function consumption(){
   return {eat,power:G.rooms.filter(r=>r.type!=='generator').reduce((a,r)=>a+3*r.level,0),caps:(pol('ucare')?2:0)+(pol('stipend')?1.5:0)+(pol('grants')?2:0)};
 }
 function netRates(){
-  const mods=computeMods(G.boost>0?1:0), o={food:0,water:0,power:0,meds:0,stims:0,caps:0,research:0};
+  const mods=computeMods(FREE()||G.boost>0?1:0), o={food:0,water:0,power:0,meds:0,stims:0,caps:0,research:0};
   for(const r of G.rooms){ const d=ROOMS[r.type]; if(d.res) o[d.res]+=roomOutput(r,mods); }
   const c=consumption(); o.food-=c.eat; o.water-=c.eat; o.power-=c.power; o.caps-=c.caps;
   return o;
@@ -1050,7 +1056,7 @@ function endExpedition(e){
   if(alive&&e.n>=10){ const z=e.zone||0; if(pct>=.9){ addLoot(e,2,'Strong finish:'); if(z>=2) addLoot(e,2,'Crater haul:'); } else if(pct>=.8) addLoot(e,z>=1?2:1,'Strong finish:'); }
   if(alive&&e.n>=10&&pct>=.9){ e.loot.bps=e.loot.bps||[]; const k=rollBlueprint((e.zone||0)>=1?.85:.6); if(k&&!e.loot.bps.includes(k)){ e.loot.bps.push(k); expLog(e,`Strong finish: a blueprint for the ${ITEMS[k].name}.`,'t2'); } }
   if(G.bos&&alive&&e.n>=10&&pct>=.85&&G.gate.length<4&&rnd()<(pct>=.95?.2:.1)){ const v=mkMVP(`Saw ${teamOf(e)[0].first}’s team on the road and followed them home.`); if(v){ G.gate.push(v); expLog(e,`${fullName(v.s)} was impressed and is following the team home.`,'good'); } }
-  if(e.n>0) logStudy('q',e.n,e.c,e.src,null,true);
+  if(e.n>0&&!FREE()&&e.mode!=='auto') logStudy('q',e.n,e.c,e.src,null,true);
   if(e.name&&!e.polDone){ e.polDone=true; opPolitics(e,pct,alive); }
   e.status='returning'; e.backAt=Math.max(G.lastReal,Date.now())+(alive?120000:0);
   if(!alive){ log(`The whole expedition team was lost. Everything they carried is gone.`,'death'); arriveExp(e); return; }
@@ -1253,7 +1259,7 @@ function advance(ms){
   while(ms>0&&!G.over&&guard++<100000){
     const st=Math.min(ms,stepMax); ms-=st;
     if(!G.vacation){
-      const frac=Math.min(1,G.boost*60000/st);
+      const frac=FREE()?1:Math.min(1,G.boost*60000/st);
       produce(st/dayMs,frac);
       lifeStep(st/60000,frac);
       G.boost=Math.max(0,G.boost-st/60000);
@@ -1263,6 +1269,7 @@ function advance(ms){
     G.lastReal+=st;
     checkDates(G.lastReal);
     for(const e of [...G.exps]) if(e.status==='returning'&&G.lastReal>=e.backAt) arriveExp(e);
+    autoExpStep();
   }
   if(G.over) G.lastReal=Date.now();
 }
@@ -1576,7 +1583,8 @@ function muzzle(a,dir,W,tg){ if(!a) return; a.recoil=1; const cat=(W&&W.cat)||'p
   if(cat==='heavy'||cat==='smg') FXL.push({beam:true,x:mx,y:my,x2:tx,y2:ty,col:'rgba(255,220,140,.55)',w:.6,life:.08,max:.08}); }
 function updateFight(dt,t){
   const now=Date.now();
-  if(!FIGHT){ if(G.session&&!G.vacation&&!G.over&&now>=G.session.nextAtk&&!G.burial&&!cmsOn()&&!G.trader){ G.session.nextAtk=now+ri(9,18)*60000*(1+1.5*vaultStress()); startFight(); } return; }
+  if(!FIGHT){ if(G.session&&!G.vacation&&!G.over&&now>=G.session.nextAtk&&!G.burial&&!cmsOn()&&!G.trader){ G.session.nextAtk=now+ri(9,18)*60000*(1+1.5*vaultStress()); startFight(); }
+    else if(FREE()&&!document.hidden&&!G.vacation&&!G.over&&!G.burial&&!G.trader){ if(G.freeAtk==null||G.freeAtk>now+40*60000) G.freeAtk=now+ri(6,12)*60000; if(now>=G.freeAtk){ G.freeAtk=now+ri(12,22)*60000*(1+1.5*vaultStress()); startFight(); } } return; }
   const F=FIGHT; FX.alarm=Math.max(FX.alarm,.5);
   if(F.boss&&F.stage&&F.stage!=='door'){ bossInsideStep(dt); return; }
   for(const f of F.foes){ const a=f.a; a.recoil=Math.max(0,(a.recoil||0)-dt*5); if(f.dead){ f.fade-=dt; continue; } const d=f.tx-a.x; if(Math.abs(d)>1){ a.x+=Math.sign(d)*Math.min(Math.abs(d),62*dt); a.pose='walk'; a.ph+=dt*9; } else a.pose='guard'; a.dir=-1; }
@@ -1658,7 +1666,10 @@ function sessionModal(){
 
 /* ---------- save ---------- */
 const DESKTOP=!!(window.desktop&&window.desktop.isDesktop);
-function save(){ if(!G) return; G.savedAt=Date.now(); CLOUD.dirty=true; let js=null; try{ js=JSON.stringify(G); localStorage.setItem(KEY,js);}catch(e){} if(DESKTOP&&js){ try{ window.desktop.save(js); }catch(e){} } }
+function save(){ if(!G) return; G.savedAt=Date.now(); if(!SLOT) CLOUD.dirty=true; let js=null; try{ js=JSON.stringify(G); }catch(e){} if(js) slotWrite(SLOT,js); }
+function slotWrite(n,js){ try{ localStorage.setItem(slotKey(n),js);}catch(e){} if(DESKTOP){ try{ if(!n) window.desktop.save(js); else if(window.desktop.saveSlot) window.desktop.saveSlot(n,js); }catch(e){} } }
+function slotRead(n){ if(DESKTOP){ try{ const r=!n?window.desktop.load():window.desktop.loadSlot?window.desktop.loadSlot(n):null; if(r) return r; }catch(e){} } try{ return localStorage.getItem(slotKey(n)); }catch(e){ return null; } }
+function slotDelete(n){ if(!n) return; try{ localStorage.removeItem(slotKey(n)); }catch(e){} if(DESKTOP&&window.desktop.delSlot){ try{ window.desktop.delSlot(n); }catch(e){} } }
 /* ===== Cloud save: one private copy per player, synced across devices ===== */
 const CLOUD={db:null,uid:null,ready:false,busy:false,dirty:false,fresh:false,pushedAt:0,seen:0,status:'local',at:0,
   dev:(()=>{ try{ let d=localStorage.getItem('colony-dev'); if(!d){ d=Math.random().toString(36).slice(2,10); localStorage.setItem('colony-dev',d); } return d; }catch(e){ return 'x'+Math.random().toString(36).slice(2,8); } })()};
@@ -1668,7 +1679,7 @@ async function gz(str){ if(typeof CompressionStream==='undefined') return {z:fal
   let bin=''; for(let i=0;i<buf.length;i+=0x8000) bin+=String.fromCharCode.apply(null,buf.subarray(i,i+0x8000)); return {z:true,s:btoa(bin)}; }
 async function ungz(s,z){ if(!z) return s; const bin=atob(s), buf=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
   const ds=new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip')); return await new Response(ds).text(); }
-const cdoc=k=>CLOUD.db.doc('data/users/'+CLOUD.uid+'/'+k);
+const cdoc=k=>CLOUD.db.doc('data/users/'+CLOUD.uid+'/'+(SLOT?'v'+SLOT+'_':'')+k);
 async function cloudRead(){
   const m=await cdoc('save').get(), c0=await cdoc('c0').get();
   if(!m.exists&&!c0.exists) return null;
@@ -1692,7 +1703,7 @@ async function cloudPush(force){
 function adoptCloud(g,meta){
   if(!g||!(g.v===2||g.v===3)||!Array.isArray(g.settlers)) return false;
   FIGHT=null; G=migrate(g); G.savedAt=meta.t; AG.clear(); syncAgents(true); FX.quiet=true; try{ catchUp(); }finally{ FX.quiet=false; } settleEmergencies();
-  try{ localStorage.setItem(KEY,JSON.stringify(G)); }catch(e){}
+  try{ localStorage.setItem(slotKey(SLOT),JSON.stringify(G)); }catch(e){}
   CLOUD.seen=meta.t; CLOUD.pushedAt=meta.t; CLOUD.fresh=false; return true;
 }
 // pull a newer copy saved from another device (on open and whenever this tab comes back into view)
@@ -1721,7 +1732,7 @@ async function cloudInit(){
 }
 function cloudLabel(){ const s=CLOUD.status; return s==='synced'?`Saved to your account${CLOUD.at?' · '+new Date(CLOUD.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):''}`:s==='syncing'?'Connecting to your account…':s==='full'?'Account storage is full; saving on this device only':s==='error'?`Couldn’t reach your account; saving on this device and retrying${CLOUD.err?' ('+CLOUD.err+')':''}`:'Saving on this device only'; }
 
-function load(){ if(DESKTOP){ try{ const r=window.desktop.load(); if(r){ const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g); } }catch(e){} } try{const r=localStorage.getItem(KEY); if(r){const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g);}}catch(e){} return null; }
+function load(){ try{ const r=slotRead(SLOT); if(r){ const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g); } }catch(e){} if(SLOT===0&&DESKTOP){ try{const r=localStorage.getItem(KEY); if(r){const g=JSON.parse(r); if(g&&(g.v===2||g.v===3)) return migrate(g);}}catch(e){} } return null; }
 
 /* =================== SCENE =================== */
 const WD={pad:16,shaft:78,roomW:250,floorH:144,surfH:196};
@@ -6682,6 +6693,7 @@ function teamStep(mins){ if(!G.teams||!G.teams.length) return; for(const t of G.
     if(!s.waiting&&s.room!==r.id&&!s.protest&&!s.strike&&!s.rebel){ unassign(s); if(!r.workers.includes(s.id)) r.workers.push(s.id); s.room=r.id; }
     if(s.room===r.id&&s.health<100) s.health=Math.min(100,s.health+mins*.35*(1+effStat(s,'E')*.05)); } } }
 function teamDeploy(t,mode){ const ids=t.ids.filter(id=>{ const s=byId(id); return s&&canExplore(s)&&!s.exp; }); if(!ids.length){ toast(`Nobody in ${t.name} is fit to go (50+ health needed).`); return; }
+  if(FREE()){ UI.ef.name=UI.ef.name||`Team ${t.name}`; const x=startAuto(ids); if(x) x.squad=t.id; return; }
   if(mode==='live'){ UI.ef.name=UI.ef.name||`Team ${t.name}`; const x=startExpedition(ids,'live',UI.ef.src,UI.ef.meds); if(x){ x.squad=t.id; UI.expSel=[]; toast(`Team ${t.name} is out. Mark each question with Correct or Incorrect, or press C and X.`); } }
   else { UI.expSel=ids.slice(0,TEAM_SIZE); toast(`Team ${t.name} selected. Enter the block below and press "Log finished block".`); } }
 function teamsBox(){ teamsFix(); const T=G.teams, slots=teamSlots().length;
@@ -6693,7 +6705,7 @@ function teamsBox(){ teamsFix(); const T=G.teams, slots=teamSlots().length;
       <label class="row" style="gap:4px;font-size:12px"><input type="checkbox" data-a="teamSF" data-id="${t.id}" ${t.sf?'checked':''}> Special Forces (part of the military)</label></div>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:6px">${M.map(s=>`<span class="row" style="gap:4px;align-items:center">${faceHTML(s,26)}<button class="link" data-a="open" data-id="${s.id}">${esc(s.first)}</button><span class="lede" style="font-size:11px">HP ${Math.round(s.health)} · power ${Math.round(memberPow(s))}${s.exp?' · out':''}</span>${s.exp?'':`<button class="btn sm" data-a="teamDrop" data-id="${t.id}" data-v="${s.id}" title="Remove">×</button>`}</span>`).join('')||'<span class="lede" style="font-size:12px">No members yet.</span>'}
       ${M.length<TEAM_SIZE?`<select data-c="teamAdd" data-id="${t.id}" aria-label="Add member"><option value="">+ Add member…</option>${pool.slice(0,40).map(s=>`<option value="${s.id}">${esc(fullName(s))} · power ${Math.round(memberPow(s))}${isSoldier(s)?' · soldier':isOfficer(s)?' · officer':''}</option>`).join('')}</select>`:''}</div>
-      <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm pri" data-a="teamLive" data-id="${t.id}" ${out||!M.length||liveExp()?'disabled':''}>Deploy · live run</button><button class="btn sm" data-a="teamPick" data-id="${t.id}" ${out||!M.length?'disabled':''}>Select for a logged block</button><button class="btn sm" data-a="teamDisband" data-id="${t.id}">Disband</button></div></div>`; }
+      <div class="row" style="gap:6px;margin-top:6px">${FREE()?`<button class="btn sm pri" data-a="teamLive" data-id="${t.id}" ${out||!M.length?'disabled':''}>Deploy</button>`:`<button class="btn sm pri" data-a="teamLive" data-id="${t.id}" ${out||!M.length||liveExp()?'disabled':''}>Deploy · live run</button><button class="btn sm" data-a="teamPick" data-id="${t.id}" ${out||!M.length?'disabled':''}>Select for a logged block</button>`}<button class="btn sm" data-a="teamDisband" data-id="${t.id}">Disband</button></div></div>`; }
   h+=`${T.length<Math.min(TEAM_MAX,slots)?`<button class="btn sm" data-a="teamNew">+ New team</button>`:''}<p class="lede" style="font-size:12px">Deploys use the zone, question bank and stims chosen in the form below. Members return to their barracks after each run and rest there until called. Special Forces count as part of the military (upkeep, defense, raid rotation, service points) but keep their own gear, such as power armor, instead of military uniforms.</p></div>`;
   return h; }
 function sfBox(){ const T=(G.teams||[]).filter(t=>t.sf&&t.ids.length); if(!T.length) return ''; return `<div class="box"><h4>Special Forces</h4>${T.map(t=>`<div><b>${esc(t.name)}</b> <span class="lede" style="font-size:12px">${t.ids.map(byId).filter(Boolean).map(s=>esc(fullName(s))).join(', ')}</span></div>`).join('')}<p class="lede" style="font-size:12px">Expedition teams marked Special Forces. They wear their own gear, rest in the Expedition Barracks, and join the raid rotation. 1 food and 2 caps a day each.</p></div>`; }
@@ -6706,6 +6718,29 @@ PROPS.squad=(c,x,top,w,fl,t,on,r)=>{ const g=c.createLinearGradient(0,top,0,fl);
     c.fillStyle='#8a6a42'; c.fillRect(X+178,top+12,52,34); c.fillStyle='#d9cfa8'; c.fillRect(X+182,top+16,26,20); c.strokeStyle='#7a5a3a'; c.lineWidth=.7; c.beginPath(); c.moveTo(X+184,top+30); c.lineTo(X+192,top+22); c.lineTo(X+200,top+27); c.lineTo(X+206,top+19); c.stroke(); c.fillStyle='#f2efe6'; c.fillRect(X+211,top+16,15,9); c.fillRect(X+212,top+28,13,12); for(const [px,py,pc] of [[192,22,'#c8282a'],[206,19,'#2a6ab0'],[218,17,'#e2c46a']]){ c.fillStyle=pc; c.beginPath(); c.arc(X+px,top+py,1.6,0,TAU); c.fill(); } } };
 function drawSquadDecor(c,r,t){ const x=roomX(r.col), top=floorTop(r.floor); c.save(); c.font='bold 8px Archivo, sans-serif'; c.textAlign='left';
   for(const tm of (G.teams||[]).filter(q=>q.room===r.id)){ const X=x+tm.seg*WD.roomW; c.fillStyle=tm.sf?'#1a1a1a':'#3a4a2a'; c.fillRect(X+10,top+12,64,16); c.fillStyle=tm.sf?'#d9b14a':'#e8e2d0'; c.fillText((tm.sf?'SF ':'')+tm.name.toUpperCase().slice(0,12),X+14,top+23); } c.restore(); }
+
+/* ===== v12.4: vault slots (up to 3) + Survival vaults (no study) ===== */
+const AUTO_MS=20000;
+function autoP(e){ const T=teamOf(e); if(!T.length) return .5; const pow=T.reduce((a,s)=>a+memberPow(s),0)/T.length, L=T.reduce((a,s)=>a+effStat(s,'L'),0)/T.length;
+  return clamp(.6+(pow-10)*.02+(L-5)*.012-(e.zone||0)*.05+(e.streak>=3?.03:0),.45,.9); }
+function autoExpStep(){ for(const e of [...(G.exps||[])]){ if(e.mode!=='auto'||e.status!=='out') continue; e.nextAt=e.nextAt||G.lastReal+AUTO_MS;
+    while(e.status==='out'&&e.nextAt<=G.lastReal){ if(e.n>=(e.goal||20)){ endExpedition(e); break; } expAnswer(e,rnd()<autoP(e)); e.nextAt+=AUTO_MS; }
+    if(e.status==='out'&&e.n>=(e.goal||20)) endExpedition(e); } }
+function startAuto(ids){ const e=startExpedition(ids,'auto','Wasteland',UI.ef.meds); if(e){ e.goal=[10,20,40].includes(+UI.ef.goal)?+UI.ef.goal:20; e.nextAt=G.lastReal+AUTO_MS; UI.expSel=[]; toast(`${e.name} set out: ${e.goal} encounters, about ${Math.round(e.goal*AUTO_MS/60000)} minutes. You can call them home any time.`); } return e; }
+function vaultMeta(n){ if(n===SLOT&&G) return G.blank?null:{name:G.name,mode:G.mode||'study',day:G.day,pop:G.settlers.length,at:G.savedAt||Date.now(),bos:!!G.bos,cur:true};
+  try{ const r=slotRead(n); if(!r) return null; const g=JSON.parse(r); if(!g||!g.settlers||g.blank) return null; return {name:g.name,mode:g.mode||'study',day:g.day,pop:g.settlers.length,at:g.savedAt||0,bos:!!g.bos}; }catch(e){ return null; } }
+function vaultsModal(m){ const V=[0,1,2].map(vaultMeta), nf=UI.nv||{};
+  const card=(v,n)=>{ const form=UI.nvSlot===n;
+    const head=v?`<div class="row" style="justify-content:space-between;align-items:baseline"><b style="font-size:16px">${esc(v.name)}</b><span class="tag" style="${v.mode==='free'?'border-color:#7fb07f;color:#9fd09f':'border-color:#e2c46a;color:#e2c46a'}">${v.mode==='free'?'Survival':'Study'}</span></div><p class="lede" style="font-size:12px;margin:4px 0">Year ${Math.floor(v.day/YEAR)+1} · Day ${v.day%YEAR+1} · ${v.pop} settlers${v.bos?' · Bosnian mode':''}${v.at?` · last played ${new Date(v.at).toLocaleDateString([], {month:'short',day:'numeric'})}`:''}</p>`:`<b style="font-size:15px;color:var(--muted)">Empty slot</b>`;
+    const btns=v?(v.cur?`<button class="btn pri" data-a="vaultGo" data-v="${n}">Continue</button><button class="btn sm" data-a="vaultNew" data-v="${n}">Start over here</button>`:`<button class="btn pri" data-a="vaultGo" data-v="${n}">Play</button><button class="btn sm" data-a="vaultNew" data-v="${n}">Replace</button>${n?`<button class="btn sm" data-a="vaultDel" data-v="${n}">Delete</button>`:''}`):`<button class="btn pri" data-a="vaultNew" data-v="${n}">New vault</button>`;
+    const f=form?`<div class="box" style="margin-top:8px"><div class="form"><label>Vault name<input type="text" id="nvName" maxlength="28" value="${esc(nf.name||'Shelter '+(7+n))}"></label></div>
+      <div class="row" style="gap:8px;margin:8px 0;flex-wrap:wrap"><button class="btn${nf.mode!=='free'?' pri':''}" data-a="nvMode" data-v="study">📚 Study vault</button><button class="btn${nf.mode==='free'?' pri':''}" data-a="nvMode" data-v="free">🛠 Survival vault</button></div>
+      <p class="lede" style="font-size:12px">${nf.mode==='free'?'<b>Survival:</b> no studying. Rooms run on your power grid (blackouts cut output hard), food and water are tighter, raiders hit the door on their own while you play, and expeditions play out automatically based on gear, stats and luck. A day lasts 30 minutes.':'<b>Study:</b> logging Anki reviews and questions charges the study reactor that runs the vault; study sessions bring live raids, and question blocks drive expeditions.'} The mode is set for good once the vault is created.</p>
+      <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="nvBos" ${nf.bos!==false?'checked':''}> Bosnian mode (names, legends, wartime history)</label>
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn pri" data-a="nvCreate" data-v="${n}">${v?'Replace this vault':'Create vault'}</button><button class="btn sm" data-a="nvCancel">Cancel</button></div>${v?'<p class="lede" style="font-size:12px;color:var(--danger)">The vault in this slot will be erased.</p>':''}</div>`:'';
+    return `<div class="box" style="${v&&v.cur?'border-color:var(--accent)':''}">${head}<div class="row" style="gap:6px;flex-wrap:wrap">${btns}</div>${f}</div>`; };
+  return `<header><h2>Your vaults</h2>${m.boot?'':'<button class="x" data-a="close" aria-label="Close">×</button>'}</header><div class="bd"><p class="lede">Up to three vaults. Each one saves separately; switching reloads the game.</p>${V.map(card).join('')}</div>`; }
+function vaultSwitch(n,newOpts){ save(); try{ localStorage.setItem('colony-slot',String(n)); if(newOpts) localStorage.setItem('colony-newvault',JSON.stringify(newOpts)); }catch(e){ toast('This browser blocks local storage, so vaults can’t be switched here.'); return; } location.reload(); }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -7011,11 +7046,13 @@ function renderTop(){ { const mb=$('musBtn'); if(mb) mb.classList.toggle('off',!
   $('cname').textContent=G.name;
   const hr=Math.floor(G.dayFrac*24), mn=Math.floor((G.dayFrac*24-hr)*60);
   $('cdate').textContent=`Year ${Math.floor(G.day/YEAR)+1} · Day ${(G.day%YEAR)+1} · ${pad2(hr)}:${pad2(mn)}${G.bos?' · Bosnian mode':''}`;
-  const day=dayRec(G.study.open), pct=Math.min(1,day.earned/GOAL);
+  document.body.classList.toggle('free',FREE());
+  if(FREE()){ const nr=netRates().power, pw=G.res.power, out=G.flags.power; $('reactor').innerHTML=`<div class="hd"><span>Power grid</span><b>${out?'Blackout':fmt(pw)}</b></div><div class="rbar"><i style="width:${Math.min(100,pw/20)}%;background:${out?'var(--danger)':nr<0?'var(--warn)':'var(--ok)'}"></i></div><small>${G.vacation?'Vacation mode: colony paused':out?'Blackout: rooms at reduced output':nr<0?`Draining ${fmt(-nr)}/d · ${pw/-nr<2?'blackout soon':'build or staff generators'}`:'Grid stable · rooms at full output'}</small>`; }
+  else { const day=dayRec(G.study.open), pct=Math.min(1,day.earned/GOAL);
   const ch=G.boost, col=ch>360?'var(--ok)':ch>0?'var(--warn)':'var(--danger)';
   $('reactor').innerHTML=`<div class="hd"><span>Study reactor</span><b>${ch>0?hm(ch):'Empty'}</b></div>
    <div class="rbar"><i style="width:${Math.min(100,ch/BOOST_CAP*100)}%;background:${col}"></i><span class="mk" style="left:${GOAL/BOOST_CAP*100}%"></span><span class="mk" style="left:${2*GOAL/BOOST_CAP*100}%"></span></div>
-   <small>${G.vacation?'Vacation mode: colony paused':ch>0?'Rooms at full output':'Backup power: rooms at 40%'} · Today ${Math.round(pct*100)}%${G.study.streak?` · Streak ${G.study.streak}`:''}</small>`;
+   <small>${G.vacation?'Vacation mode: colony paused':ch>0?'Rooms at full output':'Backup power: rooms at 40%'} · Today ${Math.round(pct*100)}%${G.study.streak?` · Streak ${G.study.streak}`:''}</small>`; }
   const rates=netRates(), pop=popUsed(), cap=housing(), expct=pop-G.settlers.length;
   let h='';
   for(const k of ['food','water','power','meds','stims','caps','research']){
@@ -7049,7 +7086,8 @@ function renderGate(){
 }
 function renderTabs(){
   const ex=G.exps.length;
-  const t=[['study','Study'],['exp',`Expeditions${ex?' '+ex:''}`],['settlers',`Settlers ${G.settlers.length}`],['store',`Storage ${G.items.length}`],['inst','Institutions'],['council','Council'],...(G.inst.gov>=3||G.vote||G.lastElection?[['elect',G.vote?'🗳 Elections':'Elections']]:[]),...(G.inst.gov>=1?[['cab','Cabinet']]:[]),['log','Log']];
+  if(FREE()&&UI.tab==='study') UI.tab='exp';
+  const t=[...(FREE()?[]:[['study','Study']]),['exp',`Expeditions${ex?' '+ex:''}`],['settlers',`Settlers ${G.settlers.length}`],['store',`Storage ${G.items.length}`],['inst','Institutions'],['council','Council'],...(G.inst.gov>=3||G.vote||G.lastElection?[['elect',G.vote?'🗳 Elections':'Elections']]:[]),...(G.inst.gov>=1?[['cab','Cabinet']]:[]),['log','Log']];
   $('tabs').innerHTML=t.map(([k,l])=>`<button class="${UI.tab===k?'on':''}" data-a="tab" data-v="${k}">${l}</button>`).join('');
 }
 function studyPreview(){
@@ -7195,7 +7233,7 @@ function renderExp(){
   let h=renderWild()+`<h3 class="sec">Expeditions</h3>`+teamsBox();
   for(const e of G.exps){
     const left=e.status==='returning'?Math.max(0,Math.ceil((e.backAt-Date.now())/1000)):0;
-    h+=`<div class="exp"><div class="hd"><b>${esc(opTitle(e))} · ${esc(e.src)}${e.zone?' · '+zoneOf(e).ic+' '+zoneOf(e).n:''}</b><span class="tag ${e.status==='out'?'b':'g'}">${e.status==='out'?`Q ${e.n} · ${e.c} correct`:`Home in ${Math.floor(left/60)}:${pad2(left%60)}`}</span></div>
+    h+=`<div class="exp"><div class="hd"><b>${esc(opTitle(e))} · ${esc(e.src)}${e.zone?' · '+zoneOf(e).ic+' '+zoneOf(e).n:''}</b><span class="tag ${e.status==='out'?'b':'g'}">${e.status==='out'?(e.mode==='auto'?`Encounter ${e.n}/${e.goal||20} · ${e.c} won`:`Q ${e.n} · ${e.c} correct`):`Home in ${Math.floor(left/60)}:${pad2(left%60)}`}</span></div>${e.mode==='auto'&&e.status==='out'?`<div class="row" style="gap:6px"><span class="lede" style="font-size:12px">${e.zone?zoneOf(e).ic+' '+zoneOf(e).n+' · ':''}win chance per encounter about ${Math.round(autoP(e)*100)}% · streak ${e.streak}${e.ls>=2?` · <b style="color:var(--danger)">${e.ls} losses in a row</b>`:''}</span><button class="btn sm" data-a="endExp" data-id="${e.id}">Call home</button>${(e.zone||0)<EXP_ZONES.length-1?`<button class="btn sm" data-a="expDeeper" data-id="${e.id}">Push into ${EXP_ZONES[(e.zone||0)+1].n}</button>`:''}</div>`:''}
     ${e.by&&anyById(e.by)?`<div style="font-size:12px;color:var(--muted)">Ordered by ${esc(fullName(anyById(e.by)))}</div>`:''}<div class="row" style="gap:6px"><input type="text" id="opn_${e.id}" maxlength="40" value="${esc(e.name||'')}" style="flex:1;min-width:0" aria-label="Operation name"><button class="btn sm" data-a="opRename" data-id="${e.id}">Rename</button></div>${teamChips(e)}<div style="font-size:12px;color:var(--muted)">Carrying ${lootLine(e)}${e.deaths.length?` · <span style="color:var(--danger)">Lost: ${esc(e.deaths.join(', '))}</span>`:''}</div>
     ${e.log.length?`<ul class="feed">${e.log.slice(0,5).map(l=>`<li class="${l.c}">Q${l.n} · ${esc(l.m)}</li>`).join('')}</ul>`:''}</div>`;
   }
@@ -7204,11 +7242,11 @@ function renderExp(){
   const f=UI.ef;
   h+=`<div class="box"><h4>New expedition · pick up to 3 · ${UI.expSel.length} chosen</h4>${G.inst.gov>=1&&G.leader&&byId(G.leader)?`<p class="lede" style="font-size:12px">Sent under orders from ${esc(fullName(byId(G.leader)))}. Score 70%+ to lift their approval; under 50% or losses on the road will cost them.</p>`:''}
   <div class="picklist">${el.map(s=>{const on=UI.expSel.includes(s.id), w=gearOf(s,'w'), o=gearOf(s,'o');return `<label class="${on?'on':''}"><input type="checkbox" data-a="expPick" data-id="${s.id}" ${on?'checked':''}><span>${esc(fullName(s))}<br><span class="st">${w?esc(w.name):'Unarmed'}${o?' · '+esc(o.name):''}</span></span><span class="st">Power ${Math.round(memberPow(s))} · L ${Math.round(effStat(s,'L'))} · HP ${Math.round(s.health)}${G.inst.gov>=1&&G.leader?willTag(s):''}</span></label>`;}).join('')||'<p class="lede">Nobody is fit to go. Settlers need 50+ health, and blind settlers need Disability Services.</p>'}</div>
-  <div class="form"><label>Operation name (optional)<input type="text" id="ef_name" data-ef="name" maxlength="40" value="${esc(f.name||'')}" placeholder="Auto: Operation …"></label><label>Where to go<select id="ef_zone" data-ef="zone">${EXP_ZONES.map((z,i)=>`<option value="${i}" ${(+f.zone||0)===i?'selected':''}>${z.ic} ${z.n}</option>`).join('')}</select></label><label>Question bank<select data-f="src" id="ef_src" data-ef="1">${QSRC.map(x=>`<option ${f.src===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Stims to bring (max ${EXP_STIMS}, you have ${Math.floor(G.res.stims)})<input type="number" id="ef_meds" data-ef="meds" min="0" max="${EXP_STIMS}" value="${esc(f.meds)}"></label></div>
+  <div class="form"><label>Operation name (optional)<input type="text" id="ef_name" data-ef="name" maxlength="40" value="${esc(f.name||'')}" placeholder="Auto: Operation …"></label><label>Where to go<select id="ef_zone" data-ef="zone">${EXP_ZONES.map((z,i)=>`<option value="${i}" ${(+f.zone||0)===i?'selected':''}>${z.ic} ${z.n}</option>`).join('')}</select></label>${FREE()?`<label>Encounters<select id="ef_goal" data-ef="goal">${[10,20,40].map(x=>`<option value="${x}" ${(+f.goal||20)===x?'selected':''}>${x} (~${Math.round(x*AUTO_MS/60000)} min)</option>`).join('')}</select></label>`:`<label>Question bank<select data-f="src" id="ef_src" data-ef="1">${QSRC.map(x=>`<option ${f.src===x?'selected':''}>${x}</option>`).join('')}</select></label>`}<label>Stims to bring (max ${EXP_STIMS}, you have ${Math.floor(G.res.stims)})<input type="number" id="ef_meds" data-ef="meds" min="0" max="${EXP_STIMS}" value="${esc(f.meds)}"></label></div>
   <p class="lede" style="font-size:12px;margin-top:-4px">${EXP_ZONES[+f.zone||0].ic} <b>${EXP_ZONES[+f.zone||0].n}:</b> ${EXP_ZONES[+f.zone||0].d}${(+f.zone||0)?` Loot ×${EXP_ZONES[+f.zone||0].capsM} caps, better gear odds; enemies ${Math.round(EXP_ZONES[+f.zone||0].atk*100)}% likely on a wrong answer (Ruins 55%), hits ×${EXP_ZONES[+f.zone||0].dmg}.`:''}</p>
-  <div class="row"><button class="btn pri lg" data-a="startLive" ${UI.expSel.length&&!liveExp()?'':'disabled'}>Start live run</button><span class="lede" style="font-size:12px">Tap Correct or Incorrect after each question as you work through the block.</span></div>
-  <div class="form"><label>Questions in block<input type="number" id="ef_n" data-ef="n" min="1" value="${esc(f.n)}" placeholder="40"></label><label>Correct<input type="number" id="ef_c" data-ef="c" min="0" value="${esc(f.c)}" placeholder="28"></label><button class="btn" data-a="startReport" ${UI.expSel.length?'':'disabled'}>Log finished block</button></div>
-  <p class="lede" style="font-size:12px">Every correct answer can turn up loot, and each answer in a streak raises the odds of Rare and Legendary finds. A wrong answer can draw an attack. Better weapons win more fights, armor softens hits and stims heal anyone who drops below 35 health, but settlers can die out there. Correct answers can also turn up scrap and blueprints. Finishing 10+ questions at 80% adds a Rare bonus, and at 90% a Legendary roll. Each block also counts toward today’s study goal.</p></div>`;
+  ${FREE()?`<div class="row"><button class="btn pri lg" data-a="startAuto" ${UI.expSel.length?'':'disabled'}>Send them out</button><span class="lede" style="font-size:12px">Each encounter is rolled from the team’s gear, stats and Luck. Wins find loot and build streaks; losses can start fights, and losing streaks get deadly in the risky zones.</span></div>`:''}<div class="row" style="${FREE()?'display:none':''}"><button class="btn pri lg" data-a="startLive" ${UI.expSel.length&&!liveExp()?'':'disabled'}>Start live run</button><span class="lede" style="font-size:12px">Tap Correct or Incorrect after each question as you work through the block.</span></div>
+  <div class="form" style="${FREE()?'display:none':''}"><label>Questions in block<input type="number" id="ef_n" data-ef="n" min="1" value="${esc(f.n)}" placeholder="40"></label><label>Correct<input type="number" id="ef_c" data-ef="c" min="0" value="${esc(f.c)}" placeholder="28"></label><button class="btn" data-a="startReport" ${UI.expSel.length?'':'disabled'}>Log finished block</button></div>
+  <p class="lede" style="font-size:12px;${FREE()?'display:none':''}">Every correct answer can turn up loot, and each answer in a streak raises the odds of Rare and Legendary finds. A wrong answer can draw an attack. Better weapons win more fights, armor softens hits and stims heal anyone who drops below 35 health, but settlers can die out there. Correct answers can also turn up scrap and blueprints. Finishing 10+ questions at 80% adds a Rare bonus, and at 90% a Legendary roll. Each block also counts toward today’s study goal.</p></div>`;
   return h;
 }
 function renderStore(){
@@ -7390,8 +7428,9 @@ function buildModal(f,c){
 function menuModal(){
   const g=G.study.goal;
   return `<header><h2>Colony settings</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
-  <div class="row"><input type="text" id="colName" value="${esc(G.name)}" maxlength="28" aria-label="Colony name"><button class="btn" data-a="renameColony">Rename colony</button></div>
-  <div class="box"><h4>Daily study goal</h4><div class="form"><label>Anki reviews<input type="number" id="gAnki" min="10" value="${g.anki}"></label><label>Questions<input type="number" id="gQ" min="5" value="${g.q}"></label><button class="btn" data-a="saveGoals">Save goals</button></div><p class="lede" style="font-size:12px">Together these fill 24 hours of reactor charge. Changing goals only affects future entries.</p></div>
+  <div class="row"><input type="text" id="colName" value="${esc(G.name)}" maxlength="28" aria-label="Colony name"><button class="btn" data-a="renameColony">Rename colony</button><button class="btn" data-a="vaults">Switch vault</button></div>
+  <p class="lede" style="font-size:12px">${FREE()?'Survival vault (no studying).':'Study vault.'} Up to three vaults; open <b>Switch vault</b> to play or start another.</p>
+  ${FREE()?'':`<div class="box"><h4>Daily study goal</h4><div class="form"><label>Anki reviews<input type="number" id="gAnki" min="10" value="${g.anki}"></label><label>Questions<input type="number" id="gQ" min="5" value="${g.q}"></label><button class="btn" data-a="saveGoals">Save goals</button></div><p class="lede" style="font-size:12px">Together these fill 24 hours of reactor charge. Changing goals only affects future entries.</p></div>`}
   <div class="box"><h4>Game speed</h4><p class="lede" style="font-size:12px">The clock sets itself. During a study session a day lasts <b>40 minutes</b> (even while you’re in another tab). Otherwise a day lasts <b>2 hours</b>. A study session ends on its own after 1.5 hours with no activity on the game page (moving the mouse over it, scrolling, tapping or typing all count). Pregnancy, childhood, training, crafting and exploring always run on real time. Right now: 1 day = ${G.session?'40 minutes':'2 hours'}.</p></div>
   ${musBox()}
   <div class="box"><h4>Vacation mode</h4><p class="lede" style="font-size:12px">Freezes the colony and skips study goals, for exams, travel or sick days. Nothing ages, produces or drains while it’s on.</p><div><button class="btn ${G.vacation?'pri':''}" data-a="vacation">${G.vacation?'End vacation':'Start vacation'}</button></div></div>
@@ -7436,6 +7475,7 @@ function renderModal(){
   else if(m.t==='build') h=buildModal(m.f,m.c);
   else if(m.t==='menu') h=menuModal();
   else if(m.t==='away') h=awayModal(m);
+  else if(m.t==='vaults') h=vaultsModal(m);
   else if(m.t==='session') h=sessionModal();
   else if(m.t==='body'){ const b=(G.bodies||[]).find(x=>x.id===m.id), d=b&&anyById(b.sid); if(b) h=`<header><h2>${esc(b.name)}</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
     <p class="lede">${d?`Died ${fdate(d.died)} at ${ageY(d)}. Cause: ${esc(d.cause||'unknown')}.`:''}</p>
@@ -7557,6 +7597,14 @@ document.addEventListener('click',e=>{
     case 'endEmerg': if(G.emergency){ G.emergency.until=G.day; emergencyDay(); const r=G.leader&&byId(G.leader); if(r) r.loy=Math.max(0,(r.loy||50)-15); save(); } break;
     case 'intelOv': G.intelOversight=!G.intelOversight; { const L=G.leader&&byId(G.leader); if(L&&G.intelOversight&&docOf(L).sec>.3) L.loy=Math.max(0,(L.loy||50)-5); } polNews(G.intelOversight?'The Overseer placed the Intelligence Bureau under oversight: no political use.':'The Overseer lifted oversight of the Intelligence Bureau.'); save(); break;
     case 'secSet': { const k=el.dataset.v, sel=document.getElementById('secPick_'+k), s=sel&&byId(+sel.value); if(s){ cabSeat(k,s,'the Overseer'); const L=G.leader&&byId(G.leader); if(L) L.loy=Math.max(0,(L.loy||50)-3); save(); } break; }
+    case 'vaultGo': { const n=+el.dataset.v; if(n===SLOT){ UI.modal=UI.awayHeld||null; UI.awayHeld=null; } else vaultSwitch(n); break; }
+    case 'vaultNew': UI.nvSlot=+el.dataset.v; UI.nv={mode:'study',bos:true}; break;
+    case 'nvMode': UI.nv=UI.nv||{}; UI.nv.name=($('nvName')||{}).value; UI.nv.bos=!!($('nvBos')||{}).checked; UI.nv.mode=el.dataset.v; break;
+    case 'nvCancel': UI.nvSlot=null; break;
+    case 'nvCreate': { const n=+el.dataset.v, nv=UI.nv||{}; const o={mode:nv.mode==='free'?'free':'study',name:(($('nvName')||{}).value||'').trim()||'Shelter '+(7+n),bos:!!($('nvBos')||{}).checked}; UI.nvSlot=null; vaultSwitch(n,o); break; }
+    case 'vaultDel': { const n=+el.dataset.v; if(n&&n!==SLOT){ slotDelete(n); toast('Vault deleted.'); } break; }
+    case 'vaults': UI.modal={t:'vaults'}; break;
+    case 'startAuto': startAuto(UI.expSel); break;
     case 'teamNew': teamCreate(); break;
     case 'teamRename': { const t=teamById(id), v=($('tmn_'+id)||{}).value; if(t&&v&&v.trim()) t.name=v.trim().slice(0,24); break; }
     case 'teamSF': { const t=teamById(id); if(t){ t.sf=!t.sf; for(const x of t.ids.map(byId).filter(Boolean)) x.sf=t.sf; log(`Team ${t.name} ${t.sf?'is now Special Forces, part of the military':'is no longer Special Forces'}.`,'gov'); } break; }
@@ -7675,7 +7723,7 @@ const AWAY_MIN=45*60000;
 function runSpan(ms,away){ let guard=0; const AW0=AWAY; let used=false;
   try{ while(ms>0&&guard++<20){
     if(G.session){ AWAY=AW0; const left=cmsOn()?Infinity:(G.session.lastAct||G.session.start)+SESSION_IDLE-G.lastReal; if(left<=0){ endSessionIdle(); continue; } const ch=Math.min(ms,left); G.dayLen=DAY_STUDY; advance(ch); ms-=ch; }
-    else { if(away&&ms>=AWAY_MIN){ AWAY=true; used=true; } G.dayLen=away?DAY_AWAY:DAY_OPEN; advance(ms); ms=0; } } }
+    else { if(away&&ms>=AWAY_MIN){ AWAY=true; used=true; } G.dayLen=away?DAY_AWAY:FREE()?FREE_DAY:DAY_OPEN; advance(ms); ms=0; } } }
   finally{ AWAY=AW0; if(used) G.graceUntil=Date.now()+GRACE_MS; } }
 function tickNow(){ const now=Date.now(); if(now>G.lastReal){ const gap=now-G.lastReal; LIVE=gap<90000&&!document.hidden; try{ if(gap>4000) runSpan(gap-1000,true); runSpan(Date.now()-G.lastReal,document.hidden); } finally { LIVE=false; } } if(!PDOWN) renderUI(); }
 document.addEventListener('pointerdown',()=>{ if(G&&G.session) G.session.lastAct=Date.now(); },true);
@@ -7691,14 +7739,16 @@ function catchUp(){
   if(el>10*60000){
     const i=G.log.indexOf(pre.logTop); const lines=(i<0?G.log:G.log.slice(0,i)).slice(0,14);
     const mins=Math.round(el/60000), dur=mins>=1440?`${Math.floor(mins/1440)}d ${Math.floor(mins%1440/60)}h`:hm(mins);
-    const charge=G.vacation?'Vacation mode was on, so nothing changed.':pre.boost>=mins?`The reactor stayed charged the whole time (${hm(G.boost)} left).`:pre.boost>0?`The reactor ran out after ${hm(pre.boost)}, and rooms have been on backup power since.`:'The reactor was empty, so rooms ran on backup power.';
+    const charge=G.vacation?'Vacation mode was on, so nothing changed.':FREE()?(G.flags.power?'The power grid ran dry, so rooms are on reduced output.':'The power grid held.'):pre.boost>=mins?`The reactor stayed charged the whole time (${hm(G.boost)} left).`:pre.boost>0?`The reactor ran out after ${hm(pre.boost)}, and rooms have been on backup power since.`:'The reactor was empty, so rooms ran on backup power.';
     UI.modal={t:'away',dur,days:G.day-pre.day,res:pre.res,lines,charge};
   }
 }
 function start(data){
-  G=(data&&data.G)?migrate(data.G):load();
-  if(!G){ newGame(); CLOUD.fresh=true; try{localStorage.setItem(KEY,JSON.stringify(G));}catch(e){} }
+  let pend=null; try{ pend=JSON.parse(localStorage.getItem('colony-newvault')||'null'); localStorage.removeItem('colony-newvault'); }catch(e){}
+  G=pend?null:(data&&data.G)?migrate(data.G):load();
+  if(!G){ newGame(pend||{}); if(!pend) G.blank=true; CLOUD.fresh=true; save(); }
   else catchUp();
+  if(!(data&&data.G)&&!pend){ UI.awayHeld=UI.modal&&UI.modal.t==='away'?UI.modal:null; UI.modal={t:'vaults',boot:true}; }
   settleEmergencies();
   for(const r of [...G.rooms]) if(G.rooms.includes(r)) tryMerge(r);
   try{ if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({G})); }catch(e){}
