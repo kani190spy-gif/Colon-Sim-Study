@@ -320,7 +320,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid curr
 
 <div id="app">
   <header class="top">
-    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.4</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
+    <div class="brand"><button data-a="menu" title="Colony menu and settings"><span class="nm"><span id="cname"></span> <span id="cver" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;vertical-align:middle">v12.5</span></span><span class="date" id="cdate"></span></button><button class="musbtn" id="musBtn" data-a="musTog" title="Background music on/off" aria-label="Toggle background music">♪</button></div>
     <div class="reactor" id="reactor"></div>
     <div class="resbar" id="res"></div>
     <button class="btn lg" id="sessBtn" data-a="session">Start study session</button>
@@ -1666,7 +1666,8 @@ function sessionModal(){
 
 /* ---------- save ---------- */
 const DESKTOP=!!(window.desktop&&window.desktop.isDesktop);
-function save(){ if(!G) return; G.savedAt=Date.now(); if(!SLOT) CLOUD.dirty=true; let js=null; try{ js=JSON.stringify(G); }catch(e){} if(js) slotWrite(SLOT,js); }
+let NO_SAVE=false;
+function save(){ if(!G||NO_SAVE) return; G.savedAt=Date.now(); if(!SLOT) CLOUD.dirty=true; let js=null; try{ js=JSON.stringify(G); }catch(e){} if(js) slotWrite(SLOT,js); }
 function slotWrite(n,js){ try{ localStorage.setItem(slotKey(n),js);}catch(e){} if(DESKTOP){ try{ if(!n) window.desktop.save(js); else if(window.desktop.saveSlot) window.desktop.saveSlot(n,js); }catch(e){} } }
 function slotRead(n){ if(DESKTOP){ try{ const r=!n?window.desktop.load():window.desktop.loadSlot?window.desktop.loadSlot(n):null; if(r) return r; }catch(e){} } try{ return localStorage.getItem(slotKey(n)); }catch(e){ return null; } }
 function slotDelete(n){ if(!n) return; try{ localStorage.removeItem(slotKey(n)); }catch(e){} if(DESKTOP&&window.desktop.delSlot){ try{ window.desktop.delSlot(n); }catch(e){} } }
@@ -6740,7 +6741,7 @@ function vaultsModal(m){ const V=[0,1,2].map(vaultMeta), nf=UI.nv||{};
       <div class="row" style="gap:8px;margin-top:8px"><button class="btn pri" data-a="nvCreate" data-v="${n}">${v?'Replace this vault':'Create vault'}</button><button class="btn sm" data-a="nvCancel">Cancel</button></div>${v?'<p class="lede" style="font-size:12px;color:var(--danger)">The vault in this slot will be erased.</p>':''}</div>`:'';
     return `<div class="box" style="${v&&v.cur?'border-color:var(--accent)':''}">${head}<div class="row" style="gap:6px;flex-wrap:wrap">${btns}</div>${f}</div>`; };
   return `<header><h2>Your vaults</h2>${m.boot?'':'<button class="x" data-a="close" aria-label="Close">×</button>'}</header><div class="bd"><p class="lede">Up to three vaults. Each one saves separately; switching reloads the game.</p>${V.map(card).join('')}</div>`; }
-function vaultSwitch(n,newOpts){ save(); try{ localStorage.setItem('colony-slot',String(n)); if(newOpts) localStorage.setItem('colony-newvault',JSON.stringify(newOpts)); }catch(e){ toast('This browser blocks local storage, so vaults can’t be switched here.'); return; } location.reload(); }
+function vaultSwitch(n,newOpts){ save(); NO_SAVE=true; try{ localStorage.setItem('colony-slot',String(n)); if(newOpts) localStorage.setItem('colony-newvault',JSON.stringify(newOpts)); }catch(e){ NO_SAVE=false; toast('This browser blocks local storage, so vaults can’t be switched here.'); return; } location.reload(); }
 
 function drawRoom(c,r,t,lit){
   const d=ROOMS[r.type], x=roomX(r.col), top=floorTop(r.floor), w=roomW(r), h=WD.floorH, fl=top+h-14;
@@ -7430,6 +7431,9 @@ function menuModal(){
   return `<header><h2>Colony settings</h2><button class="x" data-a="close" aria-label="Close">×</button></header><div class="bd">
   <div class="row"><input type="text" id="colName" value="${esc(G.name)}" maxlength="28" aria-label="Colony name"><button class="btn" data-a="renameColony">Rename colony</button><button class="btn" data-a="vaults">Switch vault</button></div>
   <p class="lede" style="font-size:12px">${FREE()?'Survival vault (no studying).':'Study vault.'} Up to three vaults; open <b>Switch vault</b> to play or start another.</p>
+  <div class="box"><h4>Save file</h4><div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-a="expSave">⬇ Export save</button><label class="btn" style="cursor:pointer">⬆ Import save<input type="file" accept=".json,application/json" data-c="impFile" style="display:none"></label></div>
+  ${UI.imp?`<div class="box" style="margin-top:8px;border-color:var(--warn)"><p class="lede" style="font-size:13px">Replace <b>${esc(G.name)}</b> with <b>${esc(UI.imp.name)}</b> (${UI.imp.mode==='free'?'Survival':'Study'}, year ${Math.floor(UI.imp.day/YEAR)+1}, ${UI.imp.pop} settlers)? The current vault in this slot will be overwritten.</p><div class="row" style="gap:6px"><button class="btn pri" data-a="impGo">Replace and load</button><button class="btn sm" data-a="impCancel">Cancel</button></div></div>`:''}
+  <p class="lede" style="font-size:12px">The game saves automatically${DESKTOP?' to your saves folder':' in this browser'}. Export makes a backup file you can keep or move to another computer; Import loads one into this vault slot.</p></div>
   ${FREE()?'':`<div class="box"><h4>Daily study goal</h4><div class="form"><label>Anki reviews<input type="number" id="gAnki" min="10" value="${g.anki}"></label><label>Questions<input type="number" id="gQ" min="5" value="${g.q}"></label><button class="btn" data-a="saveGoals">Save goals</button></div><p class="lede" style="font-size:12px">Together these fill 24 hours of reactor charge. Changing goals only affects future entries.</p></div>`}
   <div class="box"><h4>Game speed</h4><p class="lede" style="font-size:12px">The clock sets itself. During a study session a day lasts <b>40 minutes</b> (even while you’re in another tab). Otherwise a day lasts <b>2 hours</b>. A study session ends on its own after 1.5 hours with no activity on the game page (moving the mouse over it, scrolling, tapping or typing all count). Pregnancy, childhood, training, crafting and exploring always run on real time. Right now: 1 day = ${G.session?'40 minutes':'2 hours'}.</p></div>
   ${musBox()}
@@ -7604,6 +7608,9 @@ document.addEventListener('click',e=>{
     case 'nvCreate': { const n=+el.dataset.v, nv=UI.nv||{}; const o={mode:nv.mode==='free'?'free':'study',name:(($('nvName')||{}).value||'').trim()||'Shelter '+(7+n),bos:!!($('nvBos')||{}).checked}; UI.nvSlot=null; vaultSwitch(n,o); break; }
     case 'vaultDel': { const n=+el.dataset.v; if(n&&n!==SLOT){ slotDelete(n); toast('Vault deleted.'); } break; }
     case 'vaults': UI.modal={t:'vaults'}; break;
+    case 'expSave': { save(); try{ const blob=new Blob([JSON.stringify(G)],{type:'application/json'}), a=document.createElement('a'), d=new Date(); a.href=URL.createObjectURL(blob); a.download=`${(G.name||'vault').replace(/[^\w\- ]+/g,'').trim()||'vault'} ${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); toast('Save exported.'); }catch(e){ toast('Export failed in this browser.'); } break; }
+    case 'impGo': { if(UI.impTxt){ NO_SAVE=true; slotWrite(SLOT,UI.impTxt); UI.imp=null; UI.impTxt=null; try{ localStorage.setItem('colony-slot',String(SLOT)); }catch(e){} location.reload(); } break; }
+    case 'impCancel': UI.imp=null; UI.impTxt=null; break;
     case 'startAuto': startAuto(UI.expSel); break;
     case 'teamNew': teamCreate(); break;
     case 'teamRename': { const t=teamById(id), v=($('tmn_'+id)||{}).value; if(t&&v&&v.trim()) t.name=v.trim().slice(0,24); break; }
@@ -7691,6 +7698,7 @@ document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.f==='src'){ if(el.dataset.ef) UI.ef.src=el.value; else UI.sform.src=el.value; }
   if(el.dataset.c==='hallDesign'){ const r=roomById(+el.dataset.id); if(r){ r.design=+el.value; save(); } el.blur(); renderUI(); }
+  if(el.dataset.c==='impFile'){ const f=el.files&&el.files[0]; if(f){ const rd=new FileReader(); rd.onload=()=>{ try{ const g=JSON.parse(rd.result); if(!g||!(g.v===2||g.v===3)||!Array.isArray(g.settlers)) throw 0; delete g.blank; UI.imp={name:g.name||'Vault',mode:g.mode||'study',day:g.day||0,pop:g.settlers.length}; UI.impTxt=JSON.stringify(g); }catch(e){ toast('That file is not a Colony Sim save.'); } renderUI(); }; rd.readAsText(f); } el.value=''; return; }
   if(el.dataset.c==='teamAdd'){ const t=teamById(+el.dataset.id), x=byId(+el.value); if(t&&x) teamAdd(t,x); save(); el.blur(); renderUI(); return; }
   if(el.dataset.c==='cmdGuard'){ const r=roomById(+el.dataset.id); if(r){ r.guard=+el.value; save(); } el.blur(); renderUI(); }
   if(el.dataset.c==='gear'){ const s=byId(+el.dataset.id); if(s){ equip(s,el.dataset.slot,el.value?+el.value:null); } el.blur(); renderUI(); }
@@ -7725,7 +7733,7 @@ function runSpan(ms,away){ let guard=0; const AW0=AWAY; let used=false;
     if(G.session){ AWAY=AW0; const left=cmsOn()?Infinity:(G.session.lastAct||G.session.start)+SESSION_IDLE-G.lastReal; if(left<=0){ endSessionIdle(); continue; } const ch=Math.min(ms,left); G.dayLen=DAY_STUDY; advance(ch); ms-=ch; }
     else { if(away&&ms>=AWAY_MIN){ AWAY=true; used=true; } G.dayLen=away?DAY_AWAY:FREE()?FREE_DAY:DAY_OPEN; advance(ms); ms=0; } } }
   finally{ AWAY=AW0; if(used) G.graceUntil=Date.now()+GRACE_MS; } }
-function tickNow(){ const now=Date.now(); if(now>G.lastReal){ const gap=now-G.lastReal; LIVE=gap<90000&&!document.hidden; try{ if(gap>4000) runSpan(gap-1000,true); runSpan(Date.now()-G.lastReal,document.hidden); } finally { LIVE=false; } } if(!PDOWN) renderUI(); }
+function tickNow(){ if(G&&G.blank&&!(UI.modal&&UI.modal.t==='vaults')) delete G.blank; const now=Date.now(); if(now>G.lastReal){ const gap=now-G.lastReal; LIVE=gap<90000&&!document.hidden; try{ if(gap>4000) runSpan(gap-1000,true); runSpan(Date.now()-G.lastReal,document.hidden); } finally { LIVE=false; } } if(!PDOWN) renderUI(); }
 document.addEventListener('pointerdown',()=>{ if(G&&G.session) G.session.lastAct=Date.now(); },true);
 document.addEventListener('keydown',()=>{ if(G&&G.session) G.session.lastAct=Date.now(); },true);
 for(const ev of ['pointermove','wheel','scroll','touchstart']) document.addEventListener(ev,()=>{ if(G&&G.session) G.session.lastAct=Date.now(); },{capture:true,passive:true});
